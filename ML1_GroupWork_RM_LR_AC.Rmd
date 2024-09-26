@@ -60,29 +60,23 @@ data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 
 ```{r cars cache=TRUE}
 
+
 #DATA PREP
 data_motor$SEX<-as.factor(data_motor$SEX)
-data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y")
-data_motor$INSR_END <- as.Date(data_motor$INSR_END, format = "%d-%b-%y")
+data_motor$INSR_BEGIN<- as.Date(data_motor$INSR_BEGIN, format = "%m/%d/%Y")
+data_motor$INSR_END
 
+ 
 data_motor$OBJECT_ID<-as.factor(data_motor$OBJECT_ID)
 data_motor$MAKE<-as.factor(data_motor$MAKE)
 data_motor$USAGE<-as.factor(data_motor$USAGE)
 data_motor$TYPE_VEHICLE<-as.factor(data_motor$TYPE_VEHICLE)
 data_motor$CARRYING_CAPACITY<-as.numeric(data_motor$CARRYING_CAPACITY)
-
-#Remove variables
 data_motor <- data_motor[, !names(data_motor) %in% "EFFECTIVE_YR"]
 
-#Data Quality:
 # Entfernen der Zeilen, wo 'make' nicht mit einem Buchstaben beginnt
-data_motor <- data_motor[grepl("^[A-Za-z]", data_motor$MAKE), ] #138 Zeilen werden entfernt
-
-# Ersetzen von NA in der Variable 'claim' durch 0
+data_motor <- data_motor[grepl("^[A-Za-z]", data_motor$MAKE), ] 
 data_motor$CLAIM_PAID[is.na(data_motor$CLAIM_PAID)] <- 0
-
-
-
 table(data_motor$TYPE_VEHICLE)
 
 
@@ -90,14 +84,50 @@ table(data_motor$TYPE_VEHICLE)
 
 
 
+# LUCA
+# Drop rows with NA values in specific columns
+data_motor <- data_motor[!is.na(data_motor$PREMIUM) & !is.na(data_motor$PROD_YEAR) & !is.na(data_motor$CCM_TON) & !is.na(data_motor$MAKE) & !is.na(data_motor$SEATS_NUM), ]
+
+# Check for the number of missing values in each column
+colSums(is.na(data_motor))
+
+# Create a new column to determine if the claim was paid
+data_motor$CLAIM <- ifelse(data_motor$CLAIM_PAID == 0, 'NO', 'YES')
 
 
+# Map the values of the SEX column to a new GENDER column
+data_motor$GENDER <- dplyr::recode(data_motor$SEX, `0` = 'Legal Entity', `1` = 'Male', `2` = 'Female')
+
+# Drop the SEX column
+data_motor <- data_motor[, !names(data_motor) %in% 'SEX']
 
 
+# Map the values of the INSR_TYPE column to a new TYPE_INSR column
+data_motor$TYPE_INSR <- dplyr::recode(data_motor$INSR_TYPE, 
+                                      `1201` = 'Private', 
+                                      `1202` = 'Commercial', 
+                                      `1204` = 'Motor Trade Road Risk')
 
+# Drop the INSR_TYPE column
+data_motor <- data_motor[, !names(data_motor) %in% 'INSR_TYPE']
 
+# Count how many zeros are in the INSURED_VALUE column
+insured_value_zeros <- sum(data_motor$INSURED_VALUE == 0)
+cat('Number of values with zero in insured value:', insured_value_zeros, '\n')
 
+# Count how many zeros are in the PREMIUM column
+premium_zeros <- sum(data_motor$PREMIUM == 0)
+cat('Number of values with zero in premium:', premium_zeros, '\n')
 
+data_motor <- data_motor[data_motor$PREMIUM != 0, ]
+
+# Count how many zeros are in the CARRYING_CAPACITY column
+carrying_capacity_zeros <- sum(data_motor$CARRYING_CAPACITY == 0)
+cat('Number of values with zero in carrying capacity:', carrying_capacity_zeros, '\n')
+
+# Count how many zeros are in the SEATS_NUM column
+seats_num_zeros <- sum(data_motor$SEATS_NUM == 0)
+cat('Number of values with zero in number of seats:', seats_num_zeros, '\n')
 
 ```
 # Models
