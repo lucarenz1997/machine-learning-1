@@ -60,22 +60,30 @@ data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 
 ```{r cars cache=TRUE}
 
-
 #DATA PREP
 data_motor$SEX<-as.factor(data_motor$SEX)
-data_motor$INSR_BEGIN<- as.Date(data_motor$INSR_BEGIN, format = "%m/%d/%Y")
-data_motor$INSR_END
+data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y")
+data_motor$INSR_END <- as.Date(data_motor$INSR_END, format = "%d-%b-%y")
+
+data_motor$OBJECT_ID<-as.factor(data_motor$OBJECT_ID)
+data_motor$MAKE<-as.factor(data_motor$MAKE)
+data_motor$USAGE<-as.factor(data_motor$USAGE)
+data_motor$TYPE_VEHICLE<-as.factor(data_motor$TYPE_VEHICLE)
+data_motor$CARRYING_CAPACITY<-as.numeric(data_motor$CARRYING_CAPACITY)
+
+#Remove variables
+data_motor <- data_motor[, !names(data_motor) %in% "EFFECTIVE_YR"]
+
+#Data Quality:
+# Entfernen der Zeilen, wo 'make' nicht mit einem Buchstaben beginnt
+data_motor <- data_motor[grepl("^[A-Za-z]", data_motor$MAKE), ] #138 Zeilen werden entfernt
+
+# Ersetzen von NA in der Variable 'claim' durch 0
+data_motor$CLAIM_PAID[is.na(data_motor$CLAIM_PAID)] <- 0
 
 
 
-
-
-
-
-
-
-
-
+table(data_motor$TYPE_VEHICLE)
 
 
 
