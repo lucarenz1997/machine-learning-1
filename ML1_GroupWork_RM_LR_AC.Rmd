@@ -63,6 +63,19 @@ data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 #DATA PREP
 data_motor$SEX<-as.factor(data_motor$SEX)
 data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y")
+
+# Funktion, um das Datum zu parsen, abhängig vom Format
+data_motor$INSR_BEGIN <- ifelse(grepl("-", data_motor$INSR_BEGIN) & grepl("[A-Za-z]", data_motor$INSR_BEGIN),
+                                as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y"),  # Format für '09-MAY-18'
+                                as.Date(data_motor$INSR_BEGIN, format = "%Y-%m-%d"))  # Format für '2015-11-28'
+
+# Den modifizierten Datensatz anzeigen
+data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN)  # Sicherstellen, dass
+
+
+09-MAY-18
+
+
 data_motor$INSR_END <- as.Date(data_motor$INSR_END, format = "%d-%b-%y")
 
 data_motor$OBJECT_ID<-as.factor(data_motor$OBJECT_ID)
@@ -93,6 +106,9 @@ table(data_motor$TYPE_VEHICLE)
 
 
 
+#Fehlende Werte prüfen
+sum(is.na(data_motor))  #Anzahl fehlender Werte
+colSums(is.na(data_motor))  #Fehlende Werte pro Spalte (counterpart am meisten NA's)
 
 
 
