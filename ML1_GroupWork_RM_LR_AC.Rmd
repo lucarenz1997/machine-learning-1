@@ -72,6 +72,25 @@ data_motor$INSR_END
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```
 # Models
 ## Linear Model
