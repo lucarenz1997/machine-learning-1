@@ -15,8 +15,50 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
-# DATA LOAD
-motor_data14_2018 <- read_csv("data/motor_data14-2018.csv")
+
+#Install and import libraries.
+if (!require("quantmod")) install.packages("quantmod")
+if (!require("PortfolioAnalytics")) install.packages("PortfolioAnalytics")
+if (!require("PerformanceAnalytics")) install.packages("PerformanceAnalytics")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("ROI")) install.packages("ROI")
+if (!require("ROI.plugin.quadprog")) install.packages("ROI.plugin.quadprog")
+if (!require("fPortfolio")) install.packages("fPortfolio")
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("lubridate")) install.packages("lubridate")
+if (!require("corrplot")) install.packages("corrplot")
+if (!require("dbscan")) install.packages("dbscan")
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("GGally")) install.packages("GGally")
+if (!require("tm")) install.packages("tm")
+if (!require("tidytext")) install.packages("tidytext")
+if (!require("wordcloud")) install.packages("wordcloud")
+
+
+library(readr,quietly = T)
+library(quantmod, quietly = T)
+library(PortfolioAnalytics, quietly = T)
+library(PerformanceAnalytics, quietly = T)
+library(ggplot2, quietly = T)
+library(ROI, quietly = T)
+library(ROI.plugin.quadprog, quietly = T)
+library(fPortfolio, quietly = T)
+library(tidyverse, quietly = T)
+library(lubridate, quietly = T)
+library(corrplot, quietly = T)
+library(dbscan)
+library(dplyr)
+library(GGally)
+library(NLP)
+library(RColorBrewer)
+library(tm)
+library(wordcloud)
+library(tidytext)
+
+
+#DATA LOAD
+#Ohne die Spaltentyp-Meldungen anzuzeigen
+motor_data14_2018 <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 ```
 
 ## Including Plots
