@@ -54,14 +54,31 @@ library(tidytext)
 
 # DATA LOAD
 # without column-types shown
-motor_data14_2018 <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
+data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
+
 ```
 
+```{r cars cache=TRUE}
+
+
+#DATA PREP
+data_motor$SEX<-as.factor(data_motor$SEX)
+data_motor$INSR_BEGIN<- as.Date(data_motor$INSR_BEGIN, format = "%m/%d/%Y")
+data_motor$INSR_END
+
+
+
+
+
+
+
+```
 # Models
 ## Linear Model
 ```{r Linear-Model}
 # TODO
-
+str(data_motor)
+summary(data_motor)
 ```
 
 
