@@ -63,18 +63,10 @@ data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 
 #DATA PREP
 data_motor$SEX<-as.factor(data_motor$SEX)
+data_motor$INSR_BEGIN<- as.Date(data_motor$INSR_BEGIN, format = "%m/%d/%Y")
+data_motor$INSR_END
 
-data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y")
-
-# Funktion, um das Datum zu parsen, abhängig vom Format
-data_motor$INSR_BEGIN <- ifelse(grepl("-", data_motor$INSR_BEGIN) & grepl("[A-Za-z]", data_motor$INSR_BEGIN),
-                                as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y"),  # Format für '09-MAY-18'
-                                as.Date(data_motor$INSR_BEGIN, format = "%Y-%m-%d"))  # Format für '2015-11-28'
-
-# Den modifizierten Datensatz anzeigen
-data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN)  # Sicherstellen, dass
-
-
+ 
 data_motor$OBJECT_ID<-as.factor(data_motor$OBJECT_ID)
 data_motor$MAKE<-as.factor(data_motor$MAKE)
 data_motor$USAGE<-as.factor(data_motor$USAGE)
@@ -109,9 +101,6 @@ data_motor$GENDER <- dplyr::recode(data_motor$SEX, `0` = 'Legal Entity', `1` = '
 # Drop the SEX column
 data_motor <- data_motor[, !names(data_motor) %in% 'SEX']
 
-#Fehlende Werte prüfen
-sum(is.na(data_motor))  #Anzahl fehlender Werte
-colSums(is.na(data_motor))  #Fehlende Werte pro Spalte (counterpart am meisten NA's)
 
 # Map the values of the INSR_TYPE column to a new TYPE_INSR column
 data_motor$TYPE_INSR <- dplyr::recode(data_motor$INSR_TYPE, 
@@ -126,6 +115,27 @@ data_motor <- data_motor[, !names(data_motor) %in% 'INSR_TYPE']
 insured_value_zeros <- sum(data_motor$INSURED_VALUE == 0)
 cat('Number of values with zero in insured value:', insured_value_zeros, '\n')
 
+#FIXME to be discussed
+# Calculate the median of INSURED_VALUE by TYPE_VEHICLE, MAKE, and PROD_YEAR 
+median_insured_value <- ave(data_motor$INSURED_VALUE, data_motor$TYPE_VEHICLE, data_motor$MAKE, data_motor$PROD_YEAR, 
+                            FUN = function(x) median(x, na.rm = TRUE))
+
+# Replace 0s in INSURED_VALUE with the calculated median
+data_motor$INSURED_VALUE[data_motor$INSURED_VALUE == 0] <- median_insured_value[data_motor$INSURED_VALUE == 0]
+
+
+# Calculate the median of CARRYING_CAPACITY by TYPE_VEHICLE and MAKE
+median_carrying_capacity <- ave(data_motor$CARRYING_CAPACITY, data_motor$TYPE_VEHICLE, data_motor$MAKE, 
+                                FUN = function(x) median(x, na.rm = TRUE))
+
+data_motor$CARRYING_CAPACITY[is.na(data_motor$CARRYING_CAPACITY)] <- 0
+
+# Replace 0s in CARRYING_CAPACITY with the calculated median
+data_motor$CARRYING_CAPACITY[data_motor$CARRYING_CAPACITY == 0] <- median_carrying_capacity[data_motor$CARRYING_CAPACITY == 0]
+
+
+
+
 # Count how many zeros are in the PREMIUM column
 premium_zeros <- sum(data_motor$PREMIUM == 0)
 cat('Number of values with zero in premium:', premium_zeros, '\n')
@@ -139,6 +149,7 @@ cat('Number of values with zero in carrying capacity:', carrying_capacity_zeros,
 # Count how many zeros are in the SEATS_NUM column
 seats_num_zeros <- sum(data_motor$SEATS_NUM == 0)
 cat('Number of values with zero in number of seats:', seats_num_zeros, '\n')
+
 
 ```
 # Models
