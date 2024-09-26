@@ -70,7 +70,7 @@ data_motor$SEX<-as.factor(data_motor$SEX)
 data_motor$INSR_BEGIN<- as.Date(data_motor$INSR_BEGIN, format = "%m/%d/%Y")
 data_motor$INSR_END
 
-<<<<<<< HEAD
+
 #data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y")
 #
 ## Funktion, um das Datum zu parsen, abhängig vom Format
@@ -82,9 +82,7 @@ data_motor$INSR_END
 #data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN)  # Sicherstellen, dass
 
 
-=======
- 
->>>>>>> da958ee3f095a1cbe81f1833dc2ce78ba09e6a43
+
 data_motor$OBJECT_ID<-as.factor(data_motor$OBJECT_ID)
 data_motor$MAKE<-as.factor(data_motor$MAKE)
 data_motor$USAGE<-as.factor(data_motor$USAGE)
@@ -96,7 +94,6 @@ data_motor <- data_motor[, !names(data_motor) %in% "EFFECTIVE_YR"]
 data_motor <- data_motor[grepl("^[A-Za-z]", data_motor$MAKE), ] 
 data_motor$CLAIM_PAID[is.na(data_motor$CLAIM_PAID)] <- 0
 table(data_motor$TYPE_VEHICLE)
-
 
 
 # LUCA
@@ -115,13 +112,7 @@ data_motor$GENDER <- dplyr::recode(data_motor$SEX, `0` = 'Legal Entity', `1` = '
  
 # Drop the SEX column
 data_motor <- data_motor[, !names(data_motor) %in% 'SEX']
-<<<<<<< HEAD
- 
- 
-=======
 
-
->>>>>>> da958ee3f095a1cbe81f1833dc2ce78ba09e6a43
 # Map the values of the INSR_TYPE column to a new TYPE_INSR column
 data_motor$TYPE_INSR <- dplyr::recode(data_motor$INSR_TYPE, 
                                       `1201` = 'Private', 
@@ -134,17 +125,12 @@ data_motor <- data_motor[, !names(data_motor) %in% 'INSR_TYPE']
 # Count how many zeros are in the INSURED_VALUE column
 insured_value_zeros <- sum(data_motor$INSURED_VALUE == 0)
 cat('Number of values with zero in insured value:', insured_value_zeros, '\n')
-<<<<<<< HEAD
- 
-=======
 
->>>>>>> da958ee3f095a1cbe81f1833dc2ce78ba09e6a43
 #FIXME to be discussed
 # Calculate the median of INSURED_VALUE by TYPE_VEHICLE, MAKE, and PROD_YEAR 
 median_insured_value <- ave(data_motor$INSURED_VALUE, data_motor$TYPE_VEHICLE, data_motor$MAKE, data_motor$PROD_YEAR, 
                             FUN = function(x) median(x, na.rm = TRUE))
-<<<<<<< HEAD
- 
+
 # Replace 0s in INSURED_VALUE with the calculated median
 data_motor$INSURED_VALUE[data_motor$INSURED_VALUE == 0] <- median_insured_value[data_motor$INSURED_VALUE == 0]
  
@@ -158,7 +144,6 @@ data_motor$CARRYING_CAPACITY[data_motor$CARRYING_CAPACITY == 0] <- median_carryi
  
  
  
-=======
 
 # Replace 0s in INSURED_VALUE with the calculated median
 data_motor$INSURED_VALUE[data_motor$INSURED_VALUE == 0] <- median_insured_value[data_motor$INSURED_VALUE == 0]
@@ -174,9 +159,6 @@ data_motor$CARRYING_CAPACITY[is.na(data_motor$CARRYING_CAPACITY)] <- 0
 data_motor$CARRYING_CAPACITY[data_motor$CARRYING_CAPACITY == 0] <- median_carrying_capacity[data_motor$CARRYING_CAPACITY == 0]
 
 
-
-
->>>>>>> da958ee3f095a1cbe81f1833dc2ce78ba09e6a43
 # Count how many zeros are in the PREMIUM column
 premium_zeros <- sum(data_motor$PREMIUM == 0)
 cat('Number of values with zero in premium:', premium_zeros, '\n')
@@ -192,11 +174,11 @@ seats_num_zeros <- sum(data_motor$SEATS_NUM == 0)
 cat('Number of values with zero in number of seats:', seats_num_zeros, '\n')
 
 
-<<<<<<< HEAD
 
-=======
->>>>>>> da958ee3f095a1cbe81f1833dc2ce78ba09e6a43
 ```
+
+
+
 # Models
 ## Linear Model
 ```{r Linear-Model}
