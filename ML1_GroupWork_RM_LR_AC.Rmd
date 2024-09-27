@@ -175,7 +175,7 @@ summary(data_motor)
  #Premium= gender, insured value, prod_year, seats number, capacity, type vehicle,  cctm_ton, make, usage
 
 # Erstelle das lineare Regressionsmodell mit den erklärenden Variablen
-lm_model <- lm(PREMIUM ~ SEX + INSURED_VALUE + PROD_YEAR + SEATS_NUM + CARRYING_CAPACITY + 
+lm_model <- lm(PREMIUM ~ GENDER + INSURED_VALUE + PROD_YEAR + SEATS_NUM + CARRYING_CAPACITY + 
                TYPE_VEHICLE + CCM_TON + MAKE + USAGE, data = data_motor)
 
 # Zusammenfassung des Modells anzeigen
