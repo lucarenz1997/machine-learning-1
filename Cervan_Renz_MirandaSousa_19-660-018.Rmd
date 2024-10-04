@@ -18,6 +18,15 @@ methods (e.g. you use Cross Validation to compare 2-3 SVM models).
 • In case students cannot find an appropriate measure of fit, they can use the Root Mean
 Squared Error (RMSE).
 
+Schließlich ist zu beachten, dass die Zusammenstellung von Dokumenten einige Zeit in Anspruch nehmen kann... insbesondere wenn komplexe
+Modelle angepasst werden
+- In diesen Fällen können Sie die Argumentationsoption cache = TRUE verwenden, so dass ein Chunk nur dann neu ausgewertet wird
+nur dann neu ausgewertet wird, wenn er seit der letzten Kompilierung geändert wurde. Wenn der Chunk unverändert blieb
+unverändert, dann werden die alten Ergebnisse verwendet
+
+
+
+
 # Setup
 ```{r cars cache=TRUE}
 
@@ -62,39 +71,184 @@ library(tidytext)
 
 
 # DATA LOAD
-# without column-types shown
 data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 
 
-str(data_motor)
+#Alternativer Datensatz
+#data_veh_ins<- read.csv("C:/Users/Ella-/MSc/2. Semester/ML1/machine-learning-1/data/Motor vehicle insurance data.csv", sep=";")
+##Data Prep
+## Umwandlung von Type_risk in eine ordinale kategoriale Variable
+#data_veh_ins$Type_risk <- factor(data_veh_ins$Type_risk,
+#                                 levels = c(1, 2, 3, 4),
+#                                 labels = c("Motorbike", "Van", "Passenger Car", "Agricultural Vehicle"),
+#                                 ordered = TRUE)
+## Umwandlung von Payment in eine kategorische Variable mit den definierten Labels
+#data_veh_ins$Payment <- factor(data_veh_ins$Payment,
+#                               levels = c(0, 1),
+#                               labels = c("Annual Payment", "Half-yearly Administrative Process"))
+#
+## Umwandlung von Area in eine kategorische Variable mit den definierten Labels
+#data_veh_ins$Area <- factor(data_veh_ins$Area, levels = c(0, 1),
+#                            labels = c("Rural", "Urban (more than 30K inhabitants)"))
+#
+## Umwandlung von Second_driver in eine kategorische Variable mit den definierten Labels
+#data_veh_ins$Second_driver <- factor(data_veh_ins$Second_driver,
+#                                     levels = c(0, 1), 
+#                                     labels = c("One driver declared", "Multiple drivers declared"))
+#
+## Umwandlung von Distribution_channel in eine kategorische Variable mit den definierten Labels
+#data_veh_ins$Distribution_channel <- factor(data_veh_ins$Distribution_channel,
+#                                            levels = c(0, 1), 
+#                                            labels = c("Agent", "Insurance Broker"))
+
+#table(data_veh_ins$Type_risk)
+#str(data_veh_ins)
+
+
+
 ```
+
+
+Aus Quelle:
+Some predictors such as carrying capacity and seat number are removed from the dataset prior
+to data analysis and modeling since they are not correctly coded.
+
+
+CHATGPT
+CCM TON
+Es macht keinen Sinn, dass Fahrzeuge einen Wert von 0 für die Variable CCM_TON haben, wenn diese Variable den Hubraum oder das Gewicht des Motors in Kubikzentimetern (ccm) oder Tonnen angibt.
+Warum?
+Der Hubraum (ccm) gibt das Volumen der Zylinder eines Verbrennungsmotors an. Ein Wert von 0 wäre unplausibel, da ein Fahrzeug ohne Hubraum keinen funktionsfähigen Motor hätte.
+Wenn CCM_TON das Gewicht des Motors in Tonnen angibt, wäre ebenfalls ein Wert von 0 unplausibel, da ein Fahrzeug ohne Motorgewicht nicht funktionsfähig wäre.
+
+
+```{r cars cache=TRUE}
+
+
+#DATA PREP
+data_motor$SEX <- factor(data_motor$SEX, 
+                   levels = c(0, 1, 2), 
+                   labels = c("Legal entity", "Male", "Female"))
+
+data_motor$INSR_TYPE <- factor(data_motor$INSR_TYPE, 
+                         levels = c(1201, 1202, 1204), 
+                         labels = c("Private", "Commercial", "Motor trade road risk"))
+
+
+#Cat var
+data_motor$CLAIM_PAID_USD <- ifelse(is.na(data_motor$CLAIM_PAID), 0, data_motor$CLAIM_PAID)
+data_motor$CLAIM_PAID <- ifelse(data_motor$CLAIM_PAID_USD == 0, "NO", "YES")
+
+
+#Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (5)
+data_motor <- data_motor[data_motor$TYPE_VEHICLE != "Trade plates", ]
+
+
+#NA
+colSums(is.na(data_motor))
+
+# Entfernen der der Variable CARRYING_CAPACITY, da viele NA und Qualität schlecht.
+data_motor <- subset(data_motor, select = -CARRYING_CAPACITY)
+
+#Zeilen mit PREMIUM NA und 0 entfernen
+data_motor <- data_motor[!(is.na(data_motor$PREMIUM) | data_motor$PREMIUM == 0), ]
+
+#Zeilen mit PROD_YEAR NA entfernen
+data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
+
+#Zeilen mit MAKE NA entfernen
+data_motor <- data_motor[!is.na(data_motor$MAKE),]
+
+
+
+
+
+#SEATS_NUM
+# Analyse SEATS_NUM: Anzahl der Zeilen mit SEATS_NUM == 0, NA und anderen Werten
+data.frame(
+  SEATS_NUM_0 = sum(data_motor$SEATS_NUM == 0, na.rm = TRUE),
+  SEATS_NUM_NA = sum(is.na(data_motor$SEATS_NUM)),
+  SEATS_NUM_OTHER = sum(data_motor$SEATS_NUM > 0, na.rm = TRUE)
+)
+
+# Relativ: Prozentsatz der Zeilen mit SEATS_NUM == 0, NA oder anderen Werten
+data.frame(
+  SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(data_motor$SEATS_NUM) | data_motor$SEATS_NUM == 0) / nrow(data_motor),
+  SEATS_NUM_OTHER_Percent = 100 * sum(data_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(data_motor)
+)
+
+#Erstellen separater Datensätze für SEATS_NUM == 0 und SEATS_NUM > 0
+data_seats_num_0 <- subset(data_motor, SEATS_NUM == 0)
+data_seats_num_other <- subset(data_motor, SEATS_NUM > 0 & !is.na(SEATS_NUM))
+# Tabellen der Fahrzeugtypen für beide Datensätze
+table(data_seats_num_0$TYPE_VEHICLE)
+table(data_seats_num_other$TYPE_VEHICLE)
+
+#SEATS_NUM Alternative 1: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
+#Liste der Fahrzeugtypen, bei denen SEATS_NUM == 0 unplausibel ist (Trailers and semitrailers, Tractor, Tanker werden gelassen)
+unplausible_types <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Station Wagones", "Tanker", "Truck")
+# Entfernen der Zeilen, bei denen SEATS_NUM == 0 und der Fahrzeugtyp unplausibel ist
+data_motor <- data_motor[!(data_motor$SEATS_NUM == 0 & data_motor$TYPE_VEHICLE %in% unplausible_types), ]
+
+
+#SEATS_NUM Alternative 2: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
+#data_motor <- data_motor[!(is.na(data_motor$SEATS_NUM) | data_motor$SEATS_NUM == 0), ]
+
+#SEATS_NUM Alternative 3: Entfernen der SEATS_NUM-Spalte, da viele NA und schlechte Datenqualität
+#data_motor <- subset(data_motor, select = -SEATS_NUM)
+
+
+#PREMIUM
+#Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
+data.frame(
+  PREMIUM_0_Percent = 100 * mean(data_motor$PREMIUM == 0, na.rm = TRUE),
+  PREMIUM_MORE_Percent = 100 * mean(data_motor$PREMIUM > 0, na.rm = TRUE))
+
+#CCM_TON
+#Relativ CCM_TON 0
+data.frame(
+  CCM_TON_0_Percent = 100 * mean(data_motor$CCM_TON == 0, na.rm = TRUE),
+  CCM_TON_MORE_Percent = 100 * mean(data_motor$CCM_TON > 0, na.rm = TRUE))
+# Erstellen separater Datensätze für CCM_TON == 0 und CCM_TON > 0
+data_CCM_TON_0 <- subset(data_motor, CCM_TON == 0)
+data_CCM_TON_other <- subset(data_motor, CCM_TON > 0 & !is.na(CCM_TON))
+# Tabellen der Fahrzeugtypen für beide Datensätze
+table(data_CCM_TON_0$TYPE_VEHICLE)
+table(data_CCM_TON_other$TYPE_VEHICLE)
+
+
+
+
+
+
+
+
+data.frame(
+  CLAIM_PAID_0 = sum(data_motor$CLAIM_PAID == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0 = sum(data_motor$CLAIM_PAID > 0, na.rm = TRUE))
+
+data.frame(
+  CLAIM_PAID_0_Percent = 100 * mean(data_motor$CLAIM_PAID == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(data_motor$CLAIM_PAID > 0, na.rm = TRUE))
+
+
+
+```
+
+
+
+
 
 
 
 ```{r cars cache=TRUE}
 
+#OLD
+
+
 #DATA PREP
-data_motor$SEX<-as.factor(data_motor$SEX)
-#data_motor$INSR_BEGIN<- as.Date(data_motor$INSR_BEGIN, format = "%m/%d/%Y")
-#data_motor$INSR_END
- 
- 
-#data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y")
-#
-## Funktion, um das Datum zu parsen, abhängig vom Format
-#data_motor$INSR_BEGIN <- ifelse(grepl("-", data_motor$INSR_BEGIN) & grepl("[A-Za-z]", data_motor$INSR_BEGIN),
-#                                as.Date(data_motor$INSR_BEGIN, format = "%d-%b-%y"),  # Format für '09-MAY-18'
-#                                as.Date(data_motor$INSR_BEGIN, format = "%Y-%m-%d"))  # Format für '2015-11-28'
-#
-# Den modifizierten Datensatz anzeigen
-#data_motor$INSR_BEGIN <- as.Date(data_motor$INSR_BEGIN)  # Sicherstellen, dass
- 
- 
-data_motor$OBJECT_ID<-as.factor(data_motor$OBJECT_ID)
-data_motor$MAKE<-as.factor(data_motor$MAKE)
-data_motor$USAGE<-as.factor(data_motor$USAGE)
-data_motor$TYPE_VEHICLE<-as.factor(data_motor$TYPE_VEHICLE)
 data_motor$CARRYING_CAPACITY<-as.numeric(data_motor$CARRYING_CAPACITY)
+
 data_motor <- data_motor[, !names(data_motor) %in% "EFFECTIVE_YR"]
  
 # Entfernen der Zeilen, wo 'make' nicht mit einem Buchstaben beginnt
@@ -112,16 +266,6 @@ colSums(is.na(data_motor))
 # Create a new column to determine if the claim was paid
 data_motor$CLAIM <- ifelse(data_motor$CLAIM_PAID == 0, 'NO', 'YES')
 
-# Map the values of the SEX column to a new GENDER column
-data_motor$GENDER <- dplyr::recode(data_motor$SEX, `0` = 'Legal Entity', `1` = 'Male', `2` = 'Female')
-# Drop the SEX column
-data_motor <- data_motor[, !names(data_motor) %in% 'SEX']
- 
-# Map the values of the INSR_TYPE column to a new TYPE_INSR column
-data_motor$TYPE_INSR <- dplyr::recode(data_motor$INSR_TYPE, 
-                                      `1201` = 'Private', 
-                                      `1202` = 'Commercial', 
-                                      `1204` = 'Motor Trade Road Risk')
 # Drop the INSR_TYPE column
 data_motor <- data_motor[, !names(data_motor) %in% 'INSR_TYPE']
 # Count how many zeros are in the INSURED_VALUE column
