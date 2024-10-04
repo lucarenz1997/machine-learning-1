@@ -167,8 +167,67 @@ data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
 
 #Zeilen mit MAKE NA entfernen
 data_motor <- data_motor[!is.na(data_motor$MAKE),]
-# Entfernen der Zeilen, bei denen MAKE "*", "1985" oder "1982" ist
-data_motor <- data_motor[!(data_motor$MAKE %in% c("*", "1985", "1982", "1984")), ]
+
+
+# Korrektur der Tippfehler für Toyota, Renault, HIGHBENCARGO und Mercedes in der Spalte MAKE
+# Liste der zu korrigierenden Mercedes-Varianten
+mercedes_variants <- c("MERCHEDES", "MERCEEDES", "MERCEEDICE", 
+                        "MERCEDIS", "MERCEDES / 2521-48", 
+                        "MERCEDES ATEGO-KELES", "MERCEDES BENZ", 
+                        "MERCEDES/SANY", "MERCEDES AXOR")
+
+# Setze die Einträge in der Spalte MAKE auf "MERCEDES"
+data_motor$MAKE[data_motor$MAKE %in% mercedes_variants] <- "MERCEDES"
+
+# Korrektur der Einträge für Volkswagen in der Spalte MAKE
+data_motor$MAKE[data_motor$MAKE %in% c("VOLKS WAGON", "VOLKSWAGON", "VOLS WAGEN", 
+                                        "VOLS WAGON", "VOLSVAGON", "VOWS WAGEN")] <- "VOLKSWAGEN"
+
+data_motor$MAKE[data_motor$MAKE %in% c("RENALT", "RENUALT", "RENAULT/STOLARCZYK", "RENAULT*")] <- "RENAULT"
+
+# Liste der zu korrigierenden Mitsubishi-Varianten
+mitsubishi_variants <- c("MISTIBUSH", "MITSUBISHI*", "MITSUBUSHI")
+
+# Setze die Einträge in der Spalte MAKE auf "MITSUBISHI"
+data_motor$MAKE[data_motor$MAKE %in% mitsubishi_variants] <- "MITSUBISHI"
+
+
+# Liste der zu korrigierenden Toyota-Varianten
+toyota_variants <- c("TOYATA", "TOYOTA", "TOYOTA  AUTOMOBILE", "T0Y0TA", "TOYOTA  COROLA", 
+                      "TOYOTA  YARIS", "TOYOTA 4 RUNNER", "TOYOTA AUTOMOBILE", 
+                      "TOYOTA COROLLA", "TOYOTA HIACE", "TOYOTA HILUX", 
+                      "TOYOTA JAPAN", "TOYOTA L/C PRADO", "TOYOTA L/CRUISER", 
+                      "TOYOTA LAND CRUISER", "TOYOTA MINIBUS", 
+                      "TOYOTA P/UP", "TOYOTA PICK-UP", "TOYOTA PLATZ", 
+                      "TOYOTA RAV4", "TOYOTA RAVA4", "TOYOTA REVO HILUX", 
+                      "TOYOTA VANZE", "TOYOTA VITIZ", "TOYOTA VITZ", 
+                      "TOYOTA YARIS", "TOYOTA*", "TOYOTAA", "TOYTA", 
+                      "TRACKS MOBILE DIMAGE CRANE")
+
+# Setze die Einträge in der Spalte MAKE auf "TOYOTA"
+data_motor$MAKE[data_motor$MAKE %in% toyota_variants] <- "TOYOTA"
+
+
+data_motor$MAKE[data_motor$MAKE %in% c("RENGE  ROVER")] <- "RANGE ROVER"
+
+
+data_motor$MAKE <- gsub("RENUALT", "RENAULT", data_motor$MAKE)
+data_motor$MAKE <- gsub("RENAULT\\*", "RENAULT", data_motor$MAKE)  # Entferne Stern
+data_motor$MAKE <- gsub("TOYATA", "TOYOTA", data_motor$MAKE)
+data_motor$MAKE <- gsub("TOYOTA\\*", "TOYOTA", data_motor$MAKE)    # Entferne Stern
+data_motor$MAKE <- gsub("HIGHBENCARGOTRAUCK", "HIGHBENCARGO", data_motor$MAKE)
+
+
+# Liste der ungültigen oder nicht existierenden Marken, die entfernt werden sollen
+invalid_makes <- c("*", "1982", "1984", "1985", "2011", 
+                   "2 AXEL LOWBED", "3-AXLE DRAWBAR CARGO TRAILER", "330-30 TRAILER", 
+                   "4WDTUAB TERES COPIC HANDLER", "B.AKEL", 
+                   "AUTOMOBIL", "AUTOMOBILE", "BAJAJI", 
+                   "MERCEDES / 2521-48", "P/UP")
+
+# Entfernen der ungültigen Marken aus dem Datensatz
+data_motor <- data_motor[!(data_motor$MAKE %in% invalid_makes), ]
+
 
 
 #Zeilen mit SEATS_NUM NA entfernen
@@ -251,6 +310,10 @@ data.frame(
 #NA
 colSums(is.na(data_motor)) 
 
+rm(data_CCM_TON_0)
+rm(data_CCM_TON_other)
+rm(data_seats_num_0)
+rm(data_seats_num_other)
 
 ```
 
