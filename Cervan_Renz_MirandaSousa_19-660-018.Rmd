@@ -150,6 +150,11 @@ colSums(is.na(data_motor))
 # Entfernen der Spalte CARRYING_CAPACITY
 data_motor <- data_motor[ , !(names(data_motor) %in% "CARRYING_CAPACITY")]
 
+# Entfernen der Spalte EFFECTIVE_YR (Hat keinen Nutzen, da nicht entziffert werden kann)
+data_motor <- data_motor[ , !(names(data_motor) %in% "EFFECTIVE_YR")]
+
+
+
 #Zeilen mit PREMIUM NA und 0 entfernen
 #Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
 data.frame(
@@ -162,6 +167,9 @@ data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
 
 #Zeilen mit MAKE NA entfernen
 data_motor <- data_motor[!is.na(data_motor$MAKE),]
+# Entfernen der Zeilen, bei denen MAKE "*", "1985" oder "1982" ist
+data_motor <- data_motor[!(data_motor$MAKE %in% c("*", "1985", "1982", "1984")), ]
+
 
 #Zeilen mit SEATS_NUM NA entfernen
 data_motor <- data_motor[!is.na(data_motor$SEATS_NUM),]
@@ -242,6 +250,7 @@ data.frame(
 
 #NA
 colSums(is.na(data_motor)) 
+
 
 ```
 
