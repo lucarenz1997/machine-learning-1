@@ -151,6 +151,10 @@ colSums(is.na(data_motor))
 data_motor <- data_motor[ , !(names(data_motor) %in% "CARRYING_CAPACITY")]
 
 #Zeilen mit PREMIUM NA und 0 entfernen
+#Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
+data.frame(
+  PREMIUM_0_Percent = 100 * mean(data_motor$PREMIUM == 0, na.rm = TRUE),
+  PREMIUM_MORE_Percent = 100 * mean(data_motor$PREMIUM > 0, na.rm = TRUE))
 data_motor <- data_motor[!(is.na(data_motor$PREMIUM) | data_motor$PREMIUM == 0), ]
 
 #Zeilen mit PROD_YEAR NA entfernen
@@ -159,7 +163,7 @@ data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
 #Zeilen mit MAKE NA entfernen
 data_motor <- data_motor[!is.na(data_motor$MAKE),]
 
-#Zeilen mit MAKE NA entfernen
+#Zeilen mit SEATS_NUM NA entfernen
 data_motor <- data_motor[!is.na(data_motor$SEATS_NUM),]
 
 
@@ -201,11 +205,6 @@ data_motor <- data_motor[!(data_motor$SEATS_NUM == 0 & data_motor$TYPE_VEHICLE %
 #data_motor <- subset(data_motor, select = -SEATS_NUM)
 
 
-#PREMIUM
-#Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
-data.frame(
-  PREMIUM_0_Percent = 100 * mean(data_motor$PREMIUM == 0, na.rm = TRUE),
-  PREMIUM_MORE_Percent = 100 * mean(data_motor$PREMIUM > 0, na.rm = TRUE))
 
 #CCM_TON
 #Relativ CCM_TON 0
@@ -219,6 +218,11 @@ data_CCM_TON_other <- subset(data_motor, CCM_TON > 0 & !is.na(CCM_TON))
 table(data_CCM_TON_0$TYPE_VEHICLE)
 table(data_CCM_TON_other$TYPE_VEHICLE)
 
+
+# Liste der Fahrzeugtypen, bei denen CCM_TON == 0 unplausibel ist (Tractor,Trailers and semitrailers werden gelassen)
+unplausible_types_ccm <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Truck", "Station Wagones", "Tanker", "Special construction")
+# Entfernen der Zeilen, bei denen CCM_TON == 0 und der Fahrzeugtyp unplausibel ist
+data_motor <- data_motor[!(data_motor$CCM_TON == 0 & data_motor$TYPE_VEHICLE %in% unplausible_types_ccm), ]
 
 
 
