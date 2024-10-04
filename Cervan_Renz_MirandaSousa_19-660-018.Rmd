@@ -147,8 +147,8 @@ data_motor <- data_motor[data_motor$TYPE_VEHICLE != "Trade plates", ]
 #NA
 colSums(is.na(data_motor))
 
-# Entfernen der der Variable CARRYING_CAPACITY, da viele NA und Qualität schlecht.
-data_motor <- subset(data_motor, select = -CARRYING_CAPACITY)
+# Entfernen der Spalte CARRYING_CAPACITY
+data_motor <- data_motor[ , !(names(data_motor) %in% "CARRYING_CAPACITY")]
 
 #Zeilen mit PREMIUM NA und 0 entfernen
 data_motor <- data_motor[!(is.na(data_motor$PREMIUM) | data_motor$PREMIUM == 0), ]
@@ -158,6 +158,9 @@ data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
 
 #Zeilen mit MAKE NA entfernen
 data_motor <- data_motor[!is.na(data_motor$MAKE),]
+
+#Zeilen mit MAKE NA entfernen
+data_motor <- data_motor[!is.na(data_motor$SEATS_NUM),]
 
 
 
@@ -232,6 +235,9 @@ data.frame(
   CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(data_motor$CLAIM_PAID > 0, na.rm = TRUE))
 
 
+
+#NA
+colSums(is.na(data_motor)) 
 
 ```
 
