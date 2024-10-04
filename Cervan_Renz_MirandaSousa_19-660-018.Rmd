@@ -1,13 +1,22 @@
 ---
 title: "ML1"
+authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa
 output: pdf_document
 date: "2024-01-10"
+
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Notizen Rafi
+SVM Teil:
+Cross validation or other methods for model comparing must be used on one single
+methods (e.g. you use Cross Validation to compare 2-3 SVM models).
+• Students are free to choose a measure of fit that they find more appropriate.
+• In case students cannot find an appropriate measure of fit, they can use the Root Mean
+Squared Error (RMSE).
 
 # Setup
 ```{r cars cache=TRUE}
