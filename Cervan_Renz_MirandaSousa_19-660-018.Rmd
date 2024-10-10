@@ -263,13 +263,169 @@ data_motor <- data_motor %>%
   filter(!(n() > 1 & INSR_TYPE != "Commercial")) %>%  # Behalte nur die Zeilen mit "Commercial"
   ungroup()  # Ungroup, um das Gruppierungsobjekt zu entfernen
 
-#Clear Workspace
-rm(combo_counts)
+# Clear Workspace
+rm(list = setdiff(ls(), "data_motor"))
 
 
-#Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (11)
+#PROD_YEAR
+#Zeilen mit PROD_YEAR NA entfernen
+data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
+summary(data_motor$PROD_YEAR)
+
+#SEATS_NUM
+#Analyse SEATS_NUM: Anzahl der Zeilen mit SEATS_NUM == 0, NA und anderen Werten
+data.frame(
+  SEATS_NUM_0 = sum(data_motor$SEATS_NUM == 0, na.rm = TRUE),
+  SEATS_NUM_NA = sum(is.na(data_motor$SEATS_NUM)),
+  SEATS_NUM_OTHER = sum(data_motor$SEATS_NUM > 0, na.rm = TRUE)
+)
+#Relativ: Prozentsatz der Zeilen mit SEATS_NUM == 0, NA oder anderen Werten
+data.frame(
+  SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(data_motor$SEATS_NUM) | data_motor$SEATS_NUM == 0) / nrow(data_motor),
+  SEATS_NUM_OTHER_Percent = 100 * sum(data_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(data_motor)
+)
+#Zeilen mit SEATS_NUM NA entfernen
+data_motor <- data_motor[!is.na(data_motor$SEATS_NUM),]
+summary(data_motor$SEATS_NUM)
+
+#Problematik: Es gibt SEATS_NUM mit 0
+
+##Erstellen separater Datensätze für SEATS_NUM == 0 und SEATS_NUM > 0
+#data_seats_num_0 <- subset(data_motor, SEATS_NUM == 0)
+#data_seats_num_other <- subset(data_motor, SEATS_NUM > 0 & !is.na(SEATS_NUM))
+## Tabellen der Fahrzeugtypen für beide Datensätze
+#table(data_seats_num_0$TYPE_VEHICLE)
+#table(data_seats_num_other$TYPE_VEHICLE)
+
+##SEATS_NUM Alternative 1: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
+##Liste der Fahrzeugtypen, bei denen SEATS_NUM == 0 unplausibel ist (Trailers and semitrailers, Tractor, Tanker werden gelassen)
+#unplausible_types <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Station Wagones", "Tanker", "Truck")
+##Entfernen der Zeilen, bei denen SEATS_NUM == 0 und der Fahrzeugtyp unplausibel ist
+#data_motor <- data_motor[!(data_motor$SEATS_NUM == 0 & data_motor$TYPE_VEHICLE %in% unplausible_types), ]
+#
+#
+##SEATS_NUM Alternative 2: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
+##data_motor <- data_motor[!(is.na(data_motor$SEATS_NUM) | data_motor$SEATS_NUM == 0), ]
+#
+##SEATS_NUM Alternative 3: Entfernen der SEATS_NUM-Spalte, da viele NA und schlechte Datenqualität
+##data_motor <- subset(data_motor, select = -SEATS_NUM)
+
+#TYPE_VEHICLE
+#Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (5)
 table(data_motor$TYPE_VEHICLE)
 data_motor <- data_motor[data_motor$TYPE_VEHICLE != "Trade plates", ]
+
+
+#MAKE
+#Zeilen mit MAKE NA entfernen
+data_motor <- data_motor[!is.na(data_motor$MAKE),]
+#MAKE in Grossbuchstaben umwandeln
+data_motor$MAKE <- toupper(data_motor$MAKE)
+
+#Entfernen von Duplikaten und Zählen der entfernten Zeilen
+removed_count <- nrow(data_motor) - nrow(data_motor <- distinct(data_motor))
+#Ausgabe der Anzahl der entfernten Duplikate
+cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+# Behalten von Zeilen, in denen MAKE mit Buchstaben beginnt
+data_motor <- data_motor[grepl("^[A-Za-z]", data_motor$MAKE), ]
+table(data_motor$MAKE)
+
+
+#Manuelle Korrekturen von MAKE
+data_motor$MAKE[data_motor$MAKE %in% c("PORCHE", "FORSCHE")] <- "PORSCHE"
+data_motor$MAKE[data_motor$MAKE == "YAMHA"] <- "YAMAHA"
+data_motor$MAKE[data_motor$MAKE %in% c("VOLKSWAGON", "VOLKS WAGON")] <- "VOLKSWAGEN"
+data_motor$MAKE[data_motor$MAKE %in% c("TOYOTAA", "TOYOTA*", "TOYTA", "TOYOTA AUTOMOBILE",
+                                       "TOYATA", "T0Y0TA", "COMPACT YARIS", "YARIS",
+                                       "LAND CRUISER", "VITZ")] <- "TOYOTA"
+data_motor$MAKE[grepl("^TOYOTA", data_motor$MAKE)] <- "TOYOTA"
+data_motor$MAKE[data_motor$MAKE %in% c("NISAN", "NISSAN*")] <- "NISSAN"
+data_motor$MAKE[grepl("^NISSAN", data_motor$MAKE)] <- "NISSAN"
+data_motor$MAKE[data_motor$MAKE %in% c("RENGE  ROVER", "RANGEROVER")] <- "RANGE ROVER"
+data_motor$MAKE[data_motor$MAKE %in% c("RENALT", "RENUALT", "RENAULT/STOLARCZYK", "RENAULT*")] <- "RENAULT"
+data_motor$MAKE[data_motor$MAKE %in% c("PEUGEOUT", "PEJOT", "PAGOT")] <- "PEUGEOT"
+data_motor$MAKE[grepl("^PEUGEOT", data_motor$MAKE)] <- "PEUGEOT"
+data_motor$MAKE[data_motor$MAKE %in% c("BMB")] <- "BMW"
+data_motor$MAKE[grepl("^BMW", data_motor$MAKE)] <- "BMW"
+data_motor$MAKE[data_motor$MAKE %in% c("MISTIBUSH", "MITSUBISHI*", "MITSUBUSHI")] <- "MITSUBISHI"
+data_motor$MAKE[grepl("^FORD", data_motor$MAKE)] <- "FORD"
+data_motor$MAKE[data_motor$MAKE %in% c("SPORTAGE")] <- "KIA"
+data_motor$MAKE[data_motor$MAKE %in% c("MERCEEDES", "MERCEEDICE", "MERCEDICE", "MERCHEDES")] <- "MERCEDES"
+data_motor$MAKE[grepl("^MERCEDES", data_motor$MAKE)] <- "MERCEDES"
+data_motor$MAKE[data_motor$MAKE %in% c("SUZIKE")] <- "SUZUKI"
+data_motor$MAKE[grepl("^SUZUKI", data_motor$MAKE)] <- "SUZUKI"
+data_motor$MAKE[data_motor$MAKE %in% c("HYUNDI GETZ")] <- "HYUNDAI"
+data_motor$MAKE[data_motor$MAKE %in% c("ISUSU")] <- "ISUZU"
+data_motor$MAKE[grepl("^ISUZU", data_motor$MAKE)] <- "ISUZU"
+data_motor$MAKE[data_motor$MAKE %in% c("FRANKUN IVECO")] <- "IVECO"
+data_motor$MAKE[grepl("^IVECO", data_motor$MAKE)] <- "IVECO"
+data_motor$MAKE[data_motor$MAKE %in% c("LANDROVER")] <- "LAND ROVER"
+data_motor$MAKE[data_motor$MAKE %in% c("DONGFANG", "DONFING", "DONG FENGSHEN", "DONG FENG")] <- "DONGFENG"
+data_motor$MAKE[data_motor$MAKE %in% c("MAHANDRA")] <- "MAHINDRA"
+
+
+data_motor$MAKE[data_motor$MAKE %in% c("GELYION", "GENLION", "GELION", "GENLYONIVECO", "HONGYAN")] <- "GENLYON"
+data_motor$MAKE[data_motor$MAKE %in% c("DHATSU", "DIATSU", "DIAHATSU")] <- "DAIHATSU"
+data_motor$MAKE[data_motor$MAKE %in% c("DAWOO", "DAWWO", "DEAWOO", "DEAWOO USE")] <- "DAEWOO"
+data_motor$MAKE[grepl("^LIFAN", data_motor$MAKE)] <- "LIFAN"
+data_motor$MAKE[grepl("^BAIC", data_motor$MAKE)] <- "BAIC"
+data_motor$MAKE[grepl("^LOADER", data_motor$MAKE)] <- "LOADER"
+data_motor$MAKE[data_motor$MAKE %in% c("MOTOR CYCLE", "MOTOR  CYCLE")] <- "MOTORCYCLE"
+data_motor$MAKE[data_motor$MAKE %in% c("AUTO", "AUTOMOBIL")] <- "AUTOMOBILE"
+data_motor$MAKE[grepl("^CATERPILLAR", data_motor$MAKE)] <- "CATERPILLAR"
+data_motor$MAKE[data_motor$MAKE %in% c("LIBER DOZER", "LIBERR MOBILE CRANE",
+                                       "LIEBERR MOBILE CRANE", "LEABER CATO CRANE",
+                                       "LEBHER CRANE", "CRANE LEBEHER",
+                                       "CRANE LEBHERER", "LIBER", "LIBEHER CRANE",
+                                       "LIBERR MOBILECRANE", "CRANELEBHER")] <- "LIEBHERR"
+
+
+
+# Zähle die Anzahl der Einträge pro MAKE, wo CLAIM_PAID == "YES"
+count_claims_paid <- data_motor %>%
+  group_by(MAKE, CLAIM_PAID ) %>%                 # Gruppiere nach MAKE
+  summarise(count = n()) %>%        # Zähle die Einträge pro Gruppe
+  arrange(desc(count)) 
+
+
+
+table(data_motor$MAKE)
+
+# Definiere die gewünschten Marken
+desired_makes <- c("TOYOTA", "ISUZU", "NISSAN", "IVECO", "MITSUBISHI",
+                   "FORD", "HYUNDAI", "MAZDA", "MERCEDES", "FIAT",
+                   "SUZUKI", "RENAULT")
+
+# Erstellen eines neuen Datensatzes mit den gefilterten Marken
+filtered_data_motor <- data_motor[data_motor$MAKE %in% desired_makes, ]
+
+# Überprüfen der Anzahl der verbleibenden Datensätze
+cat("Anzahl der verbleibenden Datensätze:", nrow(filtered_data_motor), "\n")
+
+
+table(filtered_data_motor$CLAIM_PAID)
+table(data_motor$CLAIM_PAID)
+table(filtered_data_motor$TYPE_VEHICLE)
+###############################################################################################
+#CCM_TON
+summary(data_motor$CCM_TON)
+
+#Relativ CCM_TON 0
+data.frame(
+  CCM_TON_0_Percent = 100 * mean(data_motor$CCM_TON == 0, na.rm = TRUE),
+  CCM_TON_MORE_Percent = 100 * mean(data_motor$CCM_TON > 0, na.rm = TRUE))
+# Erstellen separater Datensätze für CCM_TON == 0 und CCM_TON > 0
+data_CCM_TON_0 <- subset(data_motor, CCM_TON == 0)
+data_CCM_TON_other <- subset(data_motor, CCM_TON > 0 & !is.na(CCM_TON))
+# Tabellen der Fahrzeugtypen für beide Datensätze
+table(data_CCM_TON_0$TYPE_VEHICLE)
+table(data_CCM_TON_other$TYPE_VEHICLE)
+# Liste der Fahrzeugtypen, bei denen CCM_TON == 0 unplausibel ist (Tractor,Trailers and semitrailers werden gelassen)
+unplausible_types_ccm <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Truck", "Station Wagones", "Tanker", "Special construction")
+# Entfernen der Zeilen, bei denen CCM_TON == 0 und der Fahrzeugtyp unplausibel ist
+data_motor <- data_motor[!(data_motor$CCM_TON == 0 & data_motor$TYPE_VEHICLE %in% unplausible_types_ccm), ]
+
+
 
 
 #NA
@@ -281,8 +437,7 @@ colSums(is.na(data_motor))
 
 
 
-#Zeilen mit PROD_YEAR NA entfernen
-data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
+
 
 #Zeilen mit MAKE NA entfernen
 data_motor <- data_motor[!is.na(data_motor$MAKE),]
@@ -298,42 +453,10 @@ mercedes_variants <- c("MERCHEDES", "MERCEEDES", "MERCEEDICE",
 # Setze die Einträge in der Spalte MAKE auf "MERCEDES"
 data_motor$MAKE[data_motor$MAKE %in% mercedes_variants] <- "MERCEDES"
 
-# Korrektur der Einträge für Volkswagen in der Spalte MAKE
-data_motor$MAKE[data_motor$MAKE %in% c("VOLKS WAGON", "VOLKSWAGON", "VOLS WAGEN", 
-                                        "VOLS WAGON", "VOLSVAGON", "VOWS WAGEN")] <- "VOLKSWAGEN"
-
-data_motor$MAKE[data_motor$MAKE %in% c("RENALT", "RENUALT", "RENAULT/STOLARCZYK", "RENAULT*")] <- "RENAULT"
-
-# Liste der zu korrigierenden Mitsubishi-Varianten
-mitsubishi_variants <- c("MISTIBUSH", "MITSUBISHI*", "MITSUBUSHI")
-
-# Setze die Einträge in der Spalte MAKE auf "MITSUBISHI"
-data_motor$MAKE[data_motor$MAKE %in% mitsubishi_variants] <- "MITSUBISHI"
 
 
-# Liste der zu korrigierenden Toyota-Varianten
-toyota_variants <- c("TOYATA", "TOYOTA", "TOYOTA  AUTOMOBILE", "T0Y0TA", "TOYOTA  COROLA", 
-                      "TOYOTA  YARIS", "TOYOTA 4 RUNNER", "TOYOTA AUTOMOBILE", 
-                      "TOYOTA COROLLA", "TOYOTA HIACE", "TOYOTA HILUX", 
-                      "TOYOTA JAPAN", "TOYOTA L/C PRADO", "TOYOTA L/CRUISER", 
-                      "TOYOTA LAND CRUISER", "TOYOTA MINIBUS", 
-                      "TOYOTA P/UP", "TOYOTA PICK-UP", "TOYOTA PLATZ", 
-                      "TOYOTA RAV4", "TOYOTA RAVA4", "TOYOTA REVO HILUX", 
-                      "TOYOTA VANZE", "TOYOTA VITIZ", "TOYOTA VITZ", 
-                      "TOYOTA YARIS", "TOYOTA*", "TOYOTAA", "TOYTA", 
-                      "TRACKS MOBILE DIMAGE CRANE")
-
-# Setze die Einträge in der Spalte MAKE auf "TOYOTA"
-data_motor$MAKE[data_motor$MAKE %in% toyota_variants] <- "TOYOTA"
 
 
-data_motor$MAKE[data_motor$MAKE %in% c("RENGE  ROVER")] <- "RANGE ROVER"
-
-
-data_motor$MAKE <- gsub("RENUALT", "RENAULT", data_motor$MAKE)
-data_motor$MAKE <- gsub("RENAULT\\*", "RENAULT", data_motor$MAKE)  # Entferne Stern
-data_motor$MAKE <- gsub("TOYATA", "TOYOTA", data_motor$MAKE)
-data_motor$MAKE <- gsub("TOYOTA\\*", "TOYOTA", data_motor$MAKE)    # Entferne Stern
 data_motor$MAKE <- gsub("HIGHBENCARGOTRAUCK", "HIGHBENCARGO", data_motor$MAKE)
 
 
@@ -349,66 +472,16 @@ data_motor <- data_motor[!(data_motor$MAKE %in% invalid_makes), ]
 
 
 
-#Zeilen mit SEATS_NUM NA entfernen
-data_motor <- data_motor[!is.na(data_motor$SEATS_NUM),]
 
 
 
 
 
-#SEATS_NUM
-# Analyse SEATS_NUM: Anzahl der Zeilen mit SEATS_NUM == 0, NA und anderen Werten
-data.frame(
-  SEATS_NUM_0 = sum(data_motor$SEATS_NUM == 0, na.rm = TRUE),
-  SEATS_NUM_NA = sum(is.na(data_motor$SEATS_NUM)),
-  SEATS_NUM_OTHER = sum(data_motor$SEATS_NUM > 0, na.rm = TRUE)
-)
-
-# Relativ: Prozentsatz der Zeilen mit SEATS_NUM == 0, NA oder anderen Werten
-data.frame(
-  SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(data_motor$SEATS_NUM) | data_motor$SEATS_NUM == 0) / nrow(data_motor),
-  SEATS_NUM_OTHER_Percent = 100 * sum(data_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(data_motor)
-)
-
-#Erstellen separater Datensätze für SEATS_NUM == 0 und SEATS_NUM > 0
-data_seats_num_0 <- subset(data_motor, SEATS_NUM == 0)
-data_seats_num_other <- subset(data_motor, SEATS_NUM > 0 & !is.na(SEATS_NUM))
-# Tabellen der Fahrzeugtypen für beide Datensätze
-table(data_seats_num_0$TYPE_VEHICLE)
-table(data_seats_num_other$TYPE_VEHICLE)
-
-#SEATS_NUM Alternative 1: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
-#Liste der Fahrzeugtypen, bei denen SEATS_NUM == 0 unplausibel ist (Trailers and semitrailers, Tractor, Tanker werden gelassen)
-unplausible_types <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Station Wagones", "Tanker", "Truck")
-# Entfernen der Zeilen, bei denen SEATS_NUM == 0 und der Fahrzeugtyp unplausibel ist
-data_motor <- data_motor[!(data_motor$SEATS_NUM == 0 & data_motor$TYPE_VEHICLE %in% unplausible_types), ]
-
-
-#SEATS_NUM Alternative 2: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
-#data_motor <- data_motor[!(is.na(data_motor$SEATS_NUM) | data_motor$SEATS_NUM == 0), ]
-
-#SEATS_NUM Alternative 3: Entfernen der SEATS_NUM-Spalte, da viele NA und schlechte Datenqualität
-#data_motor <- subset(data_motor, select = -SEATS_NUM)
 
 
 
-#CCM_TON
-#Relativ CCM_TON 0
-data.frame(
-  CCM_TON_0_Percent = 100 * mean(data_motor$CCM_TON == 0, na.rm = TRUE),
-  CCM_TON_MORE_Percent = 100 * mean(data_motor$CCM_TON > 0, na.rm = TRUE))
-# Erstellen separater Datensätze für CCM_TON == 0 und CCM_TON > 0
-data_CCM_TON_0 <- subset(data_motor, CCM_TON == 0)
-data_CCM_TON_other <- subset(data_motor, CCM_TON > 0 & !is.na(CCM_TON))
-# Tabellen der Fahrzeugtypen für beide Datensätze
-table(data_CCM_TON_0$TYPE_VEHICLE)
-table(data_CCM_TON_other$TYPE_VEHICLE)
 
 
-# Liste der Fahrzeugtypen, bei denen CCM_TON == 0 unplausibel ist (Tractor,Trailers and semitrailers werden gelassen)
-unplausible_types_ccm <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Truck", "Station Wagones", "Tanker", "Special construction")
-# Entfernen der Zeilen, bei denen CCM_TON == 0 und der Fahrzeugtyp unplausibel ist
-data_motor <- data_motor[!(data_motor$CCM_TON == 0 & data_motor$TYPE_VEHICLE %in% unplausible_types_ccm), ]
 
 
 
