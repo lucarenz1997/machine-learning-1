@@ -31,6 +31,7 @@ unverändert, dann werden die alten Ergebnisse verwendet
 ```{r setup cache=TRUE}
 
 #Install and import libraries.
+if (!require("car")) install.packages("car")  # Support Vector Machine (SVM)
 if (!require("ggplot2")) install.packages("ggplot2")
 if (!require("ROI")) install.packages("ROI")
 if (!require("tidyverse")) install.packages("tidyverse")
@@ -42,6 +43,7 @@ if (!require("mgcv")) install.packages("mgcv")  # Generalised Additive Model (GA
 if (!require("nnet")) install.packages("nnet")  # Neural Networks
 if (!require("e1071")) install.packages("e1071")  # Support Vector Machine (SVM)
 
+library(car)
 library(readr,quietly = T)
 library(ggplot2, quietly = T)
 library(ROI, quietly = T)
@@ -431,7 +433,7 @@ table(clean_dat_motor$SEX) #OK
 table(clean_dat_motor$USAGE)
 clean_dat_motor <- subset(clean_dat_motor, !(USAGE %in% c("Agricultural Any Farm",
                                                 "Agricultural Own Farm",
-                                                "Special Construction", "Taxi ")))
+                                                "Special Construction", "Taxi")))
 
 table(clean_dat_motor$TYPE_VEHICLE)
 #Wenige Ausprägungen entfernen
@@ -484,6 +486,7 @@ clean_dat_motor$TYPE_VEHICLE <- as.factor(clean_dat_motor$TYPE_VEHICLE)
 
 # Clear Workspace
 rm(list = setdiff(ls(), c("raw_dat_motor", "clean_dat_motor")))
+rm(raw_dat_motor)
 
 ```
 
@@ -494,18 +497,95 @@ rm(list = setdiff(ls(), c("raw_dat_motor", "clean_dat_motor")))
 # Models
 ## Linear Model
 ```{r Linear-Model}
-# TODO
-str(raw_dat_motor)
-summary(raw_dat_motor)
 
- #Premium= gender, insured value, prod_year, seats number, capacity, type vehicle,  cctm_ton, make, usage
 
-# Erstelle das lineare Regressionsmodell mit den erklärenden Variablen
-lm_model <- lm(PREMIUM ~ GENDER + INSURED_VALUE + PROD_YEAR + SEATS_NUM + CARRYING_CAPACITY + 
-               TYPE_VEHICLE + CCM_TON + MAKE + USAGE, data = raw_dat_motor)
+#Modell erstellen
+lm_model <- lm(PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + INSURED_VALUE + CLAIM_PAID_USD + PROD_YEAR + SEATS_NUM + CCM_TON, data = clean_dat_motor)
 
-# Zusammenfassung des Modells anzeigen
+#Modellzusammenfassung anzeigen
 summary(lm_model)
+Anova(lm_model, type="II")  # Type II oder III je nach Modellstrukt
+
+#Residuen-Plots für Modell-Diagnose
+#Plot der Residuen vs. Fit-Werte
+plot(lm_model$fitted.values, lm_model$residuals, 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+#QQ-Plot der Residuen (Überprüfung der Normalverteilung)
+qqnorm(lm_model$residuals, main = "QQ Plot of Residuals")
+qqline(lm_model$residuals, col = "red")
+
+
+#Modell-Performance Metriken (z.B. R² und MSE)
+#Berechnung des Mean Squared Error (MSE)
+mse <- mean(lm_model$residuals^2)
+cat("Mean Squared Error (MSE):", mse, "\n")
+
+#Berechnung des R² (wird auch in summary(lm_model) angezeigt)
+r_squared <- summary(lm_model)$r.squared
+cat("R-squared:", r_squared, "\n")
+
+#shity ergebnis
+
+######################################################################################
+
+#Analyse Variablen
+numeric_vars <- c("PREMIUM", "INSURED_VALUE", "CLAIM_PAID_USD", "PROD_YEAR", "SEATS_NUM", "CCM_TON")
+
+#Histogramme erstellen
+par(mfrow = c(2, 3))  # 2 Zeilen, 3 Spalten für die Plots
+for (var in numeric_vars) {
+  hist(clean_dat_motor[[var]], main = paste("Histogram of", var), xlab = var, col = "lightblue", breaks = 30)
+}
+par(mfrow = c(1, 1))  # Zurück zu einem einzelnen Plot pro Seite
+
+#Massnahme: Transformation der Variablen
+# Log-Transformation für stark rechtsschiefe Variablen
+clean_dat_motor$PREMIUM_LOG <- log(clean_dat_motor$PREMIUM + 1)  # Hinzufügen von +1 um log(0) zu vermeiden
+clean_dat_motor$INSURED_VALUE_LOG <- log(clean_dat_motor$INSURED_VALUE + 1)
+clean_dat_motor$CLAIM_PAID_USD_LOG <- log(clean_dat_motor$CLAIM_PAID_USD + 1)
+clean_dat_motor$CCM_TON_LOG <- log(clean_dat_motor$CCM_TON + 1)
+
+# Modell erstellen mit den log-transformierten Variablen
+lm_model_log <- lm(PREMIUM_LOG ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + 
+                   INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + PROD_YEAR + SEATS_NUM + CCM_TON_LOG, 
+                   data = clean_dat_motor)
+
+# Zusammenfassung des neuen Modells
+summary(lm_model_log)
+Anova(lm_model_log, type="II")  # Type II oder III je nach Modellstrukt
+
+#Residuen-Plots für Modell-Diagnose
+#Plot der Residuen vs. Fit-Werte
+plot(lm_model_log$fitted.values, lm_model_log$residuals, 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+#QQ-Plot der Residuen (Überprüfung der Normalverteilung)
+qqnorm(lm_model_log$residuals, main = "QQ Plot of Residuals")
+qqline(lm_model_log$residuals, col = "red")
+
+
+#Modell-Performance Metriken (z.B. R² und MSE)
+#Berechnung des Mean Squared Error (MSE)
+mse <- mean(lm_model_log$residuals^2)
+cat("Mean Squared Error (MSE):", mse, "\n")
+
+#Berechnung des R² (wird auch in summary(lm_model_log) angezeigt)
+r_squared <- summary(lm_model_log)$r.squared
+cat("R-squared:", r_squared, "\n")
+
+
+
+
+
+#Paarweise Streudiagramme der numerischen Variablen (Visualisierung von Variablenbeziehungen)
+pairs(~INSURED_VALUE + PREMIUM + CLAIM_PAID_USD + SEATS_NUM + CCM_TON, data = clean_dat_motor, main = "Scatterplot Matrix")
 
 
 ```
