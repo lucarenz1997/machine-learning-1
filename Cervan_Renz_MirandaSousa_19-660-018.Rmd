@@ -474,6 +474,7 @@ colSums(is.na(clean_dat_motor))
 #Umwandlung der kategorialen Variablen in Factor-Variablen
 clean_dat_motor$OBJECT_ID <- as.factor(clean_dat_motor$OBJECT_ID)
 clean_dat_motor$SEX <- as.factor(clean_dat_motor$SEX)
+clean_dat_motor$INSR_TYPE <- as.character(clean_dat_motor$INSR_TYPE)
 clean_dat_motor$INSR_TYPE <- as.factor(clean_dat_motor$INSR_TYPE)
 clean_dat_motor$MAKE <- as.factor(clean_dat_motor$MAKE)
 clean_dat_motor$USAGE <- as.factor(clean_dat_motor$USAGE)
@@ -487,29 +488,6 @@ rm(list = setdiff(ls(), c("raw_dat_motor", "clean_dat_motor")))
 ```
 
 
-ich habe einen datensatz mit den folgenden variablen:
-OBJECT_ID 
-
-
-kategoriell:
-SEX (Female, male, legal)
-INSR_TYPE (
-MAKE
-USAGE
-CLAIM_PAID (YES,  NO)
-TYPE_VEHICLE
-
-datumsvariablen:
-INSR_BEGIN 
-INSR_END
-
-nummerisch:
-INSURED_VALUE
-PREMIUM
-PROD_YEAR
-SEATS_NUM
-CCM_TON
-CLAIM_PAID_USD
 
 
 
