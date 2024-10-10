@@ -641,8 +641,121 @@ qqline(lm_model_log_ohneA$residuals, col = "red")
 ## Poisson
 ```{r Poisson_Model, cache=TRUE}
 
+# Data preparation: Aggregate the number of claims per combination of vehicle type, insurance type, and production year
+claims_per_vehicle_usage_prodyear <- clean_dat_motor %>%
+  group_by(TYPE_VEHICLE, INSR_TYPE, PROD_YEAR) %>%
+  summarise(Amount_Claims = sum(CLAIM_PAID == "YES"), .groups = 'drop')
+
+# Poisson Regression: Predict the number of claims based on vehicle type, insurance type, and production year
+poisson_model <- glm(Amount_Claims ~ TYPE_VEHICLE + INSR_TYPE + PROD_YEAR , 
+                               family = poisson, data = claims_per_vehicle_usage_prodyear)
+
+# Summary of the model
+summary(poisson_model)
+
+# Model diagnostics and evaluation
+# Residuals vs. Fitted Plot
+plot(poisson_model$fitted.values, residuals(poisson_model, type = "deviance"),
+     xlab = "Fitted Values", 
+     ylab = "Deviance Residuals", 
+     main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+# QQ Plot of residuals (Check for normal distribution)
+qqnorm(residuals(poisson_model, type = "deviance"), main = "QQ Plot of Residuals")
+qqline(residuals(poisson_model, type = "deviance"), col = "red")
+
+# Visualization of predicted claim rates by vehicle type, insurance type, and production year
+predicted_values <- data.frame(claims_per_vehicle_usage_prodyear,
+                               Predicted_Claims = predict(poisson_model, type = "response"))
+
+ggplot(predicted_values, aes(x = TYPE_VEHICLE, y = Predicted_Claims, fill = INSR_TYPE)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
+  labs(title = "Predicted Number of Claims by Vehicle Type, Insurance Type, and Production Year",
+       x = "Vehicle Type", y = "Predicted Number of Claims") +
+  theme_minimal() +
+  facet_wrap(~PROD_YEAR)
+
 
 ```
+Overdispersion!!!!!!!!!
+
+### Massnahme:Interaktionen?
+
+```{r pois_interact, cache=TRUE}
+
+# Creating an interaction plot
+ggplot(claims_per_vehicle_usage_prodyear, aes(x = PROD_YEAR, y = Amount_Claims, color = INSR_TYPE, group = INSR_TYPE)) +
+  geom_line(size = 1) +  # Line plot for each insurance type (INSR_TYPE)
+  geom_point(size = 2) + # Points for each observation
+  labs(title = "Interaction Plot between Production Year and Vehicle Usage",
+       x = "Production Year", 
+       y = "Number of Claims") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  facet_wrap(~ TYPE_VEHICLE)  # Facet for each vehicle type
+
+# Poisson model with interactions between production year and insurance type
+poisson_model_interaction2 <- glm(Amount_Claims ~ TYPE_VEHICLE * INSR_TYPE + PROD_YEAR, 
+                                  family = poisson, data = claims_per_vehicle_usage_prodyear)
+
+# Summary of the model
+summary(poisson_model_interaction2)
+
+# Residuals vs Fitted Plot
+plot(poisson_model_interaction2$fitted.values, residuals(poisson_model_interaction2, type = "deviance"),
+     xlab = "Fitted Values", 
+     ylab = "Deviance Residuals", 
+     main = "Residuals vs Fitted (Poisson with Interaction)")
+abline(h = 0, col = "red")
+
+# QQ Plot
+qqnorm(residuals(poisson_interaction_model, type = "deviance"), main = "QQ Plot of Residuals (Poisson with Interaction)")
+qqline(residuals(poisson_interaction_model, type = "deviance"), col = "red")
+
+
+
+```
+
+
+### Massnahme: Quasi-Poisson-Regression
+
+
+```{r quasiPois, cache=TRUE}
+
+# Quasi-Poisson regression: Predicting the number of claims based on vehicle type, usage, and production year
+quasi_poisson_model <- glm(Amount_Claims ~ TYPE_VEHICLE + INSR_TYPE + PROD_YEAR, 
+                           family = quasipoisson, data = claims_per_vehicle_usage_prodyear)
+
+# Summary of the model
+summary(quasi_poisson_model)
+
+# Model diagnostics: Residuals vs. Fitted Plot
+plot(quasi_poisson_model$fitted.values, residuals(quasi_poisson_model, type = "deviance"),
+     xlab = "Fitted Values", 
+     ylab = "Deviance Residuals", 
+     main = "Residuals vs Fitted (Quasi-Poisson)")
+abline(h = 0, col = "red")
+
+# QQ plot of residuals (checking normality)
+qqnorm(residuals(quasi_poisson_model, type = "deviance"), main = "QQ Plot of Residuals (Quasi-Poisson)")
+qqline(residuals(quasi_poisson_model, type = "deviance"), col = "red")
+
+# Visualization of the predicted claim rates by vehicle type, usage, and production year
+predicted_values_qp <- data.frame(claims_per_vehicle_usage_prodyear,
+                                  Predicted_Claims = predict(quasi_poisson_model, type = "response"))
+
+ggplot(predicted_values_qp, aes(x = TYPE_VEHICLE, y = Predicted_Claims, fill = INSR_TYPE)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
+  labs(title = "Predicted Number of Claims by Vehicle Type, Usage, and Production Year (Quasi-Poisson)",
+       x = "Vehicle Type", y = "Predicted Number of Claims") +
+  theme_minimal() +
+  facet_wrap(~PROD_YEAR)
+
+
+
+```
+
 
 
 ## Binomial
