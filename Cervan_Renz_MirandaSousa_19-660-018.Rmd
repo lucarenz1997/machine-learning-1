@@ -1,34 +1,18 @@
 ---
 title: "ML1"
-authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa
-output: pdf_document
+authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
 date: "2024-01-10"
-
+output:
+  word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Notizen Rafi
-SVM Teil:
-Cross validation or other methods for model comparing must be used on one single
-methods (e.g. you use Cross Validation to compare 2-3 SVM models).
-• Students are free to choose a measure of fit that they find more appropriate.
-• In case students cannot find an appropriate measure of fit, they can use the Root Mean
-Squared Error (RMSE).
 
-Schließlich ist zu beachten, dass die Zusammenstellung von Dokumenten einige Zeit in Anspruch nehmen kann... insbesondere wenn komplexe
-Modelle angepasst werden
-- In diesen Fällen können Sie die Argumentationsoption cache = TRUE verwenden, so dass ein Chunk nur dann neu ausgewertet wird
-nur dann neu ausgewertet wird, wenn er seit der letzten Kompilierung geändert wurde. Wenn der Chunk unverändert blieb
-unverändert, dann werden die alten Ergebnisse verwendet
-
-
-
-
-# Setup
-```{r setup cache=TRUE}
+```{r load_packages, echo =FALSE, cache=TRUE}
 
 #Install and import libraries.
 if (!require("car")) install.packages("car")  # Support Vector Machine (SVM)
@@ -57,7 +41,23 @@ library(nnet)  # For Neural Networks
 library(e1071)  # For Support Vector Machine
 
 ```
+Notizen Rafi
+SVM Teil:
+Cross validation or other methods for model comparing must be used on one single
+methods (e.g. you use Cross Validation to compare 2-3 SVM models).
+• Students are free to choose a measure of fit that they find more appropriate.
+• In case students cannot find an appropriate measure of fit, they can use the Root Mean
+Squared Error (RMSE).
 
+Schließlich ist zu beachten, dass die Zusammenstellung von Dokumenten einige Zeit in Anspruch nehmen kann... insbesondere wenn komplexe
+Modelle angepasst werden
+- In diesen Fällen können Sie die Argumentationsoption cache = TRUE verwenden, so dass ein Chunk nur dann neu ausgewertet wird
+nur dann neu ausgewertet wird, wenn er seit der letzten Kompilierung geändert wurde. Wenn der Chunk unverändert blieb
+unverändert, dann werden die alten Ergebnisse verwendet
+
+
+
+# Data Preprocessing
 
 Aus Quelle:
 Some predictors such as carrying capacity and seat number are removed from the dataset prior
@@ -71,8 +71,7 @@ Warum?
 Der Hubraum (ccm) gibt das Volumen der Zylinder eines Verbrennungsmotors an. Ein Wert von 0 wäre unplausibel, da ein Fahrzeug ohne Hubraum keinen funktionsfähigen Motor hätte.
 Wenn CCM_TON das Gewicht des Motors in Tonnen angibt, wäre ebenfalls ein Wert von 0 unplausibel, da ein Fahrzeug ohne Motorgewicht nicht funktionsfähig wäre.
 
-
-```{r data prep cache=TRUE}
+```{r data_prep, echo=FALSE, cache=TRUE}
 
 # DATA LOAD
 raw_dat_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
@@ -487,6 +486,7 @@ clean_dat_motor$TYPE_VEHICLE <- as.factor(clean_dat_motor$TYPE_VEHICLE)
 # Clear Workspace
 rm(list = setdiff(ls(), c("raw_dat_motor", "clean_dat_motor")))
 rm(raw_dat_motor)
+clean_dat_motor2<- clean_dat_motor
 
 ```
 
@@ -496,8 +496,8 @@ rm(raw_dat_motor)
 
 # Models
 ## Linear Model
-```{r Linear-Model}
 
+```{r linear_model, cache = TRUE}
 
 #Modell erstellen
 lm_model <- lm(PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + INSURED_VALUE + CLAIM_PAID_USD + PROD_YEAR + SEATS_NUM + CCM_TON, data = clean_dat_motor)
@@ -528,9 +528,11 @@ cat("Mean Squared Error (MSE):", mse, "\n")
 r_squared <- summary(lm_model)$r.squared
 cat("R-squared:", r_squared, "\n")
 
-#shity ergebnis
+```
 
-######################################################################################
+### Massnahme: Transformation
+
+```{r analyse_variablen, cache=TRUE}
 
 #Analyse Variablen
 numeric_vars <- c("PREMIUM", "INSURED_VALUE", "CLAIM_PAID_USD", "PROD_YEAR", "SEATS_NUM", "CCM_TON")
@@ -548,6 +550,13 @@ clean_dat_motor$PREMIUM_LOG <- log(clean_dat_motor$PREMIUM + 1)  # Hinzufügen v
 clean_dat_motor$INSURED_VALUE_LOG <- log(clean_dat_motor$INSURED_VALUE + 1)
 clean_dat_motor$CLAIM_PAID_USD_LOG <- log(clean_dat_motor$CLAIM_PAID_USD + 1)
 clean_dat_motor$CCM_TON_LOG <- log(clean_dat_motor$CCM_TON + 1)
+
+
+```
+
+Schiefe Verteilungen vorhanden
+
+```{r lm logtrans}
 
 # Modell erstellen mit den log-transformierten Variablen
 lm_model_log <- lm(PREMIUM_LOG ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + 
@@ -570,7 +579,6 @@ abline(h = 0, col = "red")
 qqnorm(lm_model_log$residuals, main = "QQ Plot of Residuals")
 qqline(lm_model_log$residuals, col = "red")
 
-
 #Modell-Performance Metriken (z.B. R² und MSE)
 #Berechnung des Mean Squared Error (MSE)
 mse <- mean(lm_model_log$residuals^2)
@@ -580,45 +588,83 @@ cat("Mean Squared Error (MSE):", mse, "\n")
 r_squared <- summary(lm_model_log)$r.squared
 cat("R-squared:", r_squared, "\n")
 
+```
+
+Problem:
+Residuen
+Varianz der Residuen ist nicht konstant. Residuen sind nicht gleichmässig um die Nulllinie verteilt
+Modell erklärt möglicherweise die Abhängigkeit der Residuen von den Fit-Werten nicht vollständig 
+
+QQPlot:
+Problem: Residuen sind nicht vollständig normalverteilt
+
+### Massnahme: Ausreisser entfernen
+
+```{r lm_Ausreisser, cache=TRUE}
 
 
+#Berechnung der Cook's Distance
+cooksD <- cooks.distance(lm_model_log)
+#Identifikation von Beobachtungen mit hoher Cook's Distance
+influential_points <- which(cooksD > (4 / nrow(clean_dat_motor)))
+clean_dat_motor[influential_points, ]
 
+#Modell ohne Ausreisser
+#Modell erstellen mit den log-transformierten Variablen
+lm_model_log_ohneA <- lm(PREMIUM_LOG ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + 
+                   INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + PROD_YEAR + SEATS_NUM + CCM_TON_LOG, 
+                   data = clean_dat_motor)
+
+# Zusammenfassung des neuen Modells
+summary(lm_model_log_ohneA)
+Anova(lm_model_log_ohneA, type="II")  # Type II oder III je nach Modellstrukt
+
+#Residuen-Plots für Modell-Diagnose
+#Plot der Residuen vs. Fit-Werte
+plot(lm_model_log_ohneA$fitted.values, lm_model_log_ohneA$residuals, 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+#QQ-Plot der Residuen (Überprüfung der Normalverteilung)
+qqnorm(lm_model_log_ohneA$residuals, main = "QQ Plot of Residuals")
+qqline(lm_model_log_ohneA$residuals, col = "red")
 
 #Paarweise Streudiagramme der numerischen Variablen (Visualisierung von Variablenbeziehungen)
-pairs(~INSURED_VALUE + PREMIUM + CLAIM_PAID_USD + SEATS_NUM + CCM_TON, data = clean_dat_motor, main = "Scatterplot Matrix")
-
+#pairs(~INSURED_VALUE + PREMIUM + CLAIM_PAID_USD + SEATS_NUM + CCM_TON, data = clean_dat_motor, main = "Scatterplot Matrix")
 
 ```
 
 
 ## Poisson
-```{r Poisson-Model}
+```{r Poisson_Model, cache=TRUE}
 # TODO
 
 ```
 
 
 ## Binomial
-```{r Binomial-Model}
+```{r Binomial_Model, cache=TRUE}
 # TODO
 
 ```
 
 ## Generalised Additive Model (GAM)
-```{r GAM}
+```{r GAM, cache=TRUE}
 # TODO
 
 ```
 
 ## Neural Network
-```{r Neural-Network}
+```{r Neural_Network, cache=TRUE}
 # TODO
 
 ```
 
 
 ## Support Vector Machine (SVM)
-```{r SVM}
+```{r SVM, cache=TRUE}
 # TODO
 
 ```
