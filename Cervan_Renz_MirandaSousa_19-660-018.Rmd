@@ -26,6 +26,7 @@ if (!require("GGally")) install.packages("GGally")
 if (!require("mgcv")) install.packages("mgcv")  # Generalised Additive Model (GAM)
 if (!require("nnet")) install.packages("nnet")  # Neural Networks
 if (!require("e1071")) install.packages("e1071")  # Support Vector Machine (SVM)
+if (!require("MASS")) install.packages("MASS")
 
 library(car)
 library(readr,quietly = T)
@@ -256,7 +257,7 @@ raw_dat_motor <- raw_dat_motor %>%
   ungroup() %>%
   # Entferne Zeilen nur, wenn es eine Doppelzeile gibt und CLAIM_PAID == "NO" und CLAIM_PAID_USD <= 1
   filter(!(group_size > 1 & CLAIM_PAID == "NO" & CLAIM_PAID_USD <= 1)) %>%
-  select(-group_size)  # Entferne die Hilfsspalte
+  dplyr::select(-group_size)  # Entferne die Hilfsspalte
 
 #Korrektur Wiederspruch bei INSR_TYPE
 raw_dat_motor <- raw_dat_motor %>%
@@ -639,7 +640,7 @@ qqline(lm_model_log_ohneA$residuals, col = "red")
 
 ## Poisson
 ```{r Poisson_Model, cache=TRUE}
-# TODO
+
 
 ```
 
