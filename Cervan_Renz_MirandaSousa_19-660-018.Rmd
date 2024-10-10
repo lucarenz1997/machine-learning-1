@@ -73,68 +73,68 @@ Wenn CCM_TON das Gewicht des Motors in Tonnen angibt, wäre ebenfalls ein Wert v
 ```{r data prep cache=TRUE}
 
 # DATA LOAD
-data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
+raw_dat_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 
-dim(data_motor)
-str(data_motor)
+dim(raw_dat_motor)
+str(raw_dat_motor)
 
 #DATA PREP
 
 #EFFECTIVE_YR
 #Entfernen der Spalte EFFECTIVE_YR (Hat keinen Nutzen, da nicht entziffert werden kann)
-data_motor <- data_motor[ , !(names(data_motor) %in% "EFFECTIVE_YR")]
+raw_dat_motor <- raw_dat_motor[ , !(names(raw_dat_motor) %in% "EFFECTIVE_YR")]
 
 #CARRYING_CAPACITY
 #Entfernen der Spalte CARRYING_CAPACITY
-data_motor <- data_motor[ , !(names(data_motor) %in% "CARRYING_CAPACITY")]
+raw_dat_motor <- raw_dat_motor[ , !(names(raw_dat_motor) %in% "CARRYING_CAPACITY")]
 
 #CLAIM_PAID
-data_motor$CLAIM_PAID_USD <- ifelse(is.na(data_motor$CLAIM_PAID), 0, data_motor$CLAIM_PAID)
-data_motor$CLAIM_PAID <- ifelse(data_motor$CLAIM_PAID_USD == 0, "NO", "YES")
+raw_dat_motor$CLAIM_PAID_USD <- ifelse(is.na(raw_dat_motor$CLAIM_PAID), 0, raw_dat_motor$CLAIM_PAID)
+raw_dat_motor$CLAIM_PAID <- ifelse(raw_dat_motor$CLAIM_PAID_USD == 0, "NO", "YES")
 
 # Entfernen von Duplikaten und Zählen der entfernten Zeilen
-removed_count <- nrow(data_motor) - nrow(data_motor <- distinct(data_motor))
+removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
 # Ausgabe der Anzahl der entfernten Duplikate
 cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
 
 #SEX
-data_motor$SEX <- factor(data_motor$SEX, 
+raw_dat_motor$SEX <- factor(raw_dat_motor$SEX, 
                    levels = c(0, 1, 2), 
                    labels = c("Legal entity", "Male", "Female"))
-table(data_motor$SEX)
+table(raw_dat_motor$SEX)
 
 #INSR_BEGIN
-data_motor$INSR_BEGIN <- dmy(data_motor$INSR_BEGIN)
+raw_dat_motor$INSR_BEGIN <- dmy(raw_dat_motor$INSR_BEGIN)
 
 #INSR_END
-data_motor$INSR_END <- dmy(data_motor$INSR_END)
+raw_dat_motor$INSR_END <- dmy(raw_dat_motor$INSR_END)
 
 #INSR_TYPE
-data_motor$INSR_TYPE <- factor(data_motor$INSR_TYPE, 
+raw_dat_motor$INSR_TYPE <- factor(raw_dat_motor$INSR_TYPE, 
                          levels = c(1201, 1202, 1204), 
                          labels = c("Private", "Commercial", "Motor trade road risk"))
 
 #INSURED_VALUE
 #Überprüfen der Anzahl der fehlenden Werte
-missing_values <- sum(is.na(data_motor$INSURED_VALUE))
+missing_values <- sum(is.na(raw_dat_motor$INSURED_VALUE))
 cat("Fehlende Werte in INSURED_VALUE:", missing_values, "\n")
 
 #Zusammenfassung der statistischen Kennzahlen
-summary_stats <- summary(data_motor$INSURED_VALUE)
+summary_stats <- summary(raw_dat_motor$INSURED_VALUE)
 cat("Zusammenfassung der statistischen Kennzahlen von INSURED_VALUE:\n")
 print(summary_stats)
 
 #Ermittlung der Anzahl der Einträge, die 0 als Wert haben
-zero_values <- sum(data_motor$INSURED_VALUE == 0, na.rm = TRUE)
+zero_values <- sum(raw_dat_motor$INSURED_VALUE == 0, na.rm = TRUE)
 cat("Anzahl der Einträge mit dem Wert 0 in INSURED_VALUE:", zero_values, "\n")
 
 #Überprüfe, wie viele Datensätze betroffen sind
-zero_insured_value <- data_motor[data_motor$INSURED_VALUE == 0, ]
+zero_insured_value <- raw_dat_motor[raw_dat_motor$INSURED_VALUE == 0, ]
 cat("Anzahl der Datensätze mit INSURED_VALUE = 0:", nrow(zero_insured_value), "\n")
 
 #Zusammenfassung der betroffenen Datensätze nach verschiedenen Variablen, um Muster zu erkennen
 cat("Verteilung der Versicherungstypen (INSR_TYPE) bei INSURED_VALUE = 0:\n")
-table(data_motor$INSR_TYPE) #Alle
+table(raw_dat_motor$INSR_TYPE) #Alle
 print(table(zero_insured_value$INSR_TYPE)) #nur 0
 
 cat("\nVerteilung der Fahrzeugtypen (TYPE_VEHICLE) bei INSURED_VALUE = 0:\n")
@@ -156,38 +156,38 @@ ggplot(zero_insured_value, aes(x = USAGE)) +
 #Fazit: Es wurde kein Zusammenhang festgestellt. Vermutlich ist der Versicherungswert von 0 darauf zurückzuführen, dass gesetzlich nur eine Haftpflichtversicherung erforderlich ist. In diesen Fällen gibt es keinen festgelegten Wert für Schäden am Fahrzeug selbst. Daher werden Datensätze mit einem INSURED_VALUE von 0 aus der Analyse entfernt, da sie keine relevanten Informationen für die Bewertung von Fahrzeugwerten enthalten.
 
 #Entfernen der Zeilen, bei denen INSURED_VALUE gleich 0 ist
-data_motor <- data_motor[data_motor$INSURED_VALUE != 0, ]
+raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE != 0, ]
 
 #Überprüfen, ob die Zeilen erfolgreich entfernt wurden
-cat("Anzahl der verbleibenden Datensätze:", nrow(data_motor), "\n")
+cat("Anzahl der verbleibenden Datensätze:", nrow(raw_dat_motor), "\n")
 
 #Verteilung von INSURED_VALUE visualisieren (Histogramm)
-ggplot(data_motor, aes(x = INSURED_VALUE)) +
+ggplot(raw_dat_motor, aes(x = INSURED_VALUE)) +
   geom_histogram(binwidth = 50000, fill = "blue", color = "black", alpha = 0.7) +
   labs(title = "Verteilung von INSURED_VALUE", x = "Versicherter Wert", y = "Häufigkeit") +
   theme_minimal()
 
 #Boxplot zur Identifizierung von Ausreissern
-ggplot(data_motor, aes(y = INSURED_VALUE)) +
+ggplot(raw_dat_motor, aes(y = INSURED_VALUE)) +
   geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
   labs(title = "Boxplot von INSURED_VALUE", y = "Versicherter Wert") +
   theme_minimal()
 
 #Überprüfung der statistischen Kennzahlen ohne die 0-Werte
 cat("Zusammenfassung der statistischen Kennzahlen ohne 0-Werte:\n")
-print(summary(data_motor$INSURED_VALUE))
+print(summary(raw_dat_motor$INSURED_VALUE))
 
 #Verteilung der log-transformierten INSURED_VALUE (nur für nicht-null Werte)
-ggplot(data_motor[data_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VALUE))) +
+ggplot(raw_dat_motor[raw_dat_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VALUE))) +
   geom_histogram(binwidth = 0.2, fill = "green", color = "black", alpha = 0.7) +
   labs(title = "Log-transformierte Verteilung von INSURED_VALUE (ohne Nullwerte)", x = "log(Versicherter Wert)", y = "Häufigkeit") +
   theme_minimal()
 
-summary(data_motor$INSURED_VALUE)
+summary(raw_dat_motor$INSURED_VALUE)
 
 #Ausreisser INSURED_VALUE entfernen 
-data_motor <- data_motor[data_motor$INSURED_VALUE >= 10, ]
-summary(data_motor$INSURED_VALUE)
+raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE >= 10, ]
+summary(raw_dat_motor$INSURED_VALUE)
 
 #Workspace
 rm(zero_insured_value)
@@ -195,26 +195,26 @@ rm(zero_insured_value)
 #PREMIUM
 #Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
 data.frame(
-  PREMIUM_0_Percent = round(100 * sum(data_motor$PREMIUM == 0, na.rm = TRUE) / sum(!is.na(data_motor$PREMIUM)), 4),
-  PREMIUM_NA_Percent = round(100 * sum(is.na(data_motor$PREMIUM)) / sum(!is.na(data_motor$PREMIUM)), 4),
-  PREMIUM_MORE_Percent = round(100 * sum(data_motor$PREMIUM > 0, na.rm = TRUE) / sum(!is.na(data_motor$PREMIUM)), 4)
+  PREMIUM_0_Percent = round(100 * sum(raw_dat_motor$PREMIUM == 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
+  PREMIUM_NA_Percent = round(100 * sum(is.na(raw_dat_motor$PREMIUM)) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
+  PREMIUM_MORE_Percent = round(100 * sum(raw_dat_motor$PREMIUM > 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), 4)
 )
 
 #Entfernen der Zeilen, bei denen PREMIUM NA oder 0 ist
-data_motor <- data_motor[!(is.na(data_motor$PREMIUM) | data_motor$PREMIUM == 0), ]
+raw_dat_motor <- raw_dat_motor[!(is.na(raw_dat_motor$PREMIUM) | raw_dat_motor$PREMIUM == 0), ]
 
 
 # Entfernen von Duplikaten und Zählen der entfernten Zeilen
-removed_count <- nrow(data_motor) - nrow(data_motor <- distinct(data_motor))
+removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
 # Ausgabe der Anzahl der entfernten Duplikate
 cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
 
 # OBJECT_ID
 # Anzahl der Gesamtzeilen im Datensatz
-total_rows <- nrow(data_motor)
+total_rows <- nrow(raw_dat_motor)
 
 # Anzahl der einzigartigen OBJECT_IDs
-unique_object_ids <- length(unique(data_motor$OBJECT_ID))
+unique_object_ids <- length(unique(raw_dat_motor$OBJECT_ID))
 
 # Überprüfen, ob OBJECT_IDs einmalig sind
 if (total_rows == unique_object_ids) {
@@ -224,7 +224,7 @@ if (total_rows == unique_object_ids) {
   cat("Anzahl der Duplikate:", total_rows - unique_object_ids, "\n")
   
   # Häufigkeit der OBJECT_IDs
-  object_id_counts <- table(data_motor$OBJECT_ID)
+  object_id_counts <- table(raw_dat_motor$OBJECT_ID)
   
   # Durchschnittliche und maximale Häufigkeit von OBJECT_ID
   avg_object_id_freq <- mean(object_id_counts)
@@ -234,7 +234,7 @@ if (total_rows == unique_object_ids) {
   cat("Maximale Häufigkeit der OBJECT_ID:", max_object_id_freq, "\n")
   
   # Häufigkeit der Kombination von OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE und PREMIUM
-  combo_counts <- data_motor %>%
+  combo_counts <- raw_dat_motor %>%
     group_by(OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM) %>%
     summarise(count = n(), .groups = 'drop')
   
@@ -248,7 +248,7 @@ if (total_rows == unique_object_ids) {
 
 #Teilweise gibt es bei CLAIM_PAID== YES eine vervielfachung
 #Korrektur bzw. entfernen dieser mehrfachen Zeilen
-data_motor <- data_motor %>%
+raw_dat_motor <- raw_dat_motor %>%
   group_by(SEX, INSR_BEGIN, INSR_END, INSR_TYPE, INSURED_VALUE, PREMIUM, OBJECT_ID, PROD_YEAR, SEATS_NUM, TYPE_VEHICLE, CCM_TON, MAKE, USAGE) %>%
   # Zähle die Anzahl der Zeilen in jeder Gruppe
   mutate(group_size = n()) %>%
@@ -258,41 +258,41 @@ data_motor <- data_motor %>%
   select(-group_size)  # Entferne die Hilfsspalte
 
 #Korrektur Wiederspruch bei INSR_TYPE
-data_motor <- data_motor %>%
+raw_dat_motor <- raw_dat_motor %>%
   group_by(SEX, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM, OBJECT_ID, PROD_YEAR, SEATS_NUM, TYPE_VEHICLE, CCM_TON, MAKE, USAGE) %>%
   filter(!(n() > 1 & INSR_TYPE != "Commercial")) %>%  # Behalte nur die Zeilen mit "Commercial"
   ungroup()  # Ungroup, um das Gruppierungsobjekt zu entfernen
 
 # Clear Workspace
-rm(list = setdiff(ls(), "data_motor"))
+rm(list = setdiff(ls(), "raw_dat_motor"))
 
 
 #PROD_YEAR
 #Zeilen mit PROD_YEAR NA entfernen
-data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
-summary(data_motor$PROD_YEAR)
+raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$PROD_YEAR),]
+summary(raw_dat_motor$PROD_YEAR)
 
 #SEATS_NUM
 #Analyse SEATS_NUM: Anzahl der Zeilen mit SEATS_NUM == 0, NA und anderen Werten
 data.frame(
-  SEATS_NUM_0 = sum(data_motor$SEATS_NUM == 0, na.rm = TRUE),
-  SEATS_NUM_NA = sum(is.na(data_motor$SEATS_NUM)),
-  SEATS_NUM_OTHER = sum(data_motor$SEATS_NUM > 0, na.rm = TRUE)
+  SEATS_NUM_0 = sum(raw_dat_motor$SEATS_NUM == 0, na.rm = TRUE),
+  SEATS_NUM_NA = sum(is.na(raw_dat_motor$SEATS_NUM)),
+  SEATS_NUM_OTHER = sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE)
 )
 #Relativ: Prozentsatz der Zeilen mit SEATS_NUM == 0, NA oder anderen Werten
 data.frame(
-  SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(data_motor$SEATS_NUM) | data_motor$SEATS_NUM == 0) / nrow(data_motor),
-  SEATS_NUM_OTHER_Percent = 100 * sum(data_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(data_motor)
+  SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(raw_dat_motor$SEATS_NUM) | raw_dat_motor$SEATS_NUM == 0) / nrow(raw_dat_motor),
+  SEATS_NUM_OTHER_Percent = 100 * sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(raw_dat_motor)
 )
 #Zeilen mit SEATS_NUM NA entfernen
-data_motor <- data_motor[!is.na(data_motor$SEATS_NUM),]
-summary(data_motor$SEATS_NUM)
+raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$SEATS_NUM),]
+summary(raw_dat_motor$SEATS_NUM)
 
 #Problematik: Es gibt SEATS_NUM mit 0
 
 ##Erstellen separater Datensätze für SEATS_NUM == 0 und SEATS_NUM > 0
-#data_seats_num_0 <- subset(data_motor, SEATS_NUM == 0)
-#data_seats_num_other <- subset(data_motor, SEATS_NUM > 0 & !is.na(SEATS_NUM))
+#data_seats_num_0 <- subset(raw_dat_motor, SEATS_NUM == 0)
+#data_seats_num_other <- subset(raw_dat_motor, SEATS_NUM > 0 & !is.na(SEATS_NUM))
 ## Tabellen der Fahrzeugtypen für beide Datensätze
 #table(data_seats_num_0$TYPE_VEHICLE)
 #table(data_seats_num_other$TYPE_VEHICLE)
@@ -301,309 +301,194 @@ summary(data_motor$SEATS_NUM)
 ##Liste der Fahrzeugtypen, bei denen SEATS_NUM == 0 unplausibel ist (Trailers and semitrailers, Tractor, Tanker werden gelassen)
 #unplausible_types <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Station Wagones", "Tanker", "Truck")
 ##Entfernen der Zeilen, bei denen SEATS_NUM == 0 und der Fahrzeugtyp unplausibel ist
-#data_motor <- data_motor[!(data_motor$SEATS_NUM == 0 & data_motor$TYPE_VEHICLE %in% unplausible_types), ]
+#raw_dat_motor <- raw_dat_motor[!(raw_dat_motor$SEATS_NUM == 0 & raw_dat_motor$TYPE_VEHICLE %in% unplausible_types), ]
 #
 #
 ##SEATS_NUM Alternative 2: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
-##data_motor <- data_motor[!(is.na(data_motor$SEATS_NUM) | data_motor$SEATS_NUM == 0), ]
+#raw_dat_motor <- raw_dat_motor[!(is.na(raw_dat_motor$SEATS_NUM) | raw_dat_motor$SEATS_NUM == 0), ]
 #
 ##SEATS_NUM Alternative 3: Entfernen der SEATS_NUM-Spalte, da viele NA und schlechte Datenqualität
-##data_motor <- subset(data_motor, select = -SEATS_NUM)
+##raw_dat_motor <- subset(raw_dat_motor, select = -SEATS_NUM)
 
 #TYPE_VEHICLE
 #Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (5)
-table(data_motor$TYPE_VEHICLE)
-data_motor <- data_motor[data_motor$TYPE_VEHICLE != "Trade plates", ]
+table(raw_dat_motor$TYPE_VEHICLE)
+raw_dat_motor <- raw_dat_motor[raw_dat_motor$TYPE_VEHICLE != "Trade plates", ]
 
-
-#MAKE
-#Zeilen mit MAKE NA entfernen
-data_motor <- data_motor[!is.na(data_motor$MAKE),]
-#MAKE in Grossbuchstaben umwandeln
-data_motor$MAKE <- toupper(data_motor$MAKE)
-
-#Entfernen von Duplikaten und Zählen der entfernten Zeilen
-removed_count <- nrow(data_motor) - nrow(data_motor <- distinct(data_motor))
-#Ausgabe der Anzahl der entfernten Duplikate
-cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
-# Behalten von Zeilen, in denen MAKE mit Buchstaben beginnt
-data_motor <- data_motor[grepl("^[A-Za-z]", data_motor$MAKE), ]
-table(data_motor$MAKE)
-
-
-#Manuelle Korrekturen von MAKE
-data_motor$MAKE[data_motor$MAKE %in% c("PORCHE", "FORSCHE")] <- "PORSCHE"
-data_motor$MAKE[data_motor$MAKE == "YAMHA"] <- "YAMAHA"
-data_motor$MAKE[data_motor$MAKE %in% c("VOLKSWAGON", "VOLKS WAGON")] <- "VOLKSWAGEN"
-data_motor$MAKE[data_motor$MAKE %in% c("TOYOTAA", "TOYOTA*", "TOYTA", "TOYOTA AUTOMOBILE",
-                                       "TOYATA", "T0Y0TA", "COMPACT YARIS", "YARIS",
-                                       "LAND CRUISER", "VITZ")] <- "TOYOTA"
-data_motor$MAKE[grepl("^TOYOTA", data_motor$MAKE)] <- "TOYOTA"
-data_motor$MAKE[data_motor$MAKE %in% c("NISAN", "NISSAN*")] <- "NISSAN"
-data_motor$MAKE[grepl("^NISSAN", data_motor$MAKE)] <- "NISSAN"
-data_motor$MAKE[data_motor$MAKE %in% c("RENGE  ROVER", "RANGEROVER")] <- "RANGE ROVER"
-data_motor$MAKE[data_motor$MAKE %in% c("RENALT", "RENUALT", "RENAULT/STOLARCZYK", "RENAULT*")] <- "RENAULT"
-data_motor$MAKE[data_motor$MAKE %in% c("PEUGEOUT", "PEJOT", "PAGOT")] <- "PEUGEOT"
-data_motor$MAKE[grepl("^PEUGEOT", data_motor$MAKE)] <- "PEUGEOT"
-data_motor$MAKE[data_motor$MAKE %in% c("BMB")] <- "BMW"
-data_motor$MAKE[grepl("^BMW", data_motor$MAKE)] <- "BMW"
-data_motor$MAKE[data_motor$MAKE %in% c("MISTIBUSH", "MITSUBISHI*", "MITSUBUSHI")] <- "MITSUBISHI"
-data_motor$MAKE[grepl("^FORD", data_motor$MAKE)] <- "FORD"
-data_motor$MAKE[data_motor$MAKE %in% c("SPORTAGE")] <- "KIA"
-data_motor$MAKE[data_motor$MAKE %in% c("MERCEEDES", "MERCEEDICE", "MERCEDICE", "MERCHEDES")] <- "MERCEDES"
-data_motor$MAKE[grepl("^MERCEDES", data_motor$MAKE)] <- "MERCEDES"
-data_motor$MAKE[data_motor$MAKE %in% c("SUZIKE")] <- "SUZUKI"
-data_motor$MAKE[grepl("^SUZUKI", data_motor$MAKE)] <- "SUZUKI"
-data_motor$MAKE[data_motor$MAKE %in% c("HYUNDI GETZ")] <- "HYUNDAI"
-data_motor$MAKE[data_motor$MAKE %in% c("ISUSU")] <- "ISUZU"
-data_motor$MAKE[grepl("^ISUZU", data_motor$MAKE)] <- "ISUZU"
-data_motor$MAKE[data_motor$MAKE %in% c("FRANKUN IVECO")] <- "IVECO"
-data_motor$MAKE[grepl("^IVECO", data_motor$MAKE)] <- "IVECO"
-data_motor$MAKE[data_motor$MAKE %in% c("LANDROVER")] <- "LAND ROVER"
-data_motor$MAKE[data_motor$MAKE %in% c("DONGFANG", "DONFING", "DONG FENGSHEN", "DONG FENG")] <- "DONGFENG"
-data_motor$MAKE[data_motor$MAKE %in% c("MAHANDRA")] <- "MAHINDRA"
-
-
-data_motor$MAKE[data_motor$MAKE %in% c("GELYION", "GENLION", "GELION", "GENLYONIVECO", "HONGYAN")] <- "GENLYON"
-data_motor$MAKE[data_motor$MAKE %in% c("DHATSU", "DIATSU", "DIAHATSU")] <- "DAIHATSU"
-data_motor$MAKE[data_motor$MAKE %in% c("DAWOO", "DAWWO", "DEAWOO", "DEAWOO USE")] <- "DAEWOO"
-data_motor$MAKE[grepl("^LIFAN", data_motor$MAKE)] <- "LIFAN"
-data_motor$MAKE[grepl("^BAIC", data_motor$MAKE)] <- "BAIC"
-data_motor$MAKE[grepl("^LOADER", data_motor$MAKE)] <- "LOADER"
-data_motor$MAKE[data_motor$MAKE %in% c("MOTOR CYCLE", "MOTOR  CYCLE")] <- "MOTORCYCLE"
-data_motor$MAKE[data_motor$MAKE %in% c("AUTO", "AUTOMOBIL")] <- "AUTOMOBILE"
-data_motor$MAKE[grepl("^CATERPILLAR", data_motor$MAKE)] <- "CATERPILLAR"
-data_motor$MAKE[data_motor$MAKE %in% c("LIBER DOZER", "LIBERR MOBILE CRANE",
-                                       "LIEBERR MOBILE CRANE", "LEABER CATO CRANE",
-                                       "LEBHER CRANE", "CRANE LEBEHER",
-                                       "CRANE LEBHERER", "LIBER", "LIBEHER CRANE",
-                                       "LIBERR MOBILECRANE", "CRANELEBHER")] <- "LIEBHERR"
-
-
-
-# Zähle die Anzahl der Einträge pro MAKE, wo CLAIM_PAID == "YES"
-count_claims_paid <- data_motor %>%
-  group_by(MAKE, CLAIM_PAID ) %>%                 # Gruppiere nach MAKE
-  summarise(count = n()) %>%        # Zähle die Einträge pro Gruppe
-  arrange(desc(count)) 
-
-
-
-table(data_motor$MAKE)
-
-# Definiere die gewünschten Marken
-desired_makes <- c("TOYOTA", "ISUZU", "NISSAN", "IVECO", "MITSUBISHI",
-                   "FORD", "HYUNDAI", "MAZDA", "MERCEDES", "FIAT",
-                   "SUZUKI", "RENAULT")
-
-# Erstellen eines neuen Datensatzes mit den gefilterten Marken
-filtered_data_motor <- data_motor[data_motor$MAKE %in% desired_makes, ]
-
-# Überprüfen der Anzahl der verbleibenden Datensätze
-cat("Anzahl der verbleibenden Datensätze:", nrow(filtered_data_motor), "\n")
-
-
-table(filtered_data_motor$CLAIM_PAID)
-table(data_motor$CLAIM_PAID)
-table(filtered_data_motor$TYPE_VEHICLE)
-###############################################################################################
 #CCM_TON
-summary(data_motor$CCM_TON)
-
+summary(raw_dat_motor$CCM_TON)
 #Relativ CCM_TON 0
 data.frame(
-  CCM_TON_0_Percent = 100 * mean(data_motor$CCM_TON == 0, na.rm = TRUE),
-  CCM_TON_MORE_Percent = 100 * mean(data_motor$CCM_TON > 0, na.rm = TRUE))
+  CCM_TON_0_Percent = 100 * mean(raw_dat_motor$CCM_TON == 0, na.rm = TRUE),
+  CCM_TON_MORE_Percent = 100 * mean(raw_dat_motor$CCM_TON > 0, na.rm = TRUE))
 # Erstellen separater Datensätze für CCM_TON == 0 und CCM_TON > 0
-data_CCM_TON_0 <- subset(data_motor, CCM_TON == 0)
-data_CCM_TON_other <- subset(data_motor, CCM_TON > 0 & !is.na(CCM_TON))
+data_CCM_TON_0 <- subset(raw_dat_motor, CCM_TON == 0)
+data_CCM_TON_other <- subset(raw_dat_motor, CCM_TON > 0 & !is.na(CCM_TON))
 # Tabellen der Fahrzeugtypen für beide Datensätze
 table(data_CCM_TON_0$TYPE_VEHICLE)
 table(data_CCM_TON_other$TYPE_VEHICLE)
 # Liste der Fahrzeugtypen, bei denen CCM_TON == 0 unplausibel ist (Tractor,Trailers and semitrailers werden gelassen)
 unplausible_types_ccm <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Truck", "Station Wagones", "Tanker", "Special construction")
 # Entfernen der Zeilen, bei denen CCM_TON == 0 und der Fahrzeugtyp unplausibel ist
-data_motor <- data_motor[!(data_motor$CCM_TON == 0 & data_motor$TYPE_VEHICLE %in% unplausible_types_ccm), ]
+raw_dat_motor <- raw_dat_motor[!(raw_dat_motor$CCM_TON == 0 & raw_dat_motor$TYPE_VEHICLE %in% unplausible_types_ccm), ]
+
+
+#USAGE
+table(raw_dat_motor$USAGE)
+#Wenige Ausprägungen entfernen
+raw_dat_motor <- subset(raw_dat_motor, !(USAGE %in% c("Fire fighting", "Learnes", "Others")))
 
 
 
-
-#NA
-colSums(is.na(data_motor))
-
-
-
-
-
-
-
-
-
+#MAKE
 #Zeilen mit MAKE NA entfernen
-data_motor <- data_motor[!is.na(data_motor$MAKE),]
+raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$MAKE),]
+#MAKE in Grossbuchstaben umwandeln
+raw_dat_motor$MAKE <- toupper(raw_dat_motor$MAKE)
+
+#Entfernen von Duplikaten und Zählen der entfernten Zeilen
+removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
+#Ausgabe der Anzahl der entfernten Duplikate
+cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+# Behalten von Zeilen, in denen MAKE mit Buchstaben beginnt
+raw_dat_motor <- raw_dat_motor[grepl("^[A-Za-z]", raw_dat_motor$MAKE), ]
+table(raw_dat_motor$MAKE)
 
 
-# Korrektur der Tippfehler für Toyota, Renault, HIGHBENCARGO und Mercedes in der Spalte MAKE
-# Liste der zu korrigierenden Mercedes-Varianten
-mercedes_variants <- c("MERCHEDES", "MERCEEDES", "MERCEEDICE", 
-                        "MERCEDIS", "MERCEDES / 2521-48", 
-                        "MERCEDES ATEGO-KELES", "MERCEDES BENZ", 
-                        "MERCEDES/SANY", "MERCEDES AXOR")
-
-# Setze die Einträge in der Spalte MAKE auf "MERCEDES"
-data_motor$MAKE[data_motor$MAKE %in% mercedes_variants] <- "MERCEDES"
-
-
-
-
-
-data_motor$MAKE <- gsub("HIGHBENCARGOTRAUCK", "HIGHBENCARGO", data_motor$MAKE)
-
-
-# Liste der ungültigen oder nicht existierenden Marken, die entfernt werden sollen
-invalid_makes <- c("*", "1982", "1984", "1985", "2011", 
-                   "2 AXEL LOWBED", "3-AXLE DRAWBAR CARGO TRAILER", "330-30 TRAILER", 
-                   "4WDTUAB TERES COPIC HANDLER", "B.AKEL", 
-                   "AUTOMOBIL", "AUTOMOBILE", "BAJAJI", 
-                   "MERCEDES / 2521-48", "P/UP")
-
-# Entfernen der ungültigen Marken aus dem Datensatz
-data_motor <- data_motor[!(data_motor$MAKE %in% invalid_makes), ]
-
-
-
-
-
+#Manuelle Korrekturen von MAKE
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("PORCHE", "FORSCHE")] <- "PORSCHE"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE == "YAMHA"] <- "YAMAHA"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("VOLKSWAGON", "VOLKS WAGON")] <- "VOLKSWAGEN"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("TOYOTAA", "TOYOTA*", "TOYTA", "TOYOTA AUTOMOBILE",
+                                       "TOYATA", "T0Y0TA", "COMPACT YARIS", "YARIS",
+                                       "LAND CRUISER", "VITZ")] <- "TOYOTA"
+raw_dat_motor$MAKE[grepl("^TOYOTA", raw_dat_motor$MAKE)] <- "TOYOTA"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("NISAN", "NISSAN*")] <- "NISSAN"
+raw_dat_motor$MAKE[grepl("^NISSAN", raw_dat_motor$MAKE)] <- "NISSAN"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("RENGE  ROVER", "RANGEROVER")] <- "RANGE ROVER"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("RENALT", "RENUALT", "RENAULT/STOLARCZYK", "RENAULT*")] <- "RENAULT"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("PEUGEOUT", "PEJOT", "PAGOT")] <- "PEUGEOT"
+raw_dat_motor$MAKE[grepl("^PEUGEOT", raw_dat_motor$MAKE)] <- "PEUGEOT"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("BMB")] <- "BMW"
+raw_dat_motor$MAKE[grepl("^BMW", raw_dat_motor$MAKE)] <- "BMW"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MISTIBUSH", "MITSUBISHI*", "MITSUBUSHI")] <- "MITSUBISHI"
+raw_dat_motor$MAKE[grepl("^FORD", raw_dat_motor$MAKE)] <- "FORD"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("SPORTAGE")] <- "KIA"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MERCEEDES", "MERCEEDICE", "MERCEDICE", "MERCHEDES")] <- "MERCEDES"
+raw_dat_motor$MAKE[grepl("^MERCEDES", raw_dat_motor$MAKE)] <- "MERCEDES"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("SUZIKE")] <- "SUZUKI"
+raw_dat_motor$MAKE[grepl("^SUZUKI", raw_dat_motor$MAKE)] <- "SUZUKI"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("HYUNDI GETZ")] <- "HYUNDAI"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("ISUSU")] <- "ISUZU"
+raw_dat_motor$MAKE[grepl("^ISUZU", raw_dat_motor$MAKE)] <- "ISUZU"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("FRANKUN IVECO")] <- "IVECO"
+raw_dat_motor$MAKE[grepl("^IVECO", raw_dat_motor$MAKE)] <- "IVECO"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("LANDROVER")] <- "LAND ROVER"
 
 
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("DONGFANG", "DONFING", "DONG FENGSHEN", "DONG FENG")] <- "DONGFENG"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MAHANDRA")] <- "MAHINDRA"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("HOLAND CAR")] <- "ABAY"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("CALABRASE")] <- "CALABRESE"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("GELYION", "GENLION", "GELION", "GENLYONIVECO", "HONGYAN")] <- "GENLYON"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("DHATSU", "DIATSU", "DIAHATSU")] <- "DAIHATSU"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("DAWOO", "DAWWO", "DEAWOO", "DEAWOO USE")] <- "DAEWOO"
+raw_dat_motor$MAKE[grepl("^LIFAN", raw_dat_motor$MAKE)] <- "LIFAN"
+raw_dat_motor$MAKE[grepl("^BAIC", raw_dat_motor$MAKE)] <- "BAIC"
+raw_dat_motor$MAKE[grepl("^LOADER", raw_dat_motor$MAKE)] <- "LOADER"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MOTOR CYCLE", "MOTOR  CYCLE")] <- "MOTORCYCLE"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("AUTO", "AUTOMOBIL")] <- "AUTOMOBILE"
+raw_dat_motor$MAKE[grepl("^CATERPILLAR", raw_dat_motor$MAKE)] <- "CATERPILLAR"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("LIBER DOZER", "LIBERR MOBILE CRANE",
+                                       "LIEBERR MOBILE CRANE", "LEABER CATO CRANE",
+                                       "LEBHER CRANE", "CRANE LEBEHER",
+                                       "CRANE LEBHERER", "LIBER", "LIBEHER CRANE",
+                                       "LIBERR MOBILECRANE", "CRANELEBHER")] <- "LIEBHERR"
+
+table(raw_dat_motor$MAKE)
+
+#Zähle die Anzahl der Einträge pro MAKE, wo CLAIM_PAID == "YES"
+count_claims_paid <- raw_dat_motor %>%
+  group_by(MAKE, CLAIM_PAID ) %>%                 # Gruppiere nach MAKE
+  summarise(count = n()) %>%        # Zähle die Einträge pro Gruppe
+  arrange(desc(count)) 
+
+###############################################################################################
 
 
+#Liste der gewünschten Fahrzeughersteller (Make)
+selected_makes <- c("TOYOTA", "ISUZU", "NISSAN", "IVECO", "SINO HOWO", 
+                    "MITSUBISHI", "BISHOFTU", "LIFAN", "FORD", "HYUNDAI", 
+                    "MAZDA", "GEELY", "DAEWOO", "MERCEDES", "TATA", 
+                    "FIAT", "SINO", "SUZUKI", "GENLYON", "RENAULT", "VOLVO")
 
+#Filtern des Datensatzes nach den ausgewählten Fahrzeugherstellern
+clean_dat_motor <- subset(raw_dat_motor, MAKE %in% selected_makes)
 
+#Wenige Ausprägungen entfernen
+table(clean_dat_motor$SEX) #OK
 
+table(clean_dat_motor$USAGE)
+clean_dat_motor <- subset(clean_dat_motor, !(USAGE %in% c("Agricultural Any Farm",
+                                                "Agricultural Own Farm",
+                                                "Special Construction", "Taxi ")))
 
+table(clean_dat_motor$TYPE_VEHICLE)
+#Wenige Ausprägungen entfernen
+clean_dat_motor <- subset(clean_dat_motor, !(TYPE_VEHICLE %in% c("Tractor")))
 
+table(clean_dat_motor$INSR_TYPE)
+#Wenige Ausprägungen entfernen
+clean_dat_motor <- subset(clean_dat_motor, !(INSR_TYPE %in% c("Motor trade road risk")))
 
+table(clean_dat_motor$MAKE)
 
-
-
-
+#CLAIM_PAID
+data.frame(
+  CLAIM_PAID_0 = sum(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0 = sum(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
 
 data.frame(
-  CLAIM_PAID_0 = sum(data_motor$CLAIM_PAID == 0, na.rm = TRUE),
-  CLAIM_PAID_MORE_THAN_0 = sum(data_motor$CLAIM_PAID > 0, na.rm = TRUE))
+  CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+
+
+###############################################################################################
+
+#Vergleich zum Rohdatensatz
+#CLAIM_PAID
+data.frame(
+  CLAIM_PAID_0 = sum(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0 = sum(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
 
 data.frame(
-  CLAIM_PAID_0_Percent = 100 * mean(data_motor$CLAIM_PAID == 0, na.rm = TRUE),
-  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(data_motor$CLAIM_PAID > 0, na.rm = TRUE))
+  CLAIM_PAID_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
 
-
+###############################################################################################
 
 #NA
-colSums(is.na(data_motor)) 
+colSums(is.na(raw_dat_motor)) 
+colSums(is.na(clean_dat_motor)) 
 
-rm(data_CCM_TON_0)
-rm(data_CCM_TON_other)
-rm(data_seats_num_0)
-rm(data_seats_num_other)
-
-```
-
-
-
-
-
-
-
-```{r cars cache=TRUE}
-
-#OLD
-
-
-#DATA PREP
-data_motor$CARRYING_CAPACITY<-as.numeric(data_motor$CARRYING_CAPACITY)
-
-data_motor <- data_motor[, !names(data_motor) %in% "EFFECTIVE_YR"]
- 
-# Entfernen der Zeilen, wo 'make' nicht mit einem Buchstaben beginnt
-data_motor <- data_motor[grepl("^[A-Za-z]", data_motor$MAKE), ] 
-data_motor$CLAIM_PAID[is.na(data_motor$CLAIM_PAID)] <- 0
-data_motor$CARRYING_CAPACITY[is.na(data_motor$CARRYING_CAPACITY)] <- 0
-table(data_motor$TYPE_VEHICLE)
- 
- 
-# LUCA
-# Drop rows with NA values in specific columns
-data_motor <- data_motor[!is.na(data_motor$PREMIUM) & !is.na(data_motor$PROD_YEAR) & !is.na(data_motor$CCM_TON) & !is.na(data_motor$MAKE) & !is.na(data_motor$SEATS_NUM), ]
-# Check for the number of missing values in each column
-colSums(is.na(data_motor))
-# Create a new column to determine if the claim was paid
-data_motor$CLAIM <- ifelse(data_motor$CLAIM_PAID == 0, 'NO', 'YES')
-
-# Drop the INSR_TYPE column
-data_motor <- data_motor[, !names(data_motor) %in% 'INSR_TYPE']
-# Count how many zeros are in the INSURED_VALUE column
-insured_value_zeros <- sum(data_motor$INSURED_VALUE == 0)
-cat('Number of values with zero in insured value:', insured_value_zeros, '\n')
- 
-#FIXME to be discussed
-# Calculate the median of INSURED_VALUE by TYPE_VEHICLE, MAKE, and PROD_YEAR 
-median_insured_value <- ave(data_motor$INSURED_VALUE, data_motor$TYPE_VEHICLE, data_motor$MAKE, data_motor$PROD_YEAR, 
-                            FUN = function(x) median(x, na.rm = TRUE))
- 
-# Replace 0s in INSURED_VALUE with the calculated median
-data_motor$INSURED_VALUE[data_motor$INSURED_VALUE == 0] <- median_insured_value[data_motor$INSURED_VALUE == 0]
-
-# Calculate the median of CARRYING_CAPACITY by TYPE_VEHICLE and MAKE
-median_carrying_capacity <- ave(data_motor$CARRYING_CAPACITY, data_motor$TYPE_VEHICLE, data_motor$MAKE, 
-                                FUN = function(x) median(x, na.rm = TRUE))
-# Replace 0s in CARRYING_CAPACITY with the calculated median
-data_motor$CARRYING_CAPACITY[data_motor$CARRYING_CAPACITY == 0] <- median_carrying_capacity[data_motor$CARRYING_CAPACITY == 0]
-
-
- 
-# Replace 0s in INSURED_VALUE with the calculated median
-data_motor$INSURED_VALUE[data_motor$INSURED_VALUE == 0] <- median_insured_value[data_motor$INSURED_VALUE == 0]
- 
- 
-# Calculate the median of CARRYING_CAPACITY by TYPE_VEHICLE and MAKE
-#data_motor$CARRYING_CAPACITY[is.na(data_motor$CARRYING_CAPACITY)] <- 0
-
-median_carrying_capacity <- ave(data_motor$CARRYING_CAPACITY, data_motor$TYPE_VEHICLE, data_motor$MAKE, 
-                                FUN = function(x) median(x, na.rm = TRUE))
- 
-# Replace 0s in CARRYING_CAPACITY with the calculated median
-data_motor$CARRYING_CAPACITY[data_motor$CARRYING_CAPACITY == 0] <- median_carrying_capacity[data_motor$CARRYING_CAPACITY == 0]
- 
- 
-# Count how many zeros are in the PREMIUM column
-premium_zeros <- sum(data_motor$PREMIUM == 0)
-cat('Number of values with zero in premium:', premium_zeros, '\n')
-data_motor <- data_motor[data_motor$PREMIUM != 0, ]
-# Count how many zeros are in the CARRYING_CAPACITY column
-carrying_capacity_zeros <- sum(data_motor$CARRYING_CAPACITY == 0)
-cat('Number of values with zero in carrying capacity:', carrying_capacity_zeros, '\n')
-# Count how many zeros are in the SEATS_NUM column
-seats_num_zeros <- sum(data_motor$SEATS_NUM == 0)
-cat('Number of values with zero in number of seats:', seats_num_zeros, '\n')
-
+# Clear Workspace
+rm(list = setdiff(ls(), c("raw_dat_motor", "clean_dat_motor")))
 
 ```
-
 
 
 # Models
 ## Linear Model
 ```{r Linear-Model}
 # TODO
-str(data_motor)
-summary(data_motor)
+str(raw_dat_motor)
+summary(raw_dat_motor)
 
  #Premium= gender, insured value, prod_year, seats number, capacity, type vehicle,  cctm_ton, make, usage
 
 # Erstelle das lineare Regressionsmodell mit den erklärenden Variablen
 lm_model <- lm(PREMIUM ~ GENDER + INSURED_VALUE + PROD_YEAR + SEATS_NUM + CARRYING_CAPACITY + 
-               TYPE_VEHICLE + CCM_TON + MAKE + USAGE, data = data_motor)
+               TYPE_VEHICLE + CCM_TON + MAKE + USAGE, data = raw_dat_motor)
 
 # Zusammenfassung des Modells anzeigen
 summary(lm_model)
