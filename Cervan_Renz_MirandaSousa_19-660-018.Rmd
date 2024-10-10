@@ -313,7 +313,7 @@ summary(raw_dat_motor$SEATS_NUM)
 
 #TYPE_VEHICLE
 #Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (5)
-table(raw_dat_motor$TYPE_VEHICLE)
+#table(raw_dat_motor$TYPE_VEHICLE)
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$TYPE_VEHICLE != "Trade plates", ]
 
 #CCM_TON
@@ -335,7 +335,7 @@ raw_dat_motor <- raw_dat_motor[!(raw_dat_motor$CCM_TON == 0 & raw_dat_motor$TYPE
 
 
 #USAGE
-table(raw_dat_motor$USAGE)
+#table(raw_dat_motor$USAGE)
 #Wenige Ausprägungen entfernen
 raw_dat_motor <- subset(raw_dat_motor, !(USAGE %in% c("Fire fighting", "Learnes", "Others")))
 
@@ -406,7 +406,7 @@ raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("LIBER DOZER", "LIBERR MOBILE CRANE
                                        "CRANE LEBHERER", "LIBER", "LIBEHER CRANE",
                                        "LIBERR MOBILECRANE", "CRANELEBHER")] <- "LIEBHERR"
 
-table(raw_dat_motor$MAKE)
+#table(raw_dat_motor$MAKE)
 
 #Zähle die Anzahl der Einträge pro MAKE, wo CLAIM_PAID == "YES"
 count_claims_paid <- raw_dat_motor %>%
@@ -427,22 +427,22 @@ selected_makes <- c("TOYOTA", "ISUZU", "NISSAN", "IVECO", "SINO HOWO",
 clean_dat_motor <- subset(raw_dat_motor, MAKE %in% selected_makes)
 
 #Wenige Ausprägungen entfernen
-table(clean_dat_motor$SEX) #OK
+#table(clean_dat_motor$SEX) #OK
 
-table(clean_dat_motor$USAGE)
+#table(clean_dat_motor$USAGE)
 clean_dat_motor <- subset(clean_dat_motor, !(USAGE %in% c("Agricultural Any Farm",
                                                 "Agricultural Own Farm",
                                                 "Special Construction", "Taxi")))
 
-table(clean_dat_motor$TYPE_VEHICLE)
+#table(clean_dat_motor$TYPE_VEHICLE)
 #Wenige Ausprägungen entfernen
 clean_dat_motor <- subset(clean_dat_motor, !(TYPE_VEHICLE %in% c("Tractor")))
 
-table(clean_dat_motor$INSR_TYPE)
+#table(clean_dat_motor$INSR_TYPE)
 #Wenige Ausprägungen entfernen
 clean_dat_motor <- subset(clean_dat_motor, !(INSR_TYPE %in% c("Motor trade road risk")))
 
-table(clean_dat_motor$MAKE)
+#table(clean_dat_motor$MAKE)
 
 #CLAIM_PAID
 data.frame(
