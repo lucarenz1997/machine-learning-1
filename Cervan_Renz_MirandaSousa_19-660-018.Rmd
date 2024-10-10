@@ -28,83 +28,31 @@ unverändert, dann werden die alten Ergebnisse verwendet
 
 
 # Setup
-```{r cars cache=TRUE}
+```{r setup cache=TRUE}
 
 #Install and import libraries.
-if (!require("quantmod")) install.packages("quantmod")
-if (!require("PortfolioAnalytics")) install.packages("PortfolioAnalytics")
-if (!require("PerformanceAnalytics")) install.packages("PerformanceAnalytics")
 if (!require("ggplot2")) install.packages("ggplot2")
 if (!require("ROI")) install.packages("ROI")
-if (!require("ROI.plugin.quadprog")) install.packages("ROI.plugin.quadprog")
-if (!require("fPortfolio")) install.packages("fPortfolio")
 if (!require("tidyverse")) install.packages("tidyverse")
 if (!require("lubridate")) install.packages("lubridate")
 if (!require("corrplot")) install.packages("corrplot")
-if (!require("dbscan")) install.packages("dbscan")
 if (!require("dplyr")) install.packages("dplyr")
 if (!require("GGally")) install.packages("GGally")
-if (!require("tm")) install.packages("tm")
-if (!require("tidytext")) install.packages("tidytext")
-if (!require("wordcloud")) install.packages("wordcloud")
-
+if (!require("mgcv")) install.packages("mgcv")  # Generalised Additive Model (GAM)
+if (!require("nnet")) install.packages("nnet")  # Neural Networks
+if (!require("e1071")) install.packages("e1071")  # Support Vector Machine (SVM)
 
 library(readr,quietly = T)
-library(quantmod, quietly = T)
-library(PortfolioAnalytics, quietly = T)
-library(PerformanceAnalytics, quietly = T)
 library(ggplot2, quietly = T)
 library(ROI, quietly = T)
-library(ROI.plugin.quadprog, quietly = T)
-library(fPortfolio, quietly = T)
 library(tidyverse, quietly = T)
 library(lubridate, quietly = T)
 library(corrplot, quietly = T)
-library(dbscan)
 library(dplyr)
 library(GGally)
-library(NLP)
-library(RColorBrewer)
-library(tm)
-library(wordcloud)
-library(tidytext)
-
-
-# DATA LOAD
-data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
-
-
-#Alternativer Datensatz
-#data_veh_ins<- read.csv("C:/Users/Ella-/MSc/2. Semester/ML1/machine-learning-1/data/Motor vehicle insurance data.csv", sep=";")
-##Data Prep
-## Umwandlung von Type_risk in eine ordinale kategoriale Variable
-#data_veh_ins$Type_risk <- factor(data_veh_ins$Type_risk,
-#                                 levels = c(1, 2, 3, 4),
-#                                 labels = c("Motorbike", "Van", "Passenger Car", "Agricultural Vehicle"),
-#                                 ordered = TRUE)
-## Umwandlung von Payment in eine kategorische Variable mit den definierten Labels
-#data_veh_ins$Payment <- factor(data_veh_ins$Payment,
-#                               levels = c(0, 1),
-#                               labels = c("Annual Payment", "Half-yearly Administrative Process"))
-#
-## Umwandlung von Area in eine kategorische Variable mit den definierten Labels
-#data_veh_ins$Area <- factor(data_veh_ins$Area, levels = c(0, 1),
-#                            labels = c("Rural", "Urban (more than 30K inhabitants)"))
-#
-## Umwandlung von Second_driver in eine kategorische Variable mit den definierten Labels
-#data_veh_ins$Second_driver <- factor(data_veh_ins$Second_driver,
-#                                     levels = c(0, 1), 
-#                                     labels = c("One driver declared", "Multiple drivers declared"))
-#
-## Umwandlung von Distribution_channel in eine kategorische Variable mit den definierten Labels
-#data_veh_ins$Distribution_channel <- factor(data_veh_ins$Distribution_channel,
-#                                            levels = c(0, 1), 
-#                                            labels = c("Agent", "Insurance Broker"))
-
-#table(data_veh_ins$Type_risk)
-#str(data_veh_ins)
-
-
+library(mgcv)  # For Generalised Additive Models
+library(nnet)  # For Neural Networks
+library(e1071)  # For Support Vector Machine
 
 ```
 
@@ -122,45 +70,216 @@ Der Hubraum (ccm) gibt das Volumen der Zylinder eines Verbrennungsmotors an. Ein
 Wenn CCM_TON das Gewicht des Motors in Tonnen angibt, wäre ebenfalls ein Wert von 0 unplausibel, da ein Fahrzeug ohne Motorgewicht nicht funktionsfähig wäre.
 
 
-```{r cars cache=TRUE}
+```{r data prep cache=TRUE}
 
+# DATA LOAD
+data_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
+
+dim(data_motor)
+str(data_motor)
 
 #DATA PREP
+
+#EFFECTIVE_YR
+#Entfernen der Spalte EFFECTIVE_YR (Hat keinen Nutzen, da nicht entziffert werden kann)
+data_motor <- data_motor[ , !(names(data_motor) %in% "EFFECTIVE_YR")]
+
+#CARRYING_CAPACITY
+#Entfernen der Spalte CARRYING_CAPACITY
+data_motor <- data_motor[ , !(names(data_motor) %in% "CARRYING_CAPACITY")]
+
+#CLAIM_PAID
+data_motor$CLAIM_PAID_USD <- ifelse(is.na(data_motor$CLAIM_PAID), 0, data_motor$CLAIM_PAID)
+data_motor$CLAIM_PAID <- ifelse(data_motor$CLAIM_PAID_USD == 0, "NO", "YES")
+
+# Entfernen von Duplikaten und Zählen der entfernten Zeilen
+removed_count <- nrow(data_motor) - nrow(data_motor <- distinct(data_motor))
+# Ausgabe der Anzahl der entfernten Duplikate
+cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+
+#SEX
 data_motor$SEX <- factor(data_motor$SEX, 
                    levels = c(0, 1, 2), 
                    labels = c("Legal entity", "Male", "Female"))
+table(data_motor$SEX)
 
+#INSR_BEGIN
+data_motor$INSR_BEGIN <- dmy(data_motor$INSR_BEGIN)
+
+#INSR_END
+data_motor$INSR_END <- dmy(data_motor$INSR_END)
+
+#INSR_TYPE
 data_motor$INSR_TYPE <- factor(data_motor$INSR_TYPE, 
                          levels = c(1201, 1202, 1204), 
                          labels = c("Private", "Commercial", "Motor trade road risk"))
 
+#INSURED_VALUE
+#Überprüfen der Anzahl der fehlenden Werte
+missing_values <- sum(is.na(data_motor$INSURED_VALUE))
+cat("Fehlende Werte in INSURED_VALUE:", missing_values, "\n")
 
-#Cat var
-data_motor$CLAIM_PAID_USD <- ifelse(is.na(data_motor$CLAIM_PAID), 0, data_motor$CLAIM_PAID)
-data_motor$CLAIM_PAID <- ifelse(data_motor$CLAIM_PAID_USD == 0, "NO", "YES")
+#Zusammenfassung der statistischen Kennzahlen
+summary_stats <- summary(data_motor$INSURED_VALUE)
+cat("Zusammenfassung der statistischen Kennzahlen von INSURED_VALUE:\n")
+print(summary_stats)
+
+#Ermittlung der Anzahl der Einträge, die 0 als Wert haben
+zero_values <- sum(data_motor$INSURED_VALUE == 0, na.rm = TRUE)
+cat("Anzahl der Einträge mit dem Wert 0 in INSURED_VALUE:", zero_values, "\n")
+
+#Überprüfe, wie viele Datensätze betroffen sind
+zero_insured_value <- data_motor[data_motor$INSURED_VALUE == 0, ]
+cat("Anzahl der Datensätze mit INSURED_VALUE = 0:", nrow(zero_insured_value), "\n")
+
+#Zusammenfassung der betroffenen Datensätze nach verschiedenen Variablen, um Muster zu erkennen
+cat("Verteilung der Versicherungstypen (INSR_TYPE) bei INSURED_VALUE = 0:\n")
+table(data_motor$INSR_TYPE) #Alle
+print(table(zero_insured_value$INSR_TYPE)) #nur 0
+
+cat("\nVerteilung der Fahrzeugtypen (TYPE_VEHICLE) bei INSURED_VALUE = 0:\n")
+print(table(zero_insured_value$TYPE_VEHICLE))
+
+cat("\nVerteilung der Fahrzeugnutzung (USAGE) bei INSURED_VALUE = 0:\n")
+print(table(zero_insured_value$USAGE))
+
+#Statistische Kennzahlen für andere Variablen bei INSURED_VALUE = 0 (z.B. PREMIUM)
+cat("\nZusammenfassung der Prämien (PREMIUM) bei INSURED_VALUE = 0:\n")
+summary(zero_insured_value$PREMIUM)
+
+#Visualisierung der Fahrzeugnutzung bei INSURED_VALUE = 0
+ggplot(zero_insured_value, aes(x = USAGE)) +
+  geom_bar(fill = "blue", color = "black") +
+  labs(title = "Verteilung der Fahrzeugnutzung bei INSURED_VALUE = 0", x = "Fahrzeugnutzung", y = "Anzahl") +
+  theme_minimal()
+
+#Fazit: Es wurde kein Zusammenhang festgestellt. Vermutlich ist der Versicherungswert von 0 darauf zurückzuführen, dass gesetzlich nur eine Haftpflichtversicherung erforderlich ist. In diesen Fällen gibt es keinen festgelegten Wert für Schäden am Fahrzeug selbst. Daher werden Datensätze mit einem INSURED_VALUE von 0 aus der Analyse entfernt, da sie keine relevanten Informationen für die Bewertung von Fahrzeugwerten enthalten.
+
+#Entfernen der Zeilen, bei denen INSURED_VALUE gleich 0 ist
+data_motor <- data_motor[data_motor$INSURED_VALUE != 0, ]
+
+#Überprüfen, ob die Zeilen erfolgreich entfernt wurden
+cat("Anzahl der verbleibenden Datensätze:", nrow(data_motor), "\n")
+
+#Verteilung von INSURED_VALUE visualisieren (Histogramm)
+ggplot(data_motor, aes(x = INSURED_VALUE)) +
+  geom_histogram(binwidth = 50000, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Verteilung von INSURED_VALUE", x = "Versicherter Wert", y = "Häufigkeit") +
+  theme_minimal()
+
+#Boxplot zur Identifizierung von Ausreissern
+ggplot(data_motor, aes(y = INSURED_VALUE)) +
+  geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
+  labs(title = "Boxplot von INSURED_VALUE", y = "Versicherter Wert") +
+  theme_minimal()
+
+#Überprüfung der statistischen Kennzahlen ohne die 0-Werte
+cat("Zusammenfassung der statistischen Kennzahlen ohne 0-Werte:\n")
+print(summary(data_motor$INSURED_VALUE))
+
+#Verteilung der log-transformierten INSURED_VALUE (nur für nicht-null Werte)
+ggplot(data_motor[data_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VALUE))) +
+  geom_histogram(binwidth = 0.2, fill = "green", color = "black", alpha = 0.7) +
+  labs(title = "Log-transformierte Verteilung von INSURED_VALUE (ohne Nullwerte)", x = "log(Versicherter Wert)", y = "Häufigkeit") +
+  theme_minimal()
+
+summary(data_motor$INSURED_VALUE)
+
+#Ausreisser INSURED_VALUE entfernen 
+data_motor <- data_motor[data_motor$INSURED_VALUE >= 10, ]
+summary(data_motor$INSURED_VALUE)
+
+#Workspace
+rm(zero_insured_value)
+
+#PREMIUM
+#Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
+data.frame(
+  PREMIUM_0_Percent = round(100 * sum(data_motor$PREMIUM == 0, na.rm = TRUE) / sum(!is.na(data_motor$PREMIUM)), 4),
+  PREMIUM_NA_Percent = round(100 * sum(is.na(data_motor$PREMIUM)) / sum(!is.na(data_motor$PREMIUM)), 4),
+  PREMIUM_MORE_Percent = round(100 * sum(data_motor$PREMIUM > 0, na.rm = TRUE) / sum(!is.na(data_motor$PREMIUM)), 4)
+)
+
+#Entfernen der Zeilen, bei denen PREMIUM NA oder 0 ist
+data_motor <- data_motor[!(is.na(data_motor$PREMIUM) | data_motor$PREMIUM == 0), ]
 
 
-#Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (5)
+# Entfernen von Duplikaten und Zählen der entfernten Zeilen
+removed_count <- nrow(data_motor) - nrow(data_motor <- distinct(data_motor))
+# Ausgabe der Anzahl der entfernten Duplikate
+cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+
+# OBJECT_ID
+# Anzahl der Gesamtzeilen im Datensatz
+total_rows <- nrow(data_motor)
+
+# Anzahl der einzigartigen OBJECT_IDs
+unique_object_ids <- length(unique(data_motor$OBJECT_ID))
+
+# Überprüfen, ob OBJECT_IDs einmalig sind
+if (total_rows == unique_object_ids) {
+  cat("Die OBJECT_IDs sind einmalig.\n")
+} else {
+  cat("Die OBJECT_IDs sind NICHT einmalig.\n")
+  cat("Anzahl der Duplikate:", total_rows - unique_object_ids, "\n")
+  
+  # Häufigkeit der OBJECT_IDs
+  object_id_counts <- table(data_motor$OBJECT_ID)
+  
+  # Durchschnittliche und maximale Häufigkeit von OBJECT_ID
+  avg_object_id_freq <- mean(object_id_counts)
+  max_object_id_freq <- max(object_id_counts)
+  
+  cat("Durchschnittliche Häufigkeit der OBJECT_ID:", round(avg_object_id_freq, 3), "\n")
+  cat("Maximale Häufigkeit der OBJECT_ID:", max_object_id_freq, "\n")
+  
+  # Häufigkeit der Kombination von OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE und PREMIUM
+  combo_counts <- data_motor %>%
+    group_by(OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM) %>%
+    summarise(count = n(), .groups = 'drop')
+  
+  # Durchschnittliche und maximale Häufigkeit der Kombination
+  avg_combo_freq <- mean(combo_counts$count) # Durchschnittliche Häufigkeit der Kombination
+  max_combo_freq <- max(combo_counts$count)   # Maximale Häufigkeit der Kombination
+  
+  cat("Durchschnittliche Häufigkeit der Kombination (OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM):", round(avg_combo_freq, 3), "\n")
+  cat("Maximale Häufigkeit der Kombination (OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM):", max_combo_freq, "\n")
+}
+
+#Teilweise gibt es bei CLAIM_PAID== YES eine vervielfachung
+#Korrektur bzw. entfernen dieser mehrfachen Zeilen
+data_motor <- data_motor %>%
+  group_by(SEX, INSR_BEGIN, INSR_END, INSR_TYPE, INSURED_VALUE, PREMIUM, OBJECT_ID, PROD_YEAR, SEATS_NUM, TYPE_VEHICLE, CCM_TON, MAKE, USAGE) %>%
+  # Zähle die Anzahl der Zeilen in jeder Gruppe
+  mutate(group_size = n()) %>%
+  ungroup() %>%
+  # Entferne Zeilen nur, wenn es eine Doppelzeile gibt und CLAIM_PAID == "NO" und CLAIM_PAID_USD <= 1
+  filter(!(group_size > 1 & CLAIM_PAID == "NO" & CLAIM_PAID_USD <= 1)) %>%
+  select(-group_size)  # Entferne die Hilfsspalte
+
+#Korrektur Wiederspruch bei INSR_TYPE
+data_motor <- data_motor %>%
+  group_by(SEX, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM, OBJECT_ID, PROD_YEAR, SEATS_NUM, TYPE_VEHICLE, CCM_TON, MAKE, USAGE) %>%
+  filter(!(n() > 1 & INSR_TYPE != "Commercial")) %>%  # Behalte nur die Zeilen mit "Commercial"
+  ungroup()  # Ungroup, um das Gruppierungsobjekt zu entfernen
+
+#Clear Workspace
+rm(combo_counts)
+
+
+#Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (11)
+table(data_motor$TYPE_VEHICLE)
 data_motor <- data_motor[data_motor$TYPE_VEHICLE != "Trade plates", ]
 
 
 #NA
 colSums(is.na(data_motor))
 
-# Entfernen der Spalte CARRYING_CAPACITY
-data_motor <- data_motor[ , !(names(data_motor) %in% "CARRYING_CAPACITY")]
-
-# Entfernen der Spalte EFFECTIVE_YR (Hat keinen Nutzen, da nicht entziffert werden kann)
-data_motor <- data_motor[ , !(names(data_motor) %in% "EFFECTIVE_YR")]
 
 
 
-#Zeilen mit PREMIUM NA und 0 entfernen
-#Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
-data.frame(
-  PREMIUM_0_Percent = 100 * mean(data_motor$PREMIUM == 0, na.rm = TRUE),
-  PREMIUM_MORE_Percent = 100 * mean(data_motor$PREMIUM > 0, na.rm = TRUE))
-data_motor <- data_motor[!(is.na(data_motor$PREMIUM) | data_motor$PREMIUM == 0), ]
+
+
 
 #Zeilen mit PROD_YEAR NA entfernen
 data_motor <- data_motor[!is.na(data_motor$PROD_YEAR),]
