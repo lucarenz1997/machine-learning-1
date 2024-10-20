@@ -783,7 +783,7 @@ Obwohl die Hinzufügung von Interaktionen das Modell in einigen Aspekten verbess
 
 #Data preparation: Aggregate the number of claims per combination of vehicle type, insurance type, and production year
 dat_amount_claims <- clean_dat_motor %>%
-  group_by(SEX, TYPE_VEHICLE, INSR_TYPE, AGE_VEHICLE) %>%
+  group_by(SEX, TYPE_VEHICLE, INSR_TYPE, MAKE, AGE_VEHICLE, SEATS_NUM) %>%
   summarise(Amount_Claims = sum(CLAIM_PAID == "YES"), .groups = 'drop')
 
 hist(dat_amount_claims$Amount_Claims, breaks=100)
@@ -793,7 +793,7 @@ var(dat_amount_claims$Amount_Claims)
 #The variance is much greater than the mean, which suggests that we will have over-dispersion in the model.
 
 #Poisson Regression:
-poisson_model<- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + AGE_VEHICLE, 
+poisson_model<- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM, 
                       family = poisson(link = "log"), data = dat_amount_claims)
 
 #Summary of the model
@@ -818,19 +818,11 @@ qqline(residuals(poisson_model, type = "deviance"), col = "red")
 #Diagnose overdispersion
 deviance(poisson_model) / df.residual(poisson_model)
 
-#Visualization of predicted claim rates by vehicle type, insurance type, and production year
-predicted_values <- data.frame(dat_amount_claims,
-                               Predicted_Claims = predict(poisson_model, type = "response"))
-
-ggplot(predicted_values, aes(x = TYPE_VEHICLE, y = Predicted_Claims, fill = INSR_TYPE)) +
-  geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
-  labs(title = "Predicted Number of Claims by Vehicle Type, Insurance Type, and Production Year",
-       x = "Vehicle Type", y = "Predicted Number of Claims") +
-  theme_minimal() +
-  facet_wrap(~AGE_VEHICLE)
 
 ```
-Starke Overdispersion
+The residuals vs. fitted diagram shows an increasing dispersion of the residuals with increasing estimated values, which indicates heteroscedasticity. This indicates that the variance of the residuals is not constant and supports the assumption of overdispersion, as the variance is significantly greater than the mean. The QQ plot of the residuals shows a strong deviation from the theoretical normal distribution, especially at the ends, which indicates a lack of normal distribution of the residuals. This deviation is typical for Poisson models, but the significant differences indicate overdispersion or possibly missing predictors. The calculation of the ratio of deviance to degrees of freedom (11.86) confirms the overdispersion, as this value is significantly greater than 1 and thus indicates a higher variance in the data than assumed in the Poisson model.
+
+The significance of the predictors in the model becomes clear from the p-values of the coefficient estimates. Almost all predictors show extremely low p-values (p < 0.001), which indicates that they have a significant influence on the number of claims. This high significance strengthens the significance of the correlations found. Nevertheless, the overdispersion remains problematic, as it indicates that the Poisson model may underestimate the variance in the data. Despite the statistical significance of the predictors, a model change, e.g. to a quassi Poisson model or a negative binomial model, could be necessary to improve the model quality and to address the overdispersion appropriately.
 
 
 ### Massnahme 1): Quasi-Poisson-Regression
@@ -838,7 +830,7 @@ Starke Overdispersion
 ```{r quasiPois, cache=TRUE}
 
 #Quasi-Poisson
-quasi_poisson_model <- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + AGE_VEHICLE, 
+quasi_poisson_model <- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM, 
                            family = quasipoisson, data = dat_amount_claims)
 
 # Summary of the model
@@ -857,32 +849,22 @@ abline(h = 0, col = "red")
 qqnorm(residuals(quasi_poisson_model, type = "deviance"), main = "QQ Plot of Residuals (Quasi-Poisson)")
 qqline(residuals(quasi_poisson_model, type = "deviance"), col = "red")
 
-# Visualization of the predicted claim rates by vehicle type, usage, and production year
-predicted_values_qp <- data.frame(claims_per_vehicle_usage_prodyear,
-                                  Predicted_Claims = predict(quasi_poisson_model, type = "response"))
-
-ggplot(predicted_values_qp, aes(x = TYPE_VEHICLE, y = Predicted_Claims, fill = INSR_TYPE)) +
-  geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
-  labs(title = "Predicted Number of Claims by Vehicle Type, Usage, and Production Year (Quasi-Poisson)",
-       x = "Vehicle Type", y = "Predicted Number of Claims") +
-  theme_minimal() +
-  facet_wrap(~AGE_VEHICLE)
-
 
 
 ```
-Immernoch starke Overdispersion
+Switching to a quasi-Poisson model to account for overdispersion led to improvements compared to the original Poisson model. The residuals vs. fitted plot shows a reduced dispersion of the residuals at higher estimated values, which indicates a better fit of the variance, although heteroscedasticity still exists. The QQ plot of the residuals shows an improved fit to the theoretical normal distribution, especially in the middle range, while deviations at the edges remain, indicating extreme values or modelling errors. By adjusting the dispersion parameter (29.765) in the quasi-Poisson model, the increased variance compared to the Poisson model is adequately taken into account. The F-test confirms the significance of the variables ‘SEX’, ‘TYPE_VEHICLE’, ‘MAKE’, ‘AGE_VEHICLE’ and ‘SEATS_NUM’. Despite these improvements, there are still slight anomalies in the residuals.
 
 ### Massnahme 2): Negative-Binomial-Modell
 
 ```{r neg_binom_model, cache=TRUE}
 
 # Negative-Binomial-Regression anpassen
-neg_bin_model <- glm.nb(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + AGE_VEHICLE, 
+neg_bin_model <- glm.nb(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM,
                         data = dat_amount_claims)
 
 # Zusammenfassung des Modells anzeigen
 summary(neg_bin_model)
+drop1(neg_bin_model, test= "LRT")
 
 # Exponentierte Koeffizienten anzeigen (um Rate Ratios zu interpretieren)
 exp(coef(neg_bin_model))
@@ -907,20 +889,14 @@ qqline(residuals(neg_bin_model, type = "deviance"), col = "red")
 
 ```
 
-The overdispersion was corrected in the model.
+The fitting of a negative binomial model shows significant improvements compared to the previous models. The residuals vs fitted plot indicates that the residuals are better distributed overall, especially at larger values of the fitted data, with lower heteroscedasticity. However, the QQ plot of the residuals still shows slight deviations from the normal distribution, especially at the extreme values, which indicates remaining modelling anomalies.
 
-In the residuals vs fitted plot, the residuals show an acceptable fit, but there is a cluster formation for very small fitted values, which indicates that the model does not optimally capture these values. In addition, outliers occur for larger values, which also indicate modelling problems.
-
-The QQ plot shows that most residuals follow the theoretical normal distribution well, but they deviate at extreme values. However, these deviations are not unusual for count data models.
-
-Overall, the negative binomial model provides a satisfactory fit, but shows weaknesses for extremely small and large values. These problems could be further improved by analysing outliers or using a zero-inflated negative binomial model
-
-The estimated coefficients are for the most part highly significant (p < 0.001), which indicates a strong influence of the predictor variables on the number of claims. Men and women have significantly fewer claims compared to the reference category (rate ratios of 0.35 and 0.11 respectively). Similarly, vehicles such as motorbikes, tankers and trailers show a greatly reduced frequency of claims. Vehicle age also has a significant negative influence, with older vehicles tending to have fewer claims (rate ratio: 0.88).
+The model shows a significant improvement in terms of overdispersion, as suggested by the ratio of deviance to degrees of freedom (0.822), which is closer to 1 and thus significantly reduces overdispersion. Most predictors continue to show high levels of significance, indicating a strong explanatory power for the number of claims.
 
 
 ## Binomial
 ```{r Binomial_Model, cache=TRUE}
-# TODO
+
 
 ```
 
