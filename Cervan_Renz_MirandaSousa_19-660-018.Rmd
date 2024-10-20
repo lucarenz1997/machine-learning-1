@@ -887,6 +887,10 @@ summary(neg_bin_model)
 # Exponentierte Koeffizienten anzeigen (um Rate Ratios zu interpretieren)
 exp(coef(neg_bin_model))
 
+# Konfidenzintervalle für die Koeffizienten
+confint(neg_bin_model)
+
+
 # Devianz und Freiheitsgrade überprüfen (sollte näher an 1 liegen)
 deviance(neg_bin_model) / df.residual(neg_bin_model)
 
@@ -910,6 +914,8 @@ In the residuals vs fitted plot, the residuals show an acceptable fit, but there
 The QQ plot shows that most residuals follow the theoretical normal distribution well, but they deviate at extreme values. However, these deviations are not unusual for count data models.
 
 Overall, the negative binomial model provides a satisfactory fit, but shows weaknesses for extremely small and large values. These problems could be further improved by analysing outliers or using a zero-inflated negative binomial model
+
+The estimated coefficients are for the most part highly significant (p < 0.001), which indicates a strong influence of the predictor variables on the number of claims. Men and women have significantly fewer claims compared to the reference category (rate ratios of 0.35 and 0.11 respectively). Similarly, vehicles such as motorbikes, tankers and trailers show a greatly reduced frequency of claims. Vehicle age also has a significant negative influence, with older vehicles tending to have fewer claims (rate ratio: 0.88).
 
 
 ## Binomial
