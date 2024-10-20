@@ -42,6 +42,7 @@ library(mgcv)  # For Generalised Additive Models
 library(nnet)  # For Neural Networks
 library(e1071)  # For Support Vector Machine
 library(arm)
+library(caret)
 
 ```
 Notizen Rafi
@@ -897,9 +898,127 @@ The model shows a significant improvement in terms of overdispersion, as suggest
 ## Binomial
 ```{r Binomial_Model, cache=TRUE}
 
+#Erstellen eines logistischen Regressionsmodells
+fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE + INSURED_VALUE + PREMIUM + AGE_VEHICLE + 
+             MAKE + SEATS_NUM + CCM_TON + USAGE, 
+             data = clean_dat_motor, 
+             family = binomial)
+
+# Zusammenfassung des Modells anzeigen
+summary(fit.binom)
+drop1(fit.binom, test= "LRT")
 
 ```
 
+INSR_TYPE and CCM_Ton do not appear to be significant. A new model is adapted without these two variables.
+
+```{r Binomial_Model_sign, cache=TRUE}
+
+#Erstellen eines logistischen Regressionsmodells
+fit.binom2 <- glm(CLAIM_PAID ~ SEX +  INSURED_VALUE + PREMIUM + AGE_VEHICLE + 
+             MAKE + SEATS_NUM + USAGE, 
+             data = clean_dat_motor, 
+             family = binomial)
+
+# Zusammenfassung des Modells anzeigen
+summary(fit.binom2)
+drop1(fit.binom2, test= "LRT")
+
+# Wahrscheinlichkeiten vorhersagen
+clean_dat_motor$predicted_probabilities <- predict(fit.binom2, type = "response")
+
+# Klassifikation vorhersagen (0 oder 1)
+clean_dat_motor$predicted_class <- ifelse(clean_dat_motor$predicted_probabilities > 0.5, 1, 0)
+
+# Modellgüte prüfen
+table(clean_dat_motor$CLAIM_PAID, clean_dat_motor$predicted_class)
+
+# Optional: Genauigkeit berechnen
+accuracy <- mean(clean_dat_motor$CLAIM_PAID == clean_dat_motor$predicted_class)
+print(paste("Genauigkeit des Modells:", accuracy))
+
+```
+
+Schlechte Modellgüte
+
+### Massnahme 1): Down-Sampling (Balancing) und weniger Variablen
+
+```{r binom_balanced, cache=TRUE}
+# Anzahl der YES-Klasse ermitteln
+yes_class <- clean_dat_motor[clean_dat_motor$CLAIM_PAID == "YES", ]
+no_class <- clean_dat_motor[clean_dat_motor$CLAIM_PAID == "NO", ]
+
+# Anzahl der YES-Beobachtungen
+n_yes <- nrow(yes_class)
+
+# Zufällige Auswahl aus der NO-Klasse, sodass sie die gleiche Größe wie die YES-Klasse hat
+set.seed(42)  # Für Reproduzierbarkeit
+no_class_undersampled <- no_class[sample(1:nrow(no_class), n_yes), ]
+
+# Erstellen eines neuen Datensatzes, der YES und die undersampelte NO-Klasse kombiniert
+clean_dat_motor_undersampled <- rbind(yes_class, no_class_undersampled)
+
+# Überprüfen der neuen Klassenverteilung
+table(clean_dat_motor_undersampled$CLAIM_PAID)
+
+# Logistisches Regressionsmodell mit undersampelten Daten
+fit.binom_undersampled <- glm(CLAIM_PAID ~ SEX + INSURED_VALUE + PREMIUM + AGE_VEHICLE + 
+                             MAKE + SEATS_NUM + USAGE, 
+                             data = clean_dat_motor_undersampled, 
+                             family = binomial)
+
+# Zusammenfassung des neuen Modells
+summary(fit.binom_undersampled)
+drop1(fit.binom_undersampled, test= "LRT") #SEATS_NUM not sign
+
+
+
+
+
+# Logistisches Regressionsmodell mit undersampelten Daten
+fit.binom_undersampled2 <- glm(CLAIM_PAID ~ SEX + INSURED_VALUE + PREMIUM + AGE_VEHICLE + 
+                             MAKE + USAGE, data = clean_dat_motor_undersampled, 
+                             family = binomial)
+
+# Zusammenfassung des neuen Modells
+summary(fit.binom_undersampled2)
+drop1(fit.binom_undersampled2, test= "LRT")
+
+# Wahrscheinlichkeiten vorhersagen
+clean_dat_motor_undersampled$predicted_probabilities <- predict(fit.binom_undersampled2, type = "response")
+
+# Klassifikation vorhersagen (0 oder 1)
+clean_dat_motor_undersampled$predicted_class <- ifelse(clean_dat_motor_undersampled$predicted_probabilities > 0.5, 1, 0)
+
+# Modellgüte prüfen
+table(clean_dat_motor_undersampled$CLAIM_PAID, clean_dat_motor_undersampled$predicted_class)
+
+# Genauigkeit berechnen
+accuracy_undersampled <- mean(clean_dat_motor_undersampled$CLAIM_PAID == clean_dat_motor_undersampled$predicted_class)
+print(paste("Genauigkeit des undersampelten Modells:", accuracy_undersampled))
+
+
+
+
+# Umwandlung in Faktoren für die Auswertung
+predicted_class <- as.factor(clean_dat_motor_undersampled$predicted_class)
+actual_class <- as.factor(clean_dat_motor_undersampled$CLAIM_PAID)
+
+
+# Sicherstellen, dass predicted_class und actual_class die gleichen Levels haben
+levels(predicted_class) <- levels(actual_class)
+
+# Levels überprüfen
+levels(predicted_class)
+levels(actual_class)
+
+# Berechnung der Metriken
+confusionMatrix(predicted_class, actual_class)
+
+
+```
+
+weitere Massnahmen: Schwellenwertanpassubg (hat wenig gebracht) Interaktionen
 ## Generalised Additive Model (GAM)
 ```{r GAM, cache=TRUE}
 # TODO
