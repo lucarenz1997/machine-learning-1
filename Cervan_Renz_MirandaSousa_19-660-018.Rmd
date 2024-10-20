@@ -4,9 +4,9 @@ authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
 date: "2024-01-10"
 output:
   word_document: default
-  pdf_document: default
+pdf_document: default
 ---
-
+  
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -27,6 +27,7 @@ if (!require("mgcv")) install.packages("mgcv")  # Generalised Additive Model (GA
 if (!require("nnet")) install.packages("nnet")  # Neural Networks
 if (!require("e1071")) install.packages("e1071")  # Support Vector Machine (SVM)
 if (!require("MASS")) install.packages("MASS")
+if (!require("arm")) install.packages("arm")
 
 library(car)
 library(readr,quietly = T)
@@ -40,11 +41,12 @@ library(GGally)
 library(mgcv)  # For Generalised Additive Models
 library(nnet)  # For Neural Networks
 library(e1071)  # For Support Vector Machine
+library(arm)
 
 ```
 Notizen Rafi
 SVM Teil:
-Cross validation or other methods for model comparing must be used on one single
+  Cross validation or other methods for model comparing must be used on one single
 methods (e.g. you use Cross Validation to compare 2-3 SVM models).
 • Students are free to choose a measure of fit that they find more appropriate.
 • In case students cannot find an appropriate measure of fit, they can use the Root Mean
@@ -61,7 +63,7 @@ unverändert, dann werden die alten Ergebnisse verwendet
 # Data Preprocessing
 
 Aus Quelle:
-Some predictors such as carrying capacity and seat number are removed from the dataset prior
+  Some predictors such as carrying capacity and seat number are removed from the dataset prior
 to data analysis and modeling since they are not correctly coded.
 
 
@@ -69,7 +71,7 @@ CHATGPT
 CCM TON
 Es macht keinen Sinn, dass Fahrzeuge einen Wert von 0 für die Variable CCM_TON haben, wenn diese Variable den Hubraum oder das Gewicht des Motors in Kubikzentimetern (ccm) oder Tonnen angibt.
 Warum?
-Der Hubraum (ccm) gibt das Volumen der Zylinder eines Verbrennungsmotors an. Ein Wert von 0 wäre unplausibel, da ein Fahrzeug ohne Hubraum keinen funktionsfähigen Motor hätte.
+  Der Hubraum (ccm) gibt das Volumen der Zylinder eines Verbrennungsmotors an. Ein Wert von 0 wäre unplausibel, da ein Fahrzeug ohne Hubraum keinen funktionsfähigen Motor hätte.
 Wenn CCM_TON das Gewicht des Motors in Tonnen angibt, wäre ebenfalls ein Wert von 0 unplausibel, da ein Fahrzeug ohne Motorgewicht nicht funktionsfähig wäre.
 
 ```{r data_prep, echo=FALSE, cache=TRUE}
@@ -101,8 +103,8 @@ cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
 
 #SEX
 raw_dat_motor$SEX <- factor(raw_dat_motor$SEX, 
-                   levels = c(0, 1, 2), 
-                   labels = c("Legal entity", "Male", "Female"))
+                            levels = c(0, 1, 2), 
+                            labels = c("Legal entity", "Male", "Female"))
 table(raw_dat_motor$SEX)
 
 #INSR_BEGIN
@@ -113,8 +115,8 @@ raw_dat_motor$INSR_END <- dmy(raw_dat_motor$INSR_END)
 
 #INSR_TYPE
 raw_dat_motor$INSR_TYPE <- factor(raw_dat_motor$INSR_TYPE, 
-                         levels = c(1201, 1202, 1204), 
-                         labels = c("Private", "Commercial", "Motor trade road risk"))
+                                  levels = c(1201, 1202, 1204), 
+                                  labels = c("Private", "Commercial", "Motor trade road risk"))
 
 #INSURED_VALUE
 #Überprüfen der Anzahl der fehlenden Werte
@@ -362,8 +364,8 @@ raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("PORCHE", "FORSCHE")] <- "PORSCHE"
 raw_dat_motor$MAKE[raw_dat_motor$MAKE == "YAMHA"] <- "YAMAHA"
 raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("VOLKSWAGON", "VOLKS WAGON")] <- "VOLKSWAGEN"
 raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("TOYOTAA", "TOYOTA*", "TOYTA", "TOYOTA AUTOMOBILE",
-                                       "TOYATA", "T0Y0TA", "COMPACT YARIS", "YARIS",
-                                       "LAND CRUISER", "VITZ")] <- "TOYOTA"
+                                             "TOYATA", "T0Y0TA", "COMPACT YARIS", "YARIS",
+                                             "LAND CRUISER", "VITZ")] <- "TOYOTA"
 raw_dat_motor$MAKE[grepl("^TOYOTA", raw_dat_motor$MAKE)] <- "TOYOTA"
 raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("NISAN", "NISSAN*")] <- "NISSAN"
 raw_dat_motor$MAKE[grepl("^NISSAN", raw_dat_motor$MAKE)] <- "NISSAN"
@@ -402,10 +404,10 @@ raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MOTOR CYCLE", "MOTOR  CYCLE")] <- 
 raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("AUTO", "AUTOMOBIL")] <- "AUTOMOBILE"
 raw_dat_motor$MAKE[grepl("^CATERPILLAR", raw_dat_motor$MAKE)] <- "CATERPILLAR"
 raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("LIBER DOZER", "LIBERR MOBILE CRANE",
-                                       "LIEBERR MOBILE CRANE", "LEABER CATO CRANE",
-                                       "LEBHER CRANE", "CRANE LEBEHER",
-                                       "CRANE LEBHERER", "LIBER", "LIBEHER CRANE",
-                                       "LIBERR MOBILECRANE", "CRANELEBHER")] <- "LIEBHERR"
+                                             "LIEBERR MOBILE CRANE", "LEABER CATO CRANE",
+                                             "LEBHER CRANE", "CRANE LEBEHER",
+                                             "CRANE LEBHERER", "LIBER", "LIBEHER CRANE",
+                                             "LIBERR MOBILECRANE", "CRANELEBHER")] <- "LIEBHERR"
 
 #table(raw_dat_motor$MAKE)
 
@@ -432,8 +434,8 @@ clean_dat_motor <- subset(raw_dat_motor, MAKE %in% selected_makes)
 
 #table(clean_dat_motor$USAGE)
 clean_dat_motor <- subset(clean_dat_motor, !(USAGE %in% c("Agricultural Any Farm",
-                                                "Agricultural Own Farm",
-                                                "Special Construction", "Taxi")))
+                                                          "Agricultural Own Farm",
+                                                          "Special Construction", "Taxi")))
 
 #table(clean_dat_motor$TYPE_VEHICLE)
 #Wenige Ausprägungen entfernen
@@ -454,6 +456,10 @@ data.frame(
   CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
   CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
 
+#New Variable: age_vehicle
+clean_dat_motor$AGE_VEHICLE <- 2018 - clean_dat_motor$PROD_YEAR
+#Entfernen von PROD_YEAR
+clean_dat_motor<- clean_dat_motor[,-8]
 
 ###############################################################################################
 
@@ -522,7 +528,7 @@ ylab = "Heart.weight")
 ```{r linear_model, cache = TRUE}
 
 #Modell erstellen
-lm_model <- lm(PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + INSURED_VALUE + CLAIM_PAID_USD + PROD_YEAR + SEATS_NUM + CCM_TON, data = clean_dat_motor)
+lm_model <- lm(PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + INSURED_VALUE + CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + CCM_TON, data = clean_dat_motor)
 
 #Modellzusammenfassung anzeigen
 summary(lm_model)
@@ -609,7 +615,7 @@ outliers <- which(abs(standardized_resid) > threshold)
 clean_data_no_outliers <- clean_dat_motor[-outliers, ]
 
 # Neues Modell ohne Ausreisser anpassen
-lm_model_no_outliers <- lm(PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + INSURED_VALUE + CLAIM_PAID_USD + PROD_YEAR + SEATS_NUM + CCM_TON, data = clean_data_no_outliers)
+lm_model_no_outliers <- lm(PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + INSURED_VALUE + CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + CCM_TON, data = clean_data_no_outliers)
 
 # Zusammenfassung des neuen Modells anzeigen
 summary(lm_model_no_outliers)
@@ -634,7 +640,7 @@ Die Modellgüte hat sich verbessert: Der Residual Standard Error (RSE) verringer
 ```{r lm_massnahme_transf, cache=TRUE}
 
 #Analyse Variablen
-numeric_vars <- c("PREMIUM", "INSURED_VALUE", "CLAIM_PAID_USD", "PROD_YEAR", "SEATS_NUM", "CCM_TON")
+numeric_vars <- c("PREMIUM", "INSURED_VALUE", "CLAIM_PAID_USD", "AGE_VEHICLE", "SEATS_NUM", "CCM_TON")
 
 #Histogramme erstellen
 par(mfrow = c(2, 3))  # 2 Zeilen, 3 Spalten für die Plots
@@ -655,7 +661,7 @@ clean_dat_motor$CCM_TON_LOG <- log(clean_dat_motor$CCM_TON + 1)
 
 Die Histogramme der Variablen zeigen, dass einige von ihnen, insbesondere PREMIUM, INSURED_VALUE, CLAIM_PAID_USD und CCM_TON, stark rechtsschief verteilt sind. Diese Verteilungen deuten darauf hin, dass eine log-Transformation sinnvoll sein könnte, um die Daten zu normalisieren und die Varianz zu stabilisieren. Durch die Transformation würde die Schiefe verringert, was zu einer besseren Modellanpassung führen könnte.
 
-Variablen wie PROD_YEAR und SEATS_NUM zeigen hingegen eine weniger ausgeprägte Schiefe, sodass eine Transformation hier weniger notwendig erscheint. Eine log-Transformation der stark schiefen Variablen wird daher empfohlen, um die Modellgüte weiter zu verbessern.
+Variablen wie AGE_VEHICLE und SEATS_NUM zeigen hingegen eine weniger ausgeprägte Schiefe, sodass eine Transformation hier weniger notwendig erscheint. Eine log-Transformation der stark schiefen Variablen wird daher empfohlen, um die Modellgüte weiter zu verbessern.
 
 
 
@@ -670,7 +676,7 @@ clean_data_no_outliers$LOG_CCM_TON <- log(clean_data_no_outliers$CCM_TON + 1)
 
 # Neues Modell mit den logarithmierten Variablen
 lm_model_log <- lm(LOG_PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + 
-                              LOG_INSURED_VALUE + LOG_CLAIM_PAID_USD + PROD_YEAR + SEATS_NUM + LOG_CCM_TON, 
+                              LOG_INSURED_VALUE + LOG_CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + LOG_CCM_TON, 
                               data = clean_data_no_outliers)
 
 # Zusammenfassung des neuen Modells anzeigen
@@ -713,7 +719,7 @@ clean_data_no_outliers_influential_removed <- clean_data_no_outliers[-influentia
 
 # Erstelle das Modell erneut ohne die einflussreichen Ausreisser
 lm_model_no_influential <- lm(LOG_PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + 
-                             LOG_INSURED_VALUE + LOG_CLAIM_PAID_USD + PROD_YEAR + SEATS_NUM + LOG_CCM_TON, 
+                             LOG_INSURED_VALUE + LOG_CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + LOG_CCM_TON, 
                              data = clean_data_no_outliers_influential_removed)
 
 # Zusammenfassung des neuen Modells
@@ -754,7 +760,7 @@ ggplot(clean_data_no_outliers_influential_removed, aes(x=LOG_INSURED_VALUE, y=LO
 
 # Anpassung eines linearen Modells mit den identifizierten Interaktionen
 lm_model_interactions <- lm(LOG_PREMIUM ~ SEX + INSR_TYPE + MAKE * USAGE + TYPE_VEHICLE * USAGE + 
-                            LOG_INSURED_VALUE * USAGE + LOG_CLAIM_PAID_USD + PROD_YEAR + SEATS_NUM + 
+                            LOG_INSURED_VALUE * USAGE + LOG_CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + 
                             LOG_CCM_TON, data = clean_data_no_outliers_influential_removed)
 
 # Zusammenfassung des neuen Modells mit Interaktionen
@@ -772,19 +778,30 @@ Obwohl die Hinzufügung von Interaktionen das Modell in einigen Aspekten verbess
 
 
 ## Poisson
+
 ```{r Poisson_Model, cache=TRUE}
 
-# Data preparation: Aggregate the number of claims per combination of vehicle type, insurance type, and production year
-claims_per_vehicle_usage_prodyear <- clean_dat_motor %>%
-  group_by(TYPE_VEHICLE, INSR_TYPE, PROD_YEAR) %>%
+#Data preparation: Aggregate the number of claims per combination of vehicle type, insurance type, and production year
+dat_amount_claims <- clean_dat_motor %>%
+  group_by(SEX, TYPE_VEHICLE, INSR_TYPE, AGE_VEHICLE) %>%
   summarise(Amount_Claims = sum(CLAIM_PAID == "YES"), .groups = 'drop')
 
-# Poisson Regression: Predict the number of claims based on vehicle type, insurance type, and production year
-poisson_model <- glm(Amount_Claims ~ TYPE_VEHICLE + INSR_TYPE + PROD_YEAR , 
-                               family = poisson, data = claims_per_vehicle_usage_prodyear)
+hist(dat_amount_claims$Amount_Claims, breaks=100)
 
-# Summary of the model
+mean(dat_amount_claims$Amount_Claims) # calculate mean
+var(dat_amount_claims$Amount_Claims)
+#The variance is much greater than the mean, which suggests that we will have over-dispersion in the model.
+
+#Poisson Regression:
+poisson_model<- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + AGE_VEHICLE, 
+                      family = poisson(link = "log"), data = dat_amount_claims)
+
+#Summary of the model
 summary(poisson_model)
+
+#Coeff
+coef(poisson_model)
+exp(coef(poisson_model))
 
 # Model diagnostics and evaluation
 # Residuals vs. Fitted Plot
@@ -798,8 +815,11 @@ abline(h = 0, col = "red")
 qqnorm(residuals(poisson_model, type = "deviance"), main = "QQ Plot of Residuals")
 qqline(residuals(poisson_model, type = "deviance"), col = "red")
 
-# Visualization of predicted claim rates by vehicle type, insurance type, and production year
-predicted_values <- data.frame(claims_per_vehicle_usage_prodyear,
+#Diagnose overdispersion
+deviance(poisson_model) / df.residual(poisson_model)
+
+#Visualization of predicted claim rates by vehicle type, insurance type, and production year
+predicted_values <- data.frame(dat_amount_claims,
                                Predicted_Claims = predict(poisson_model, type = "response"))
 
 ggplot(predicted_values, aes(x = TYPE_VEHICLE, y = Predicted_Claims, fill = INSR_TYPE)) +
@@ -807,61 +827,24 @@ ggplot(predicted_values, aes(x = TYPE_VEHICLE, y = Predicted_Claims, fill = INSR
   labs(title = "Predicted Number of Claims by Vehicle Type, Insurance Type, and Production Year",
        x = "Vehicle Type", y = "Predicted Number of Claims") +
   theme_minimal() +
-  facet_wrap(~PROD_YEAR)
-
-
-```
-Overdispersion!!!!!!!!!
-
-### Massnahme:Interaktionen?
-
-```{r pois_interact, cache=TRUE}
-
-# Creating an interaction plot
-ggplot(claims_per_vehicle_usage_prodyear, aes(x = PROD_YEAR, y = Amount_Claims, color = INSR_TYPE, group = INSR_TYPE)) +
-  geom_line(size = 1) +  # Line plot for each insurance type (INSR_TYPE)
-  geom_point(size = 2) + # Points for each observation
-  labs(title = "Interaction Plot between Production Year and Vehicle Usage",
-       x = "Production Year", 
-       y = "Number of Claims") +
-  theme_minimal() +
-  theme(legend.position = "bottom") +
-  facet_wrap(~ TYPE_VEHICLE)  # Facet for each vehicle type
-
-# Poisson model with interactions between production year and insurance type
-poisson_model_interaction2 <- glm(Amount_Claims ~ TYPE_VEHICLE * INSR_TYPE + PROD_YEAR, 
-                                  family = poisson, data = claims_per_vehicle_usage_prodyear)
-
-# Summary of the model
-summary(poisson_model_interaction2)
-
-# Residuals vs Fitted Plot
-plot(poisson_model_interaction2$fitted.values, residuals(poisson_model_interaction2, type = "deviance"),
-     xlab = "Fitted Values", 
-     ylab = "Deviance Residuals", 
-     main = "Residuals vs Fitted (Poisson with Interaction)")
-abline(h = 0, col = "red")
-
-# QQ Plot
-qqnorm(residuals(poisson_interaction_model, type = "deviance"), main = "QQ Plot of Residuals (Poisson with Interaction)")
-qqline(residuals(poisson_interaction_model, type = "deviance"), col = "red")
-
-
+  facet_wrap(~AGE_VEHICLE)
 
 ```
+Starke Overdispersion
 
 
-### Massnahme: Quasi-Poisson-Regression
-
+### Massnahme 1): Quasi-Poisson-Regression
 
 ```{r quasiPois, cache=TRUE}
 
-# Quasi-Poisson regression: Predicting the number of claims based on vehicle type, usage, and production year
-quasi_poisson_model <- glm(Amount_Claims ~ TYPE_VEHICLE + INSR_TYPE + PROD_YEAR, 
-                           family = quasipoisson, data = claims_per_vehicle_usage_prodyear)
+#Quasi-Poisson
+quasi_poisson_model <- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + AGE_VEHICLE, 
+                           family = quasipoisson, data = dat_amount_claims)
 
 # Summary of the model
 summary(quasi_poisson_model)
+#F-Test, Vergleiche von geschachtelten Quasi-Likelihood-Modellen (Overdispersion)
+drop1(quasi_poisson_model, test= "F")
 
 # Model diagnostics: Residuals vs. Fitted Plot
 plot(quasi_poisson_model$fitted.values, residuals(quasi_poisson_model, type = "deviance"),
@@ -883,12 +866,50 @@ ggplot(predicted_values_qp, aes(x = TYPE_VEHICLE, y = Predicted_Claims, fill = I
   labs(title = "Predicted Number of Claims by Vehicle Type, Usage, and Production Year (Quasi-Poisson)",
        x = "Vehicle Type", y = "Predicted Number of Claims") +
   theme_minimal() +
-  facet_wrap(~PROD_YEAR)
+  facet_wrap(~AGE_VEHICLE)
 
 
 
 ```
+Immernoch starke Overdispersion
 
+### Massnahme 2): Negative-Binomial-Modell
+
+```{r neg_binom_model, cache=TRUE}
+
+# Negative-Binomial-Regression anpassen
+neg_bin_model <- glm.nb(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + AGE_VEHICLE, 
+                        data = dat_amount_claims)
+
+# Zusammenfassung des Modells anzeigen
+summary(neg_bin_model)
+
+# Exponentierte Koeffizienten anzeigen (um Rate Ratios zu interpretieren)
+exp(coef(neg_bin_model))
+
+# Devianz und Freiheitsgrade überprüfen (sollte näher an 1 liegen)
+deviance(neg_bin_model) / df.residual(neg_bin_model)
+
+# Residuals vs Fitted Plot
+plot(neg_bin_model$fitted.values, residuals(neg_bin_model, type = "deviance"),
+     xlab = "Fitted Values", 
+     ylab = "Deviance Residuals", 
+     main = "Residuals vs Fitted (Negative Binomial)")
+abline(h = 0, col = "red")
+
+# QQ-Plot der Residuen
+qqnorm(residuals(neg_bin_model, type = "deviance"), main = "QQ Plot of Residuals (Negative Binomial)")
+qqline(residuals(neg_bin_model, type = "deviance"), col = "red")
+
+```
+
+The overdispersion was corrected in the model.
+
+In the residuals vs fitted plot, the residuals show an acceptable fit, but there is a cluster formation for very small fitted values, which indicates that the model does not optimally capture these values. In addition, outliers occur for larger values, which also indicate modelling problems.
+
+The QQ plot shows that most residuals follow the theoretical normal distribution well, but they deviate at extreme values. However, these deviations are not unusual for count data models.
+
+Overall, the negative binomial model provides a satisfactory fit, but shows weaknesses for extremely small and large values. These problems could be further improved by analysing outliers or using a zero-inflated negative binomial model
 
 
 ## Binomial
