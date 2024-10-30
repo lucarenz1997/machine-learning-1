@@ -513,13 +513,7 @@ ylab = "Premium")
 
 boxplot(CLAIM_PAID_USD ~ SEX, data = clean_dat_motor,
 main = "Claim paid (USD) against sex",
-ylab = "Heart.weight")
-
-
-
-
-
-
+ylab = "Heart.weight") #TODO should be USD?!
 ```
 
 
