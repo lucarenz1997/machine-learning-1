@@ -516,6 +516,10 @@ clean_dat_motor <- clean_dat_motor %>%
   dplyr::select(OBJECT_ID, START_INS_YR, SEX, INSR_TYPE, USAGE, TYPE_VEHICLE,
                 MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, PREMIUM, CLAIM_PAID_USD, everything())
 
+#Data set too large: Draw 100000 random samples
+clean_dat_motor_origin<- clean_dat_motor
+clean_dat_motor <- sample_n(clean_dat_motor, size = 100000)
+
 
 #Umwandlung der kategorialen Variablen in Factor-Variablen
 clean_dat_motor$OBJECT_ID <- as.factor(clean_dat_motor$OBJECT_ID)
@@ -526,17 +530,13 @@ clean_dat_motor$MAKE <- as.factor(clean_dat_motor$MAKE)
 clean_dat_motor$USAGE <- as.factor(clean_dat_motor$USAGE)
 clean_dat_motor$CLAIM_PAID <- as.factor(clean_dat_motor$CLAIM_PAID)
 clean_dat_motor$TYPE_VEHICLE <- as.factor(clean_dat_motor$TYPE_VEHICLE)
+clean_dat_motor$START_INS_YR <- as.factor(clean_dat_motor$START_INS_YR)
 
-# log 
-clean_dat_motor$PREMIUM_LOG <- log(clean_dat_motor$PREMIUM + 1)
-clean_dat_motor$INSURED_VALUE_LOG <- log(clean_dat_motor$INSURED_VALUE + 1)
-clean_dat_motor$CLAIM_PAID_USD_LOG <- log(clean_dat_motor$CLAIM_PAID_USD + 1)
-clean_dat_motor$CCM_TON_LOG <- log(clean_dat_motor$CCM_TON + 1)
 
 # Clear Workspace
-rm(list = setdiff(ls(), c("raw_dat_motor", "clean_dat_motor")))
-rm(raw_dat_motor)
-clean_dat_motor2<- clean_dat_motor
+rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
+#rm(clean_dat_motor_origin)
+
 
 ```
 
@@ -546,17 +546,51 @@ clean_dat_motor2<- clean_dat_motor
 
 ```{r graph_data_analysis, cache = TRUE}
 
+# Auswahl nur der numerischen Variablen
+numeric_vars <- clean_dat_motor %>%
+  select_if(is.numeric)
 
+# Erstellen von Histogrammen für jede numerische Variable
+for (var in names(numeric_vars)) {
+  print(
+    ggplot(clean_dat_motor, aes_string(x = var)) +
+      geom_histogram(bins = 30, color = "black", fill = "skyblue") +
+      ggtitle(paste("Histogram of", var)) +
+      theme_minimal() +
+      xlab(var) +
+      ylab("Frequency") +
+      theme(plot.title = element_text(hjust = 0.5))
+  )
+}
+
+
+###################################################################################
+
+#Weitere grafische Analysen
 boxplot(PREMIUM ~ SEX, data = clean_dat_motor,
 main = "Premium against sex",
 ylab = "Premium")
 
-
-
 boxplot(CLAIM_PAID_USD ~ SEX, data = clean_dat_motor,
 main = "Claim paid (USD) against sex",
-ylab = "Heart.weight") #TODO should be USD?!
+ylab = "Claim paid (USD)")
+
 ```
+
+
+
+## Transformation variables 
+```{r transformation, cache = TRUE}
+
+#Log-Transformation
+clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
+clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
+#Log-Transformation mit log1p() wegen der vielen 0-Werte
+clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
+clean_dat_motor$CCM_TON_LOG <- log1p(clean_dat_motor$CCM_TON)
+
+```
+
 
 
 # Models
