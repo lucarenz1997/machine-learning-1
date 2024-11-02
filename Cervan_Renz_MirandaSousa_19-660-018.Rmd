@@ -1,10 +1,11 @@
 ---
-title: "ML1"
+pdf_document: default
 authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
 date: "2024-01-10"
 output:
   word_document: default
-pdf_document: default
+  pdf_document: default
+title: "ML1"
 ---
   
 ```{r setup, include=FALSE}
@@ -490,6 +491,11 @@ clean_dat_motor$USAGE <- as.factor(clean_dat_motor$USAGE)
 clean_dat_motor$CLAIM_PAID <- as.factor(clean_dat_motor$CLAIM_PAID)
 clean_dat_motor$TYPE_VEHICLE <- as.factor(clean_dat_motor$TYPE_VEHICLE)
 
+# log 
+clean_dat_motor$PREMIUM_LOG <- log(clean_dat_motor$PREMIUM + 1)
+clean_dat_motor$INSURED_VALUE_LOG <- log(clean_dat_motor$INSURED_VALUE + 1)
+clean_dat_motor$CLAIM_PAID_USD_LOG <- log(clean_dat_motor$CLAIM_PAID_USD + 1)
+clean_dat_motor$CCM_TON_LOG <- log(clean_dat_motor$CCM_TON + 1)
 
 # Clear Workspace
 rm(list = setdiff(ls(), c("raw_dat_motor", "clean_dat_motor")))
@@ -513,13 +519,7 @@ ylab = "Premium")
 
 boxplot(CLAIM_PAID_USD ~ SEX, data = clean_dat_motor,
 main = "Claim paid (USD) against sex",
-ylab = "Heart.weight")
-
-
-
-
-
-
+ylab = "Heart.weight") #TODO should be USD?!
 ```
 
 
@@ -1033,12 +1033,121 @@ weitere Massnahmen: Schwellenwertanpassubg (hat wenig gebracht) Interaktionen
 
 
 ## Support Vector Machine (SVM)
-```{r SVM, cache=TRUE}
-# TODO
+```{r SVM preparation}
+set.seed(123)
+svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 100000, replace = FALSE), ]
 
+hist(svm_data$PREMIUM_LOG, main = "Premium Distribution", xlab = "Premium", breaks = 30)
+
+plot(density(svm_data$PREMIUM_LOG, na.rm = TRUE), main = "Density of Premium")
+
+percentiles <- quantile(svm_data$PREMIUM_LOG, probs = c(0.25,0.5,0.75))
+
+# Create custom categories for PREMIUM based on percentiles
+svm_data$premium_category <- cut(svm_data$PREMIUM_LOG, 
+                                 breaks = c(-Inf, percentiles[1], percentiles[2], percentiles[3], Inf), 
+                                 labels = c("low", "medium", "high", "very_high"))
+print(table(svm_data$premium_category
+            ))
+
+# Splitting into training and testing test
+trainIndex <- createDataPartition(svm_data$premium_category, p = 0.7, list = FALSE)
+train <- svm_data[trainIndex, ]
+test <- svm_data[-trainIndex, ]
+
+#plotting to see if it can be linearly split
+
+selected_data <- svm_data[, c("AGE_VEHICLE", "INSURED_VALUE_LOG", "CLAIM_PAID_USD_LOG", "premium_category")]
+library(GGally)
+ggpairs(selected_data, aes(color = premium_category))
 ```
 
+Given the overlaps and distribution of data points across different categories, the data does not appear to be linearly separable. This means that a non-linear kernel would likely be a better choice for capturing the complex relationships and boundaries between the classes.
 
+```{r SVM radial, cache=TRUE}
+
+fit <- svm(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_LOG + MAKE + USAGE, 
+             data = train, 
+             kernel = "radial")
+
+summary(fit)
+
+predictions <- predict(fit, test)
+confusionMatrix(predictions, test$premium_category)
+
+```
+Performance Analysis
+Overall Accuracy:
+
+Accuracy: 71.62% is still a solid performance for a four-class classification task but is slightly lower than before (72.24%). This drop could be due to sample variation, indicating the model may be sensitive to the specific data distribution in the training set.
+Class-Specific Performance:
+
+Class Sensitivity:
+The model performs best in identifying the “very high” class (Sensitivity = 0.8545), meaning it effectively detects most "very high" premium cases.
+The “low” (67.35%) and “high” (67.89%) classes show lower sensitivities, which implies that the model struggles to identify these categories as accurately. Misclassifications here likely contribute to the reduced accuracy.
+Specificity: High specificity across all classes, particularly for “low” (96.30%) and “very high” (91.17%), suggests the model effectively recognizes cases that do not belong to these categories.
+Positive Predictive Value (Precision):
+Precision is reasonable across classes but lowest for “high” (60.51%) and “medium” (67.54%), indicating that the model may confuse these categories with others.
+Balanced Accuracy:
+
+Balanced accuracy is lower for "medium" (77.63%) and "high" (76.57%) compared to "low" and "very high." This imbalance suggests the model is slightly less effective in distinguishing between “medium” and “high” categories.
+Recommendations for Improvement
+Given the above observations, here are several suggestions to improve model performance:
+
+Hyperparameter Tuning:
+
+Increase Cost: Since the model has moderate sensitivity for “low” and “high” classes, increasing the cost parameter could encourage a tighter fit to these categories, potentially reducing the number of misclassifications. However, be cautious not to set it too high, as this could overfit on the “very high” class.
+Gamma Tuning: Experiment with slightly higher values of gamma to see if it improves precision in "medium" and "high" classes. This could make the model more responsive to feature distinctions within these overlapping categories.
+
+Alternative Kernel Exploration:
+
+Polynomial Kernel: For cases where there is complex overlap between classes (e.g., "medium" and "high"), the polynomial kernel can sometimes capture these relationships better than the radial kernel.
+Sigmoid Kernel: If the data has a certain linear-separability structure, experimenting with the sigmoid kernel could also improve classification.
+Feature Engineering:
+
+Interaction Terms: Create interaction terms between significant predictors, such as AGE_VEHICLE * INSURED_VALUE_LOG or CLAIM_PAID_USD_LOG * CCM_TON_LOG. These could help the model better distinguish between similar categories by capturing nuanced relationships.
+Dimensionality Reduction: Try PCA (Principal Component Analysis) to reduce noise in the data. By retaining only the principal components that explain the most variance, you can simplify the feature space, potentially improving the model’s accuracy and generalization.
+Class Rebalancing Techniques:
+
+If there’s a slight imbalance in the data (e.g., fewer instances in "high" or "medium" categories), techniques like SMOTE (Synthetic Minority Over-sampling Technique) could help balance the classes, improving model performance on the lower-represented classes.
+Try Ensemble Models for Comparison:
+
+You may also consider training a Random Forest or Gradient Boosting model as a baseline to compare against SVM. These models can sometimes capture complex relationships and reduce misclassification for categories like "medium" and "high."
+
+
+```{r SVM improvement from model#1}
+
+# Perform hyperparameter tuning with tune()
+
+# Define the formula with selected features
+
+# Tune the model
+tune.out <- tune(svm, premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_LOG + MAKE + USAGE, data = train, kernel = "radial",
+                 ranges = list(cost = c(0.1, 1, 10),
+                               gamma = c(0.5, 1, 2)))
+
+# View the best parameters and summary
+print(tune.out)
+best_model <- tune.out$best.model
+
+# Print the best cost and gamma values
+best_params <- tune.out$best.parameters
+cat("Best Cost:", best_params$cost, "\n")
+cat("Best Gamma:", best_params$gamma, "\n")
+
+# Fit the best model on the train data
+fit.improved <- best_model
+
+
+# library(caret)
+# tune_grid <- expand.grid(C = c(1, 10, 100), gamma = c(0.01, 0.1, 1))
+# tuned_model <- train(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_LOG + MAKE + USAGE, 
+#                      data = train, 
+#                      method = "svmRadial", 
+#                      tuneGrid = tune_grid, 
+#                      trControl = trainControl(method = "cv"))
+
+```
 # Conclusion
 
 
