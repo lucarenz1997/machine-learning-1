@@ -485,6 +485,8 @@ clean_dat_motor <- clean_dat_motor %>%
     })
   ) %>%
   ungroup()
+
+
 ###############################################################################################
 
 #Vergleich zum Rohdatensatz
@@ -518,6 +520,7 @@ clean_dat_motor <- clean_dat_motor %>%
 
 #Data set too large: Draw 100000 random samples
 clean_dat_motor_origin<- clean_dat_motor
+set.seed(123)
 clean_dat_motor <- sample_n(clean_dat_motor, size = 100000)
 
 
@@ -589,6 +592,10 @@ clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
 clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
 clean_dat_motor$CCM_TON_LOG <- log1p(clean_dat_motor$CCM_TON)
 
+
+# Clear Workspace
+rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
+
 ```
 
 
@@ -596,38 +603,38 @@ clean_dat_motor$CCM_TON_LOG <- log1p(clean_dat_motor$CCM_TON)
 # Models
 ## Linear Model
 
+A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the premium is incurred at the start of the contract and this would therefore not make technical sense. Instead, a bonus-malus system is taken into account by adding AMOUNT_CLAIMS_PAID.
+
 ```{r linear_model, cache = TRUE}
 
 #Modell erstellen
-lm_model <- lm(PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + INSURED_VALUE + CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + CCM_TON, data = clean_dat_motor)
+lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
+                 AGE_VEHICLE + SEATS_NUM + CCM_TON_LOG +INSURED_VALUE_log +
+                 AMOUNT_CLAIMS_PAID, data = clean_dat_motor)
+
+
 
 #Modellzusammenfassung anzeigen
 summary(lm_model)
+
+drop1(lm_model, test= "F") #Bei mehrere Kat Var.
+
 coef(lm_model)
 
-Anova(lm_model, type="II")  # Type II oder III je nach Modellstrukt
+#vif(lm_model)
 
 
-vif(lm_model)
-
-
-# Residuen plotten
-plot(lm_model, which=1)  # Residuals vs Fitted
-plot(lm_model, which=2)  # Normal Q-Q
-
-
-
-#Residuen-Plots für Modell-Diagnose
-#Plot der Residuen vs. Fit-Werte
-plot(lm_model$fitted.values, lm_model$residuals, 
-     xlab = "Fitted Values", 
-     ylab = "Residuals", 
-     main = "Residuals vs Fitted")
-abline(h = 0, col = "red")
-
-#QQ-Plot der Residuen (Überprüfung der Normalverteilung)
-qqnorm(lm_model$residuals, main = "QQ Plot of Residuals")
+#Residuenanalyse
+#Q-Q-Plot 
+qqnorm(lm_model$residuals)
 qqline(lm_model$residuals, col = "red")
+
+#Residuen vs. Fitted-Werte (Vorhergesagte Werte)
+plot(lm_model$fitted.values, lm_model$residuals, 
+     main = "Residuals vs Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals")
+abline(h = 0, col = "red")
 
 
 #Modell-Performance Metriken (z.B. R² und MSE)
@@ -639,213 +646,35 @@ cat("Mean Squared Error (MSE):", mse, "\n")
 r_squared <- summary(lm_model)$r.squared
 cat("R-squared:", r_squared, "\n")
 
+
+
 ```
 
 
-- R-squared= 0,6368, dh. 63,68% der Varianz in der Zielvariablen PREMIUM wird durch die erklärenden Variablen erklärt. Gut, hat aber Verbesserungspotential
+The model summary shows that the Multiple R-squared value is 0.7308, indicating that the model can explain approximately 73.08% of the variance in premiums. This suggests that the model provides a good fit to the data. The F-test for the overall model is significant (p < 2.2e-16), indicating that the predictors as a group have a substantial effect on the premium.
 
-- Alle Prädiktoren sind signifikant Pr(>F) <0,05
+All predictors have a significant impact on the target variable PREMIUM_log. For instance, the categories SEX and USAGE (usage) have a significant effect on PREMIUM_log. Men pay slightly less compared to women, while certain usages, such as "Fare Paying Passengers," lead to higher premiums. In contrast, usages like "Own Goods" and "Private" are associated with lower premiums.
 
-- Die Estimate-Werte zeigen die Richtung und Stärke des Effekts der jeweiligen Variable auf die PREMIUM
-- INSR_TYPEPrivate hat tiefere Premium wie commercial
-- Make: Die Marke Toyota hat die teuerste Praemie. Die guenstigste Premium hat die Marke HOWO
-- Guenstigsten USAGEOwn Goods teuerste Premium Car Hires 
-- teuerste Premium Type: Bus und guenstigsten Trailers and semitrailers
-- Insured value und CLAIM_PAID_USD positiver effekt auf premium war zu erwarten
+The coefficient of INSURED_VALUE_log (0.7682) in the model shows that the insured value of the vehicle has a strong influence on the premium level. Since both the insured value and the premium are logarithmically transformed, this means that a 1% increase in the insured value results in approximately a 0.7682% increase in the premium. This illustrates the direct and positive relationship between vehicle value and premium: higher-insured vehicles attract proportionally higher premiums, as they represent a greater financial risk for the insurer. Overall, this coefficient confirms that vehicle value is one of the most significant factors in premium calculation.
 
+The coefficient of AMOUNT_CLAIMS_PAID, with a value of 0.1363, indicates that an increase in the number of claims leads to an increase in the log-transformed premium by approximately 0.1363. This means that each additional claim results in a proportional increase in the premium by about 13.63%. This coefficient highlights that an insured’s claim history has a significant impact on the premium level.
+
+The coefficient of AGE_VEHICLE is 0.0029, indicating that with each additional year of vehicle age, the log-transformed premium increases by about 0.0029. Since the target variable is logarithmic, this implies that an additional year in vehicle age leads to a minimal increase in the premium of approximately 0.29%.
+
+The coefficient of SEATS_NUM is -0.00175, which means that with each additional seat, the log-transformed premium decreases by approximately 0.00175. Given the logarithmic nature of the target variable, this can be interpreted as each additional seat leading to a slight reduction in the premium by around 0.175%.
 
 VIF:
-Die VIF-Werte (Variance Inflation Factor) geben an, wie stark die Multikollinearität in deinem Modell ist. Hohe VIF-Werte (normalerweise über 5 oder 10) deuten darauf hin, dass einige Prädiktoren stark miteinander korrelieren, was die Stabilität und Interpretierbarkeit des Modells beeinträchtigen kann.
-- INSR_TYPE (5.85): Ein VIF-Wert von über 5 deutet auf eine mögliche Multikollinearität hin. Es könnte sinnvoll sein, diese Variable genauer zu untersuchen.
+An analysis of multicollinearity revealed that the Variance Inflation Factor (VIF) for the variable INSR_TYPE is 5.85, which suggests possible multicollinearity. This could affect the model’s stability and interpretability and should be considered in further model optimization.
 
-Residuen
-Der Residuals vs Fitted-Plot sollte keine Muster aufweisen (d.h. die Residuen sollten zufällig verteilt sein), und der Normal Q-Q-Plot sollte annähernd eine Gerade bilden, um die Normalverteilung der Residuen zu bestätigen.
+Residuals Analysis
 
-Der Residuals vs Fitted Plot zeigt eine leicht gebogene Linie sowie eine Ansammlung von Punkten nahe dem Wert 0, begleitet von einigen extremen Ausreissern (mit ID-Nummern markiert). Dieses Muster deutet darauf hin, dass die Annahme der Homoskedastizität, also der gleichmässigen Varianz der Residuen, in diesem Modell nicht erfüllt ist. In einem idealen Modell sollten die Residuen zufällig und gleichmässig um die horizontale Linie bei 0 verteilt sein. Darüber hinaus sind einige Residuen-Punkte deutlich vom Hauptcluster entfernt. Diese Ausreisser könnten extreme Werte darstellen, die das Modell möglicherweise verzerren. Eine genauere Untersuchung dieser Punkte ist empfehlenswert, um zu entscheiden, ob sie aus dem Modell entfernt oder separat behandelt werden sollten. Bei höheren Prämienwerten zeigen die Residuen zudem eine ungleichmässige Verteilung, was darauf hindeutet, dass das Modell für diese höheren Werte keine ausreichende Passgenauigkeit aufweist.
+Residuals vs. Fitted Plot:
+The Residuals vs. Fitted Plot displays a funnel-shaped pattern, indicating heteroskedasticity. The variance of the residuals increases with higher predicted values, meaning that the model is less accurate for larger premium values. This violates the assumption of constant variance, suggesting that homoskedasticity is not fully met.
 
-Im Normal Q-Q Plot lässt sich erkennen, dass die Residuen nicht vollständig auf der Linie liegen, die eine perfekte Normalverteilung darstellt. Dies weist darauf hin, dass die Annahme der Normalverteilung der Residuen verletzt ist. Besonders auffällig sind die deutlichen Abweichungen sowohl am unteren als auch am oberen Ende des Plots. Dies deutet auf das Vorhandensein von Ausreissern hin und darauf, dass die Verteilung der Residuen „schwerere Enden“ aufweist, d. h. mehr extreme Werte enthält als in einer Normalverteilung zu erwarten wäre. Die Punkte am Rand des Plots repräsentieren extreme Werte, die signifikant von der angenommenen Normalverteilung abweichen.
+Normal Q-Q Plot:
+The Normal Q-Q Plot shows that the residuals do not lie perfectly along the line, indicating significant deviations from the theoretical normal distribution, particularly at the tails. These "heavy tails" suggest a non-normal distribution of residuals, potentially due to outliers or unmodeled non-linear relationships.
 
-Massnahmen:Transformation der Zielvariablen, Ausreisserbehandlung
-
-
-
-### Massnahme 1): Ausreisserbehandlung
-
-```{r lm_massnahme_ausreisser, cache=TRUE}
-
-# Standardisierte Residuen berechnen
-standardized_resid <- rstandard(lm_model)
-
-# Schwellenwert für Ausreisser setzen (z.B. Residuen grösser als 3 oder kleiner als -3)
-threshold <- 3
-
-# Indizes der Ausreisser identifizieren
-outliers <- which(abs(standardized_resid) > threshold)
-
-# Daten ohne Ausreisser
-clean_data_no_outliers <- clean_dat_motor[-outliers, ]
-
-# Neues Modell ohne Ausreisser anpassen
-lm_model_no_outliers <- lm(PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + INSURED_VALUE + CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + CCM_TON, data = clean_data_no_outliers)
-
-# Zusammenfassung des neuen Modells anzeigen
-summary(lm_model_no_outliers)
-
-# Residuenplots für das neue Modell erstellen
-par(mfrow = c(2, 2))  # Mehrere Plots auf einer Seite
-plot(lm_model_no_outliers)
-
-
-
-
-```
-
-Nach dem Entfernen der Ausreisser zeigen die Residuenplots zwar eine Verbesserung, jedoch bleiben einige Auffälligkeiten bestehen. Der Residuals vs Fitted Plot weist weiterhin eine Trichterform auf, was auf eine Verletzung der Homoskedastizitätsannahme hindeutet. Dies deutet darauf hin, dass die Varianz der Residuen nicht konstant ist. Im Normal Q-Q Plot sind an den Enden deutliche Abweichungen von der theoretischen Normalverteilung zu erkennen, was auf verbleibende Ausreisser oder eine unzureichende Anpassung an die Normalverteilungsannahme schliessen lässt. Der Scale-Location Plot bestätigt ebenfalls eine ungleichmässige Streuung der Residuen, insbesondere bei höheren fitted values. Insgesamt legen diese Ergebnisse nahe, dass eine Transformation der Zielvariablen, wie eine Log-Transformation, sinnvoll sein könnte, um die Modellgüte weiter zu verbessern und die Annahmen der linearen Regression besser zu erfüllen.
-
-Die Modellgüte hat sich verbessert: Der Residual Standard Error (RSE) verringerte sich von über 7700 auf 6168, und das R-squared stieg von 0,6368 auf 0,7175. Dies bedeutet, dass nun 71,75% der Varianz in der Prämie durch die erklärenden Variablen erklärt werden. Die meisten Variablen, wie INSURED_VALUE und CLAIM_PAID_USD, bleiben weiterhin signifikant.
-
-
-
-### Massnahme 2): Transformation
-
-```{r lm_massnahme_transf, cache=TRUE}
-
-#Analyse Variablen
-numeric_vars <- c("PREMIUM", "INSURED_VALUE", "CLAIM_PAID_USD", "AGE_VEHICLE", "SEATS_NUM", "CCM_TON")
-
-#Histogramme erstellen
-par(mfrow = c(2, 3))  # 2 Zeilen, 3 Spalten für die Plots
-for (var in numeric_vars) {
-  hist(clean_dat_motor[[var]], main = paste("Histogram of", var), xlab = var, col = "lightblue", breaks = 30)
-}
-par(mfrow = c(1, 1))  # Zurück zu einem einzelnen Plot pro Seite
-
-#Massnahme: Transformation der Variablen
-# Log-Transformation für stark rechtsschiefe Variablen
-clean_dat_motor$PREMIUM_LOG <- log(clean_dat_motor$PREMIUM + 1)  # Hinzufügen von +1 um log(0) zu vermeiden
-clean_dat_motor$INSURED_VALUE_LOG <- log(clean_dat_motor$INSURED_VALUE + 1)
-clean_dat_motor$CLAIM_PAID_USD_LOG <- log(clean_dat_motor$CLAIM_PAID_USD + 1)
-clean_dat_motor$CCM_TON_LOG <- log(clean_dat_motor$CCM_TON + 1)
-
-
-```
-
-Die Histogramme der Variablen zeigen, dass einige von ihnen, insbesondere PREMIUM, INSURED_VALUE, CLAIM_PAID_USD und CCM_TON, stark rechtsschief verteilt sind. Diese Verteilungen deuten darauf hin, dass eine log-Transformation sinnvoll sein könnte, um die Daten zu normalisieren und die Varianz zu stabilisieren. Durch die Transformation würde die Schiefe verringert, was zu einer besseren Modellanpassung führen könnte.
-
-Variablen wie AGE_VEHICLE und SEATS_NUM zeigen hingegen eine weniger ausgeprägte Schiefe, sodass eine Transformation hier weniger notwendig erscheint. Eine log-Transformation der stark schiefen Variablen wird daher empfohlen, um die Modellgüte weiter zu verbessern.
-
-
-
-```{r lm logtrans}
-
-# Zunächst prüfen, ob es 0-Werte gibt, die das Logarithmieren verhindern
-# Kleine Konstante (1) hinzufügen, um mit möglichen 0-Werten in den Variablen umzugehen
-clean_data_no_outliers$LOG_PREMIUM <- log(clean_data_no_outliers$PREMIUM + 1)
-clean_data_no_outliers$LOG_INSURED_VALUE <- log(clean_data_no_outliers$INSURED_VALUE + 1)
-clean_data_no_outliers$LOG_CLAIM_PAID_USD <- log(clean_data_no_outliers$CLAIM_PAID_USD + 1)
-clean_data_no_outliers$LOG_CCM_TON <- log(clean_data_no_outliers$CCM_TON + 1)
-
-# Neues Modell mit den logarithmierten Variablen
-lm_model_log <- lm(LOG_PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + 
-                              LOG_INSURED_VALUE + LOG_CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + LOG_CCM_TON, 
-                              data = clean_data_no_outliers)
-
-# Zusammenfassung des neuen Modells anzeigen
-summary(lm_model_log)
-Anova(lm_model_log, type="II")  # Type II oder III je nach Modellstrukt
-
-# Residuenplots für das neue Modell erstellen
-par(mfrow = c(2, 2))  # Mehrere Plots auf einer Seite
-plot(lm_model_log)
-
-
-#Modell-Performance Metriken (z.B. R² und MSE)
-#Berechnung des Mean Squared Error (MSE)
-mse <- mean(lm_model_log$residuals^2)
-cat("Mean Squared Error (MSE):", mse, "\n")
-
-#Berechnung des R² (wird auch in summary(lm_model_log) angezeigt)
-r_squared <- summary(lm_model_log)$r.squared
-cat("R-squared:", r_squared, "\n")
-
-```
-
-
-
-### Massnahme 3):  Ausreisser entfernen mit cooks distance
-
-```{r lm_Ausreisser_log, cache=TRUE}
-
-# Berechnung von Cook's Distance für das Modell
-cooksd <- cooks.distance(lm_model_log)
-
-# Setze einen Schwellenwert, um Ausreisser zu identifizieren (z.B. 4/n, wobei n die Anzahl der Datenpunkte ist)
-threshold <- 4 / nrow(clean_data_no_outliers)
-
-# Identifiziere potenziell einflussreiche Punkte (die Cook's Distance über dem Schwellenwert haben)
-influential <- as.numeric(names(cooksd)[(cooksd > threshold)])
-
-# Daten ohne diese einflussreichen Punkte
-clean_data_no_outliers_influential_removed <- clean_data_no_outliers[-influential, ]
-
-# Erstelle das Modell erneut ohne die einflussreichen Ausreisser
-lm_model_no_influential <- lm(LOG_PREMIUM ~ SEX + INSR_TYPE + MAKE + USAGE + TYPE_VEHICLE + 
-                             LOG_INSURED_VALUE + LOG_CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + LOG_CCM_TON, 
-                             data = clean_data_no_outliers_influential_removed)
-
-# Zusammenfassung des neuen Modells
-summary(lm_model_no_influential)
-
-# Residuenplots für das neue Modell
-par(mfrow = c(2, 2))
-plot(lm_model_no_influential)
-
-
-```
-
-Nach dem Entfernen der einflussreichen Ausreisser zeigt das Modell eine deutliche Verbesserung. Die Residuen im Residuals vs Fitted Plot sind gleichmässiger um die Nulllinie verteilt, was auf eine verbesserte Homoskedastizität hinweist. Der Normal Q-Q Plot zeigt eine gute Annäherung an die Normalverteilung, mit nur geringen Abweichungen an den Enden. Der Scale-Location Plot bestätigt eine weitgehend konstante Varianz der Residuen, während im Residuals vs Leverage Plot nur wenige einflussreiche Datenpunkte verbleiben. Mit einem R-squared von 0,8028 erklärt das Modell nun 80,28% der Varianz, was eine signifikante Verbesserung darstellt.
-
-### Massnahme 4):  Interaktionen? noch nicht fix
-
-```{r lm_interaktion, cache=TRUE}
-
-# Boxplot von LOG_PREMIUM nach MAKE und USAGE
-ggplot(clean_data_no_outliers_influential_removed, aes(x=MAKE, y=LOG_PREMIUM, fill=USAGE)) + 
-  geom_boxplot() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(title = "Interaktion zwischen MAKE und USAGE", x = "MAKE", y = "LOG_PREMIUM")
-
-# Boxplot von LOG_PREMIUM nach TYPE_VEHICLE und USAGE
-ggplot(clean_data_no_outliers_influential_removed, aes(x=TYPE_VEHICLE, y=LOG_PREMIUM, fill=USAGE)) + 
-  geom_boxplot() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(title = "Interaktion zwischen TYPE_VEHICLE und USAGE", x = "TYPE_VEHICLE", y = "LOG_PREMIUM")
-
-# Scatterplot von LOG_INSURED_VALUE und LOG_PREMIUM nach USAGE
-ggplot(clean_data_no_outliers_influential_removed, aes(x=LOG_INSURED_VALUE, y=LOG_PREMIUM, color=USAGE)) + 
-  geom_point(alpha=0.5) + 
-  geom_smooth(method="lm", se=FALSE) +
-  labs(title = "Interaktion zwischen LOG_INSURED_VALUE und USAGE", x = "LOG_INSURED_VALUE", y = "LOG_PREMIUM")
-
-
-
-# Anpassung eines linearen Modells mit den identifizierten Interaktionen
-lm_model_interactions <- lm(LOG_PREMIUM ~ SEX + INSR_TYPE + MAKE * USAGE + TYPE_VEHICLE * USAGE + 
-                            LOG_INSURED_VALUE * USAGE + LOG_CLAIM_PAID_USD + AGE_VEHICLE + SEATS_NUM + 
-                            LOG_CCM_TON, data = clean_data_no_outliers_influential_removed)
-
-# Zusammenfassung des neuen Modells mit Interaktionen
-summary(lm_model_interactions)
-
-# Residuenplots für das neue Modell
-par(mfrow = c(2, 2))
-plot(lm_model_interactions)
-
-
-
-```
-
-Obwohl die Hinzufügung von Interaktionen das Modell in einigen Aspekten verbessert hat, zeigen die Residuenanalysen, dass Heteroskedastizität und Ausreisser weiterhin Probleme darstellen. Mögliche nächste Schritte könnten die Überprüfung und Behandlung dieser einflussreichen Punkte sowie die Anwendung robusterer Regressionstechniken oder zusätzlicher Transformationen umfassen. Darüber hinaus könnte die Untersuchung weiterer Interaktionen oder die Modellierung nichtlinearer Effekte in Betracht gezogen werden, um die Anpassung weiter zu optimieren.
+To improve the model, various measures could be considered. One approach would be to transform the target variable, for example, using a Box-Cox transformation, to reduce heteroskedasticity and achieve a more stable residual variance. Additionally, incorporating non-linear relationships by including polynomial terms or using a generalized linear model (GLM) could be beneficial. This would allow the model to better capture complex relationships between variables, thereby enhancing predictive accuracy.
 
 
 ## Poisson
@@ -1021,7 +850,7 @@ no_class <- clean_dat_motor[clean_dat_motor$CLAIM_PAID == "NO", ]
 # Anzahl der YES-Beobachtungen
 n_yes <- nrow(yes_class)
 
-# Zufällige Auswahl aus der NO-Klasse, sodass sie die gleiche Größe wie die YES-Klasse hat
+# Zufällige Auswahl aus der NO-Klasse, sodass sie die gleiche Grösse wie die YES-Klasse hat
 set.seed(42)  # Für Reproduzierbarkeit
 no_class_undersampled <- no_class[sample(1:nrow(no_class), n_yes), ]
 
@@ -1223,4 +1052,30 @@ fit.improved <- best_model
 
 
 
+# Reserve
+### Massnahme 1):  Interaktionen
+
+```{r lm_interaktion, cache=TRUE}
+
+#Coole Plots zum Aufzeigen von Interaktionen:
+
+# Boxplot von PREMIUM_log nach MAKE und USAGE
+ggplot(clean_dat_motor, aes(x=MAKE, y=PREMIUM_log, fill=USAGE)) + 
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Interaktion zwischen MAKE und USAGE", x = "MAKE", y = "PREMIUM_log")
+
+# Boxplot von PREMIUM_log nach TYPE_VEHICLE und USAGE
+ggplot(clean_dat_motor, aes(x=TYPE_VEHICLE, y=PREMIUM_log, fill=USAGE)) + 
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Interaktion zwischen TYPE_VEHICLE und USAGE", x = "TYPE_VEHICLE", y = "PREMIUM_log")
+
+# Scatterplot von INSURED_VALUE_log und PREMIUM_log nach USAGE
+ggplot(clean_dat_motor, aes(x=INSURED_VALUE_log, y=PREMIUM_log, color=USAGE)) + 
+  geom_point(alpha=0.5) + 
+  geom_smooth(method="lm", se=FALSE) +
+  labs(title = "Interaktion zwischen INSURED_VALUE_log und USAGE", x = "INSURED_VALUE_log", y = "PREMIUM_log")
+
+```
 
