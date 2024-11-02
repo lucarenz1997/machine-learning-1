@@ -115,6 +115,15 @@ raw_dat_motor$INSR_BEGIN <- dmy(raw_dat_motor$INSR_BEGIN)
 #INSR_END
 raw_dat_motor$INSR_END <- dmy(raw_dat_motor$INSR_END)
 
+#DURATION
+raw_dat_motor$DURATION <- as.numeric(as.Date(raw_dat_motor$INSR_END) - as.Date(raw_dat_motor$INSR_BEGIN))
+hist(raw_dat_motor$DURATION)
+#Gleiche DURATION (Vertragsdauer) zur Vergleichbarkeit
+raw_dat_motor <- raw_dat_motor[raw_dat_motor$DURATION == 364, ]
+
+#Jahr des Versicherungsbeginns extrahieren und als neue Variable hinzufügen
+raw_dat_motor$START_INS_YR <- year(as.Date(raw_dat_motor$INSR_BEGIN))
+
 #INSR_TYPE
 raw_dat_motor$INSR_TYPE <- factor(raw_dat_motor$INSR_TYPE, 
                                   levels = c(1201, 1202, 1204), 
@@ -426,7 +435,7 @@ count_claims_paid <- raw_dat_motor %>%
 selected_makes <- c("TOYOTA", "ISUZU", "NISSAN", "IVECO", "SINO HOWO", 
                     "MITSUBISHI", "BISHOFTU", "LIFAN", "FORD", "HYUNDAI", 
                     "MAZDA", "GEELY", "DAEWOO", "MERCEDES", "TATA", 
-                    "FIAT", "SINO", "SUZUKI", "GENLYON", "RENAULT", "VOLVO")
+                    "FIAT", "SINO", "SUZUKI", "GENLYON", "RENAULT")
 
 #Filtern des Datensatzes nach den ausgewählten Fahrzeugherstellern
 clean_dat_motor <- subset(raw_dat_motor, MAKE %in% selected_makes)
@@ -463,6 +472,19 @@ clean_dat_motor$AGE_VEHICLE <- 2018 - clean_dat_motor$PROD_YEAR
 #Entfernen von PROD_YEAR
 clean_dat_motor<- clean_dat_motor[,-8]
 
+
+
+#New variable: AMOUNT_CLAIMS_PAID (Number of previous claims per object ID)
+clean_dat_motor <- clean_dat_motor %>%
+  # Für jede object_ID und jedes Startjahr, kumuliere die Anzahl vorheriger Claims mit "YES"
+  group_by(OBJECT_ID) %>%
+  arrange(OBJECT_ID, START_INS_YR) %>%
+  mutate(
+    AMOUNT_CLAIMS_PAID = sapply(seq_along(START_INS_YR), function(i) {
+      sum(CLAIM_PAID[1:(i-1)] == "YES" & START_INS_YR[1:(i-1)] < START_INS_YR[i])
+    })
+  ) %>%
+  ungroup()
 ###############################################################################################
 
 #Vergleich zum Rohdatensatz
@@ -475,11 +497,25 @@ data.frame(
   CLAIM_PAID_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
   CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
 
+data.frame(
+  CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+
+
 ###############################################################################################
 
 #NA
 colSums(is.na(raw_dat_motor)) 
 colSums(is.na(clean_dat_motor)) 
+
+#Entfernen der Variablen 'versicherungsbeginn' und 'versicherungsende'
+clean_dat_motor <- subset(clean_dat_motor, select = -c(INSR_BEGIN, INSR_END, DURATION))
+
+# Neuanordnung der Spalten: Zuerst OBJECT_ID, dann START_INS_YR, dann der Rest
+clean_dat_motor <- clean_dat_motor %>%
+  dplyr::select(OBJECT_ID, START_INS_YR, SEX, INSR_TYPE, USAGE, TYPE_VEHICLE,
+                MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, PREMIUM, CLAIM_PAID_USD, everything())
+
 
 #Umwandlung der kategorialen Variablen in Factor-Variablen
 clean_dat_motor$OBJECT_ID <- as.factor(clean_dat_motor$OBJECT_ID)
