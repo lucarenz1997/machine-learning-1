@@ -631,11 +631,12 @@ The coefficient of AGE_VEHICLE is 0.0029, indicating that with each additional y
 
 The coefficient of SEATS_NUM is -0.00175, which means that with each additional seat, the log-transformed premium decreases by approximately 0.00175. Given the logarithmic nature of the target variable, this can be interpreted as each additional seat leading to a slight reduction in the premium by around 0.175%.
 
+
 VIF:
 An analysis of multicollinearity revealed that the Variance Inflation Factor (VIF) for the variable INSR_TYPE is 5.85, which suggests possible multicollinearity. This could affect the model’s stability and interpretability and should be considered in further model optimization.
 
-Residuals Analysis
 
+Residuals Analysis
 Residuals vs. Fitted Plot:
 The Residuals vs. Fitted Plot displays a funnel-shaped pattern, indicating heteroskedasticity. The variance of the residuals increases with higher predicted values, meaning that the model is less accurate for larger premium values. This violates the assumption of constant variance, suggesting that homoskedasticity is not fully met.
 
@@ -647,8 +648,9 @@ To improve the model, various measures could be considered. One approach would b
 
 ## Poisson
 
-Zielvariable: Anzahl Schadensmeldungen nach 5 Jahren Vertragslaufzeit?
+A Poisson model is fitted to predict the number of claims over a 5-year period based on the characteristics SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM.
 
+First, the data is grouped accordingly, and the results are analyzed to gather insights.
 
 ```{r data_for_poisson, cache=TRUE}
 
@@ -665,10 +667,7 @@ var(dat_amount_claims$AMOUNT_CLAIMS)
 #The variance is not much greater than the mean, over-dispersion can be neglegted in the model.
 
 ```
-
-The analysis of the distribution of the target variable AMOUNT_CLAIMS reveals that a large portion of the values are zero. This concentration of zero values is confirmed by the median, as well as the 1st and 3rd quartiles, which are also at zero. Additionally, the distribution shows some high outliers with a maximum value of 46, indicating an uneven distribution with a few high values. The low mean of 0.1791 further supports this observation, suggesting a significant number of zero values.
-
-Given these distribution characteristics, the use of a Zero-Inflated Poisson (ZIP) model could be appropriate, as such a model can account for both random and structural zeros. Initially, however, a Poisson model will be fitted.
+The analysis of the distribution of the target variable AMOUNT_CLAIMS reveals that a large portion of the values are zero. This concentration of zero values is confirmed by the median, as well as the 1st and 3rd quartiles, which are also at zero. Additionally, the distribution shows some high outliers with a maximum value of 46, indicating an uneven distribution with a few high values. The low mean of 0.1791 further supports this observation, suggesting a significant number of zero values.Given these distribution characteristics, the use of a Zero-Inflated Poisson (ZIP) model could be appropriate, as such a model can account for both random and structural zeros. Initially, however, a Poisson model will be fitted.
 
 ```{r Poisson_Model, cache=TRUE}
 
@@ -681,34 +680,20 @@ poisson_model<- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE +  MAKE +
 summary(poisson_model)
 with(poisson_model, cbind(res.deviace = deviance, df= df.residual, p = pchisq(deviance, df= df.residual, lower.tail = F)))
 
-
-
 #Coeff
 coef(poisson_model)
 exp(coef(poisson_model))
 
-
 #Diagnose overdispersion
 deviance(poisson_model) / df.residual(poisson_model)
-
-
-
 
 #Poisson Devianztest: Wie gut passt Modell zu den Daten?
 #Berechne p-Wert fuer H0: Das Modell beschreibt die Daten adaequat:
 1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
 #Goodness-of-Fit (Residuenanalyse nur machen wenn wir genuegend Anzl. Beobachtungen haben)
 deviance(poisson_model) #D
-## [1] 1040
 df.residual(poisson_model) #n - (m + 1)
-#[1] 47
-#Falls D >> (n - (m + 1)), dann ist das Modell ungen?gend
-#Poisson Devianztest: Wie gut passt Modell zu den Daten? Goodness-of-Fit
-1 - pchisq(deviance(poisson_model), df.residual(poisson_model)) #N0 gr?sser 0.05 -> Modell OK
-#0.25 > 0.05
-#Die Nullhypothese (betrachtetes Modell beschreibt die Daten ad?quat)
-#wird nicht verworfen. Dies ist ein Hinweis, dass keine Overdispersion
-#vorliegt und man mit dem gegebenen Modell weiterfahren kann
+
 #Poisson: (Profile-Likelihood-Vertrauensintervalle)
 confint(poisson_model)
 #Poisson: (Wald Vertrauensintervall)
@@ -725,30 +710,9 @@ x0= data.frame(Time=28/6)
 predict(fit, newdata= x0, type= "response")
 
 
-
-
-
-
-#neu
-#Devianz
-#Berechne p-Wert f?r H0: Das Modell beschreibt die Daten ad?quat:
-deviance(poisson_model) #D
-## [1] 1040
-df.residual(poisson_model) #n - (m + 1)
-#[1] 47
-1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
-#Falls D > (n - (m + 1)), dann ist das Modell ungen?gend
-
 #Poisson: Inferenz
 #Signifikanztest der einzelnen Parameter
 printCoefmat(summary(poisson_model)$coefficients[1:3,], signif.legend= FALSE)
-
-
-#Wald Vertrauensintervall
-#Poisson
-coef(poisson_model)["F"]
-c(-1, 1) * qnorm(1 - 0.95/2) * summary(poisson_model)$coefficients["F", "Std. Error"]
-
 
 
 
@@ -768,6 +732,13 @@ ggplot(poisson_model$model) +
 
 
 
+Neu:
+
+Overdispersion:
+
+Der Overdispersion-Diagnosetest, deviance(poisson_model) / df.residual(poisson_model), ergibt einen Wert von 0,688, was auf keine Overdispersion hinweist (ein Wert nahe 1 wäre ein Indikator für Overdispersion).
+Der p-Wert des Devianztests zur Modellgüte beträgt 1 (d. h. p = 1), was bedeutet, dass die Nullhypothese (das Modell passt zu den Daten) nicht abgelehnt werden kann. Das Modell scheint daher gut geeignet, die Daten zu beschreiben, und zeigt keine Überanpassung.
+
 
 
 
@@ -775,74 +746,12 @@ The residuals vs. fitted diagram shows an increasing dispersion of the residuals
 
 The significance of the predictors in the model becomes clear from the p-values of the coefficient estimates. Almost all predictors show extremely low p-values (p < 0.001), which indicates that they have a significant influence on the number of claims. This high significance strengthens the significance of the correlations found. Nevertheless, the overdispersion remains problematic, as it indicates that the Poisson model may underestimate the variance in the data. Despite the statistical significance of the predictors, a model change, e.g. to a quassi Poisson model or a negative binomial model, could be necessary to improve the model quality and to address the overdispersion appropriately.
 
+### Massnahme 1): Zero-Inflated Poisson (ZIP) model
 
-### Massnahme 1): Quasi-Poisson-Regression
-
-```{r quasiPois, cache=TRUE}
-
-#Quasi-Poisson
-quasi_poisson_model <- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM, 
-                           family = quasipoisson, data = dat_amount_claims)
-
-# Summary of the model
-summary(quasi_poisson_model)
-#F-Test, Vergleiche von geschachtelten Quasi-Likelihood-Modellen (Overdispersion)
-drop1(quasi_poisson_model, test= "F")
-
-# Model diagnostics: Residuals vs. Fitted Plot
-plot(quasi_poisson_model$fitted.values, residuals(quasi_poisson_model, type = "deviance"),
-     xlab = "Fitted Values", 
-     ylab = "Deviance Residuals", 
-     main = "Residuals vs Fitted (Quasi-Poisson)")
-abline(h = 0, col = "red")
-
-# QQ plot of residuals (checking normality)
-qqnorm(residuals(quasi_poisson_model, type = "deviance"), main = "QQ Plot of Residuals (Quasi-Poisson)")
-qqline(residuals(quasi_poisson_model, type = "deviance"), col = "red")
-
+```{r zero_inflated_pois_model, cache=TRUE}
 
 
 ```
-Switching to a quasi-Poisson model to account for overdispersion led to improvements compared to the original Poisson model. The residuals vs. fitted plot shows a reduced dispersion of the residuals at higher estimated values, which indicates a better fit of the variance, although heteroscedasticity still exists. The QQ plot of the residuals shows an improved fit to the theoretical normal distribution, especially in the middle range, while deviations at the edges remain, indicating extreme values or modelling errors. By adjusting the dispersion parameter (29.765) in the quasi-Poisson model, the increased variance compared to the Poisson model is adequately taken into account. The F-test confirms the significance of the variables ‘SEX’, ‘TYPE_VEHICLE’, ‘MAKE’, ‘AGE_VEHICLE’ and ‘SEATS_NUM’. Despite these improvements, there are still slight anomalies in the residuals.
-
-### Massnahme 2): Negative-Binomial-Modell
-
-```{r neg_binom_model, cache=TRUE}
-
-# Negative-Binomial-Regression anpassen
-neg_bin_model <- glm.nb(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM,
-                        data = dat_amount_claims)
-
-# Zusammenfassung des Modells anzeigen
-summary(neg_bin_model)
-drop1(neg_bin_model, test= "LRT")
-
-# Exponentierte Koeffizienten anzeigen (um Rate Ratios zu interpretieren)
-exp(coef(neg_bin_model))
-
-# Konfidenzintervalle für die Koeffizienten
-confint(neg_bin_model)
-
-
-# Devianz und Freiheitsgrade überprüfen (sollte näher an 1 liegen)
-deviance(neg_bin_model) / df.residual(neg_bin_model)
-
-# Residuals vs Fitted Plot
-plot(neg_bin_model$fitted.values, residuals(neg_bin_model, type = "deviance"),
-     xlab = "Fitted Values", 
-     ylab = "Deviance Residuals", 
-     main = "Residuals vs Fitted (Negative Binomial)")
-abline(h = 0, col = "red")
-
-# QQ-Plot der Residuen
-qqnorm(residuals(neg_bin_model, type = "deviance"), main = "QQ Plot of Residuals (Negative Binomial)")
-qqline(residuals(neg_bin_model, type = "deviance"), col = "red")
-
-```
-
-The fitting of a negative binomial model shows significant improvements compared to the previous models. The residuals vs fitted plot indicates that the residuals are better distributed overall, especially at larger values of the fitted data, with lower heteroscedasticity. However, the QQ plot of the residuals still shows slight deviations from the normal distribution, especially at the extreme values, which indicates remaining modelling anomalies.
-
-The model shows a significant improvement in terms of overdispersion, as suggested by the ratio of deviance to degrees of freedom (0.822), which is closer to 1 and thus significantly reduces overdispersion. Most predictors continue to show high levels of significance, indicating a strong explanatory power for the number of claims.
 
 
 ## Binomial
@@ -1202,3 +1111,33 @@ ggplot(clean_dat_motor, aes(x=INSURED_VALUE_log, y=PREMIUM_log, color=USAGE)) +
 
 ```
 
+
+
+### Massnahme 1): Quasi-Poisson-Regression
+
+```{r quasiPois, cache=TRUE}
+
+#Quasi-Poisson
+quasi_poisson_model <- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM, 
+                           family = quasipoisson, data = dat_amount_claims)
+
+# Summary of the model
+summary(quasi_poisson_model)
+#F-Test, Vergleiche von geschachtelten Quasi-Likelihood-Modellen (Overdispersion)
+drop1(quasi_poisson_model, test= "F")
+
+# Model diagnostics: Residuals vs. Fitted Plot
+plot(quasi_poisson_model$fitted.values, residuals(quasi_poisson_model, type = "deviance"),
+     xlab = "Fitted Values", 
+     ylab = "Deviance Residuals", 
+     main = "Residuals vs Fitted (Quasi-Poisson)")
+abline(h = 0, col = "red")
+
+# QQ plot of residuals (checking normality)
+qqnorm(residuals(quasi_poisson_model, type = "deviance"), main = "QQ Plot of Residuals (Quasi-Poisson)")
+qqline(residuals(quasi_poisson_model, type = "deviance"), col = "red")
+
+
+
+```
+Switching to a quasi-Poisson model to account for overdispersion led to improvements compared to the original Poisson model. The residuals vs. fitted plot shows a reduced dispersion of the residuals at higher estimated values, which indicates a better fit of the variance, although heteroscedasticity still exists. The QQ plot of the residuals shows an improved fit to the theoretical normal distribution, especially in the middle range, while deviations at the edges remain, indicating extreme values or modelling errors. By adjusting the dispersion parameter (29.765) in the quasi-Poisson model, the increased variance compared to the Poisson model is adequately taken into account. The F-test confirms the significance of the variables ‘SEX’, ‘TYPE_VEHICLE’, ‘MAKE’, ‘AGE_VEHICLE’ and ‘SEATS_NUM’. Despite these improvements, there are still slight anomalies in the residuals.
