@@ -678,73 +678,74 @@ poisson_model<- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE +  MAKE +
 
 #Summary of the model
 summary(poisson_model)
-with(poisson_model, cbind(res.deviace = deviance, df= df.residual, p = pchisq(deviance, df= df.residual, lower.tail = F)))
 
-#Coeff
+#Model coefficients and exponentiated coefficients (Rate Ratios)
 coef(poisson_model)
 exp(coef(poisson_model))
 
-#Diagnose overdispersion
-deviance(poisson_model) / df.residual(poisson_model)
+# Diagnose Overdispersion
+overdispersion <- deviance(poisson_model) / df.residual(poisson_model)
+# Interpretation:
+# - A value close to 1 indicates an adequate fit without overdispersion.
+# - Values significantly greater than 1 suggest overdispersion, indicating that data variance exceeds the model's assumptions.
+#   If overdispersion is present, consider using a Negative Binomial model for a better fit.
+cat("Overdispersion ratio (Deviance / DF):", overdispersion, "\n")
 
-#Poisson Devianztest: Wie gut passt Modell zu den Daten?
-#Berechne p-Wert fuer H0: Das Modell beschreibt die Daten adaequat:
-1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
-#Goodness-of-Fit (Residuenanalyse nur machen wenn wir genuegend Anzl. Beobachtungen haben)
-deviance(poisson_model) #D
-df.residual(poisson_model) #n - (m + 1)
+# Poisson Deviance Test: Check Goodness-of-Fit of the model
+# Calculate p-value for H0: The model adequately describes the data
+p_value_fit <- 1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
+cat("Goodness-of-Fit p-value:", p_value_fit, "\n")
+# Interpretation:
+# - A high p-value (> 0.05) suggests a good model fit to the data, as we do not reject H0.
+# - A low p-value (≤ 0.05) would indicate a poor fit, suggesting that the model does not describe the data well.
 
-#Poisson: (Profile-Likelihood-Vertrauensintervalle)
-confint(poisson_model)
-#Poisson: (Wald Vertrauensintervall)
-coef(poisson_model)["F"]
-c(-1, 1) * qnorm(1 - 0.95/2) * summary(poisson_model)$coefficients["F", "Std. Error"]
-#Poisson: Punktschaetzung, 95% Vertrauensintervall 
-pred<- predict(herz.fit, se.fit= TRUE, type= "link")
-pe<- exp(pred$fit)
-lb<- exp(pred$fit + qnorm(1 - 0.05 / 2) * pred$se.fit) #untere Schranke
-ub<- exp(pred$fit - qnorm(1 - 0.05 / 2) * pred$se.fit) #obere Schranke
-rbind(lb, ub)
-#Punktschaetzung Poisson
-x0= data.frame(Time=28/6)
-predict(fit, newdata= x0, type= "response")
 
+# Berechnung der vorhergesagten Werte für Visualisierung
+poisson_model$model$fitted <- predict(poisson_model, type = "response")
+#ggplot2 Plot: Fitted vs. Actual values
+ggplot(poisson_model$model) + 
+    geom_point(aes(x = fitted, y = AMOUNT_CLAIMS), color = "darkblue") + 
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") + # Diagonale Linie als Referenz
+    labs(x = "Fitted Values \n", y = "Actual number Of Claims \n", 
+         title = "Poisson Regression: Fitted vs. Actual number of Claims \n") +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.title.x = element_text(face="bold", colour="blue", size = 12),
+          axis.title.y = element_text(face="bold", colour="blue", size = 12))
+
+
+
+##Poisson: (Profile-Likelihood-Vertrauensintervalle)
+#confint(poisson_model)
+##Poisson: (Wald Vertrauensintervall)
+#coef(poisson_model)["F"]
+#c(-1, 1) * qnorm(1 - 0.95/2) * summary(poisson_model)$coefficients["F", "Std. Error"]
+##Poisson: Punktschaetzung, 95% Vertrauensintervall 
+#pred<- predict(herz.fit, se.fit= TRUE, type= "link")
+#pe<- exp(pred$fit)
+#lb<- exp(pred$fit + qnorm(1 - 0.05 / 2) * pred$se.fit) #untere Schranke
+#ub<- exp(pred$fit - qnorm(1 - 0.05 / 2) * pred$se.fit) #obere Schranke
+#rbind(lb, ub)
 
 #Poisson: Inferenz
 #Signifikanztest der einzelnen Parameter
-printCoefmat(summary(poisson_model)$coefficients[1:3,], signif.legend= FALSE)
-
-
-
-# ggplot2 Plot: pramie und anzahl meldungen
-poisson_model$model$fitted <- predict(poisson_model, type = "response")
-
-ggplot(poisson_model$model) + 
-  geom_point(aes(PREMIUM, AMOUNT_CLAIMS)) +
-  geom_line(aes(PREMIUM, fitted)) + 
-  labs(x = "\n PREMIUM", y = "Number Of Claims \n", 
-       title = "Poisson Regression: Comparing PREMIUM To Number Of Claims  \n") +
-  theme(plot.title = element_text(hjust = 0.5),
-        axis.title.x = element_text(face="bold", colour="blue", size = 12),
-        axis.title.y = element_text(face="bold", colour="blue", size = 12))
 
 ```
+The analysis of the Poisson model for predicting claim frequency indicated no overdispersion. The calculated overdispersion value, represented by the ratio of deviance to degrees of freedom, is 0.688, which is significantly below 1. This suggests that the model does not overestimate variance in the data, and overdispersion is not an issue. The Goodness-of-Fit test further confirms the adequacy of the model, as the p-value of 1 supports the null hypothesis that the model sufficiently describes the data.
 
+The Poisson regression model for predicting the number of claims reveals that several variables show statistically significant relationships with claim frequency. The model indicates statistically significant differences in claim frequency across categories (p-value < 0.001). The group of legal entities, which serves as the reference category, exhibits the highest claim rate. Compared to legal entities, males have a rate ratio of 0.666, reflecting a 33.4% lower claim rate, while females have the lowest claim frequency, with a rate ratio of 0.623, or 37.7% below that of legal entities.
 
+For the insurance type (INSR_TYPE), it was found that INSR_TYPEPrivate has a rate ratio of 1.284, indicating that private insurers have a 28.4% higher claim probability compared to the reference category INSR_TYPECommercial. The variables TYPE_VEHICLE and MAKE also show significant differences in claim rates. Among vehicle types, Pick-up has the highest claim rate, with a rate ratio of 1.121, representing a 12.1% increase in claim probability compared to the reference category Automobile; however, this effect is not statistically significant (p-value = 0.120). Conversely, Motor-cycle has the lowest claim rate, with a rate ratio of 0.039, indicating an approximately 96% reduced claim probability and a highly significant result (p-value < 0.001).
 
-Neu:
+Among vehicle brands, GEELY shows the highest claim rate with a rate ratio of 1.040, which, however, represents no meaningful change compared to the reference brand BISHOFTU and is statistically insignificant (p-value = 0.709). Conversely, MERCEDES has the lowest claim rate, with a rate ratio of 0.403, indicating a 59.7% lower claim probability compared to BISHOFTU and is highly significant (p-value < 0.001).
 
-Overdispersion:
+These results suggest that Pick-up and GEELY exhibit the highest, though statistically insignificant, claim rates, while Motor-cycle and MERCEDES show the lowest and statistically significant claim rates relative to their respective reference categories.
 
-Der Overdispersion-Diagnosetest, deviance(poisson_model) / df.residual(poisson_model), ergibt einen Wert von 0,688, was auf keine Overdispersion hinweist (ein Wert nahe 1 wäre ein Indikator für Overdispersion).
-Der p-Wert des Devianztests zur Modellgüte beträgt 1 (d. h. p = 1), was bedeutet, dass die Nullhypothese (das Modell passt zu den Daten) nicht abgelehnt werden kann. Das Modell scheint daher gut geeignet, die Daten zu beschreiben, und zeigt keine Überanpassung.
+Further analysis indicates that vehicle age (AGE_VEHICLE) has a rate ratio of 0.956, meaning that the claim rate decreases by approximately 4.4% with each additional year (p-value < 0.001). The number of seats (SEATS_NUM) shows a rate ratio of 1.009, indicating that each additional seat slightly increases the claim probability, though significantly. Engine capacity (CCM_TON) shows no practical change in claim rate with a rate ratio of 1.000031, though it is statistically significant (p-value < 0.001). Insured value (INSURED_VALUE) has a rate ratio of 0.99999986, effectively showing no influence on claim frequency, although the effect is statistically significant. Premium amount (PREMIUM) exhibits a rate ratio of 1.000019, suggesting a minimal increase in claim probability with rising premiums; again, the effect is significant but very small.
 
+An analysis comparing actual to predicted values, however, reveals that the Poisson model has difficulty accurately capturing the number of claims, particularly at higher claim counts. Most predictions are concentrated in the low range, systematically underestimating actual claim frequencies, which suggests a strong concentration of predictions at the lower end.
 
+Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) model could represent a useful alternative. Such a model can distinguish between structural zeros (cases where no claims occur) and random zeros (cases where claims could occur but did not), potentially improving predictive accuracy for higher claim counts without violating model assumptions about variance.
 
-
-The residuals vs. fitted diagram shows an increasing dispersion of the residuals with increasing estimated values, which indicates heteroscedasticity. This indicates that the variance of the residuals is not constant and supports the assumption of overdispersion, as the variance is significantly greater than the mean. The QQ plot of the residuals shows a strong deviation from the theoretical normal distribution, especially at the ends, which indicates a lack of normal distribution of the residuals. This deviation is typical for Poisson models, but the significant differences indicate overdispersion or possibly missing predictors. The calculation of the ratio of deviance to degrees of freedom (11.86) confirms the overdispersion, as this value is significantly greater than 1 and thus indicates a higher variance in the data than assumed in the Poisson model.
-
-The significance of the predictors in the model becomes clear from the p-values of the coefficient estimates. Almost all predictors show extremely low p-values (p < 0.001), which indicates that they have a significant influence on the number of claims. This high significance strengthens the significance of the correlations found. Nevertheless, the overdispersion remains problematic, as it indicates that the Poisson model may underestimate the variance in the data. Despite the statistical significance of the predictors, a model change, e.g. to a quassi Poisson model or a negative binomial model, could be necessary to improve the model quality and to address the overdispersion appropriately.
 
 ### Massnahme 1): Zero-Inflated Poisson (ZIP) model
 
