@@ -44,37 +44,12 @@ library(nnet)  # For Neural Networks
 library(e1071)  # For Support Vector Machine
 library(arm)
 library(caret)
+library(pscl) #zeroinflated
 
 ```
-Notizen Rafi
-SVM Teil:
-  Cross validation or other methods for model comparing must be used on one single
-methods (e.g. you use Cross Validation to compare 2-3 SVM models).
-• Students are free to choose a measure of fit that they find more appropriate.
-• In case students cannot find an appropriate measure of fit, they can use the Root Mean
-Squared Error (RMSE).
-
-Schliesslich ist zu beachten, dass die Zusammenstellung von Dokumenten einige Zeit in Anspruch nehmen kann... insbesondere wenn komplexe
-Modelle angepasst werden
-- In diesen Fällen können Sie die Argumentationsoption cache = TRUE verwenden, so dass ein Chunk nur dann neu ausgewertet wird
-nur dann neu ausgewertet wird, wenn er seit der letzten Kompilierung geändert wurde. Wenn der Chunk unverändert blieb
-unverändert, dann werden die alten Ergebnisse verwendet
-
 
 
 # Data Preprocessing
-
-Aus Quelle:
-  Some predictors such as carrying capacity and seat number are removed from the dataset prior
-to data analysis and modeling since they are not correctly coded.
-
-
-CHATGPT
-CCM TON
-Es macht keinen Sinn, dass Fahrzeuge einen Wert von 0 für die Variable CCM_TON haben, wenn diese Variable den Hubraum oder das Gewicht des Motors in Kubikzentimetern (ccm) oder Tonnen angibt.
-Warum?
-  Der Hubraum (ccm) gibt das Volumen der Zylinder eines Verbrennungsmotors an. Ein Wert von 0 wäre unplausibel, da ein Fahrzeug ohne Hubraum keinen funktionsfähigen Motor hätte.
-Wenn CCM_TON das Gewicht des Motors in Tonnen angibt, wäre ebenfalls ein Wert von 0 unplausibel, da ein Fahrzeug ohne Motorgewicht nicht funktionsfähig wäre.
 
 ```{r data_prep, echo=FALSE, cache=TRUE}
 
@@ -538,7 +513,7 @@ clean_dat_motor$START_INS_YR <- as.factor(clean_dat_motor$START_INS_YR)
 
 # Clear Workspace
 rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
-#rm(clean_dat_motor_origin)
+rm(clean_dat_motor_origin)
 
 
 ```
@@ -546,6 +521,8 @@ rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
 
 
 # Graphical Data Analysis
+
+First, the distribution of the individual numerical variables is analysed to determine whether any transformations are necessary.
 
 ```{r graph_data_analysis, cache = TRUE}
 
@@ -566,7 +543,6 @@ for (var in names(numeric_vars)) {
   )
 }
 
-
 ###################################################################################
 
 #Weitere grafische Analysen
@@ -578,12 +554,8 @@ boxplot(CLAIM_PAID_USD ~ SEX, data = clean_dat_motor,
 main = "Claim paid (USD) against sex",
 ylab = "Claim paid (USD)")
 
-```
 
-
-
-## Transformation variables 
-```{r transformation, cache = TRUE}
+##############################################
 
 #Log-Transformation
 clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
@@ -598,6 +570,7 @@ rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
 
 ```
 
+The histograms show that the variables INSURED_VALUE, PREMIUM, CLAIM_PAID_USD and CCM_TON are right-skewed and require a log transformation. The transformed variables can be inserted in the later regression models instead of the original variables.
 
 
 # Models
@@ -607,46 +580,41 @@ A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the p
 
 ```{r linear_model, cache = TRUE}
 
-#Modell erstellen
+#Fit the linear model
 lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
                  AGE_VEHICLE + SEATS_NUM + CCM_TON_LOG +INSURED_VALUE_log +
                  AMOUNT_CLAIMS_PAID, data = clean_dat_motor)
 
-
-
-#Modellzusammenfassung anzeigen
+#Summary of the model
 summary(lm_model)
-
+#Perform an F-test to drop non-significant categorical variables one at a time
 drop1(lm_model, test= "F") #Bei mehrere Kat Var.
-
+#coefficients
 coef(lm_model)
 
+#Variance Inflation Factor (VIF) for each predictor to check for multicollinearity
 #vif(lm_model)
 
-
-#Residuenanalyse
-#Q-Q-Plot 
+#Residual Analysis
+#Q-Q Plot to assess if residuals follow a normal distribution
 qqnorm(lm_model$residuals)
 qqline(lm_model$residuals, col = "red")
 
-#Residuen vs. Fitted-Werte (Vorhergesagte Werte)
+#Residuals vs Fitted Values (check for patterns or heteroscedasticity)
 plot(lm_model$fitted.values, lm_model$residuals, 
      main = "Residuals vs Fitted Values", 
      xlab = "Fitted Values", 
      ylab = "Residuals")
 abline(h = 0, col = "red")
 
-
-#Modell-Performance Metriken (z.B. R² und MSE)
-#Berechnung des Mean Squared Error (MSE)
+#Model Performance
+#Calculation of Mean Squared Error (MSE)
 mse <- mean(lm_model$residuals^2)
 cat("Mean Squared Error (MSE):", mse, "\n")
 
-#Berechnung des R² (wird auch in summary(lm_model) angezeigt)
+#Calculation of R-squared value
 r_squared <- summary(lm_model)$r.squared
 cat("R-squared:", r_squared, "\n")
-
-
 
 ```
 
@@ -679,22 +647,33 @@ To improve the model, various measures could be considered. One approach would b
 
 ## Poisson
 
-```{r Poisson_Model, cache=TRUE}
+Zielvariable: Anzahl Schadensmeldungen nach 5 Jahren Vertragslaufzeit?
+
+
+```{r data_for_poisson, cache=TRUE}
 
 #Data preparation: Aggregate the number of claims per combination 
 dat_amount_claims <- clean_dat_motor %>%
   group_by(SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, PREMIUM) %>%
-  summarise(Amount_Claims = sum(CLAIM_PAID == "YES"), .groups = 'drop')
+  summarise(AMOUNT_CLAIMS = sum(CLAIM_PAID == "YES"), .groups = 'drop')
 
+summary(dat_amount_claims$AMOUNT_CLAIMS)
+hist(dat_amount_claims$AMOUNT_CLAIMS, breaks=max(dat_amount_claims$AMOUNT_CLAIMS)) #Zero-inflated Poisson Regression would fit better
 
-hist(dat_amount_claims$Amount_Claims, breaks=2)
+mean(dat_amount_claims$AMOUNT_CLAIMS) # calculate mean
+var(dat_amount_claims$AMOUNT_CLAIMS)
+#The variance is not much greater than the mean, over-dispersion can be neglegted in the model.
 
-mean(dat_amount_claims$Amount_Claims) # calculate mean
-var(dat_amount_claims$Amount_Claims)
-#The variance is much greater than the mean, which suggests that we will have over-dispersion in the model.
+```
+
+The analysis of the distribution of the target variable AMOUNT_CLAIMS reveals that a large portion of the values are zero. This concentration of zero values is confirmed by the median, as well as the 1st and 3rd quartiles, which are also at zero. Additionally, the distribution shows some high outliers with a maximum value of 46, indicating an uneven distribution with a few high values. The low mean of 0.1791 further supports this observation, suggesting a significant number of zero values.
+
+Given these distribution characteristics, the use of a Zero-Inflated Poisson (ZIP) model could be appropriate, as such a model can account for both random and structural zeros. Initially, however, a Poisson model will be fitted.
+
+```{r Poisson_Model, cache=TRUE}
 
 #Poisson Regression:
-poisson_model<- glm(Amount_Claims ~ SEX + INSR_TYPE + TYPE_VEHICLE +  MAKE +
+poisson_model<- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE +  MAKE +
                       AGE_VEHICLE + SEATS_NUM + CCM_TON + INSURED_VALUE + PREMIUM,
                       family = poisson(link = "log"), data = dat_amount_claims)
 
@@ -711,6 +690,40 @@ exp(coef(poisson_model))
 
 #Diagnose overdispersion
 deviance(poisson_model) / df.residual(poisson_model)
+
+
+
+
+#Poisson Devianztest: Wie gut passt Modell zu den Daten?
+#Berechne p-Wert fuer H0: Das Modell beschreibt die Daten adaequat:
+1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
+#Goodness-of-Fit (Residuenanalyse nur machen wenn wir genuegend Anzl. Beobachtungen haben)
+deviance(poisson_model) #D
+## [1] 1040
+df.residual(poisson_model) #n - (m + 1)
+#[1] 47
+#Falls D >> (n - (m + 1)), dann ist das Modell ungen?gend
+#Poisson Devianztest: Wie gut passt Modell zu den Daten? Goodness-of-Fit
+1 - pchisq(deviance(poisson_model), df.residual(poisson_model)) #N0 gr?sser 0.05 -> Modell OK
+#0.25 > 0.05
+#Die Nullhypothese (betrachtetes Modell beschreibt die Daten ad?quat)
+#wird nicht verworfen. Dies ist ein Hinweis, dass keine Overdispersion
+#vorliegt und man mit dem gegebenen Modell weiterfahren kann
+#Poisson: (Profile-Likelihood-Vertrauensintervalle)
+confint(poisson_model)
+#Poisson: (Wald Vertrauensintervall)
+coef(poisson_model)["F"]
+c(-1, 1) * qnorm(1 - 0.95/2) * summary(poisson_model)$coefficients["F", "Std. Error"]
+#Poisson: Punktschaetzung, 95% Vertrauensintervall 
+pred<- predict(herz.fit, se.fit= TRUE, type= "link")
+pe<- exp(pred$fit)
+lb<- exp(pred$fit + qnorm(1 - 0.05 / 2) * pred$se.fit) #untere Schranke
+ub<- exp(pred$fit - qnorm(1 - 0.05 / 2) * pred$se.fit) #obere Schranke
+rbind(lb, ub)
+#Punktschaetzung Poisson
+x0= data.frame(Time=28/6)
+predict(fit, newdata= x0, type= "response")
+
 
 
 
@@ -738,7 +751,26 @@ c(-1, 1) * qnorm(1 - 0.95/2) * summary(poisson_model)$coefficients["F", "Std. Er
 
 
 
+
+# ggplot2 Plot: pramie und anzahl meldungen
+poisson_model$model$fitted <- predict(poisson_model, type = "response")
+
+ggplot(poisson_model$model) + 
+  geom_point(aes(PREMIUM, AMOUNT_CLAIMS)) +
+  geom_line(aes(PREMIUM, fitted)) + 
+  labs(x = "\n PREMIUM", y = "Number Of Claims \n", 
+       title = "Poisson Regression: Comparing PREMIUM To Number Of Claims  \n") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face="bold", colour="blue", size = 12),
+        axis.title.y = element_text(face="bold", colour="blue", size = 12))
+
 ```
+
+
+
+
+
+
 The residuals vs. fitted diagram shows an increasing dispersion of the residuals with increasing estimated values, which indicates heteroscedasticity. This indicates that the variance of the residuals is not constant and supports the assumption of overdispersion, as the variance is significantly greater than the mean. The QQ plot of the residuals shows a strong deviation from the theoretical normal distribution, especially at the ends, which indicates a lack of normal distribution of the residuals. This deviation is typical for Poisson models, but the significant differences indicate overdispersion or possibly missing predictors. The calculation of the ratio of deviance to degrees of freedom (11.86) confirms the overdispersion, as this value is significantly greater than 1 and thus indicates a higher variance in the data than assumed in the Poisson model.
 
 The significance of the predictors in the model becomes clear from the p-values of the coefficient estimates. Almost all predictors show extremely low p-values (p < 0.001), which indicates that they have a significant influence on the number of claims. This high significance strengthens the significance of the correlations found. Nevertheless, the overdispersion remains problematic, as it indicates that the Poisson model may underestimate the variance in the data. Despite the statistical significance of the predictors, a model change, e.g. to a quassi Poisson model or a negative binomial model, could be necessary to improve the model quality and to address the overdispersion appropriately.
@@ -940,6 +972,68 @@ weitere Massnahmen: Schwellenwertanpassubg (hat wenig gebracht) Interaktionen
 ## Generalised Additive Model (GAM)
 ```{r GAM, cache=TRUE}
 # TODO
+#Bsp. Additives Modell anpassen
+#Daten vorbereiten
+library(car)
+library(gam)
+data(Prestige)
+#Additives Modell anpassen
+fit <-gam(prestige ~lo(income) +lo(education), data= Prestige) 
+plot(fit, se= TRUE, residuals= TRUE) #Partielle Residuenplots VI 95% Nicht lineare Effekte anschauen
+#Gibt es einen Nichtlinearen Anteil? Siehe Anova for Parametric Effects
+summary(fit)
+
+#Vorhersage
+#Bsp: Ansehen Einkommen bei 15J Ausbildung & Einkommen von 40000 Dollar?
+Prestige$lincome <-log(Prestige$income) #Logarithmieren
+fit2 <-gam(prestige ~lo(lincome) +lo(education), data = Prestige)
+x0 <-data.frame(lincome= log(40000),education= 15)
+predict(fit2, newdata= x0)
+
+#Residuenanalyse f?r Additive Modelle
+stats:::plot.lm(fit)
+
+#Bsp: Nichtparametrisches Modell Verwenden Sie gam und log
+library(gam)
+diamant$lPrice <-log(diamant$Price) #(Log Transformation)
+vC.gam1 <-gam(lPrice ~ lo(Carat), data= diamant)
+summary(vC.gam1)
+plot(vC.gam1, resid=TRUE, se=TRUE)
+
+diamant$lCarat <-log(diamant$Carat) #(Log Transformation)
+vC.gam2 <-gam(lPrice ~ lo(lCarat), data= diamant)
+summary(vC.gam2)
+plot(vC.gam2, resid=TRUE, se=TRUE)
+
+#Probieren vers. span
+#span= % Anteil an Beobachtungen, die im Fenster liegen sollen [0-1] je h?her desto glatter
+par(mfrow=c(1,3))
+vC.gam3a <-gam(lPrice~ lo(lCarat, span=0.9), data=diamant)
+plot(vC.gam3a, resid=TRUE, se=TRUE) #zu glatt
+vC.gam3b <-gam(lPrice~ lo(lCarat, span=0.1), data=diamant)
+plot(vC.gam3b, resid=TRUE, se=TRUE) #sehr zerknittert
+vC.gam3c <-gam(lPrice~ lo(lCarat, span=0.3), data=diamant)
+plot(vC.gam3c, resid=TRUE, se=TRUE) #ok
+
+#Andere Variablen hinzuf?gen
+#Weil abgesehen von Carat alle erkl. Var = kategoriell,
+#-> wird nur diese Bez. mit einem Gl?tter modelliert
+vC.gam4 <-gam(lPrice ~ lo(lCarat, span= 0.3) + Colour + Clarity + CBody,
+              data= diamant)
+summary(vC.gam4)
+par(mfrow =c(1,4))
+plot(vC.gam4, se = TRUE)
+
+#Residuenanalyse f?r Additive Modelle
+par(mfrow=c(2,2))
+stats:::plot.lm(vC.gam4)
+
+#Vorhersage f?r Additive Modelle
+#Bsp: 0.4 Carat, Reinheit IF Farbe D oder E?
+x0 <-data.frame(lCarat= log(c(0.4,0.4)), Colour= c("D","E"),
+                Clarity= c("IF","IF"), CBody= c("GIA","GIA"))
+h <-predict(vC.gam4, newdata= x0, interval= "prediction") #R?cktransformation 
+h #Logarithmierte Preise D und E
 
 ```
 
@@ -951,6 +1045,16 @@ weitere Massnahmen: Schwellenwertanpassubg (hat wenig gebracht) Interaktionen
 
 
 ## Support Vector Machine (SVM)
+
+Notizen Rafi
+SVM Teil:
+  Cross validation or other methods for model comparing must be used on one single
+methods (e.g. you use Cross Validation to compare 2-3 SVM models).
+• Students are free to choose a measure of fit that they find more appropriate.
+• In case students cannot find an appropriate measure of fit, they can use the Root Mean
+Squared Error (RMSE).
+
+
 ```{r SVM preparation}
 set.seed(123)
 svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 100000, replace = FALSE), ]
