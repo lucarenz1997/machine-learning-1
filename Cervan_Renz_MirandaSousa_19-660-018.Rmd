@@ -45,6 +45,8 @@ library(e1071)  # For Support Vector Machine
 library(arm)
 library(caret)
 library(pscl) #zeroinflated
+library(rcompanion)
+library(gam)
 
 ```
 
@@ -699,6 +701,15 @@ cat("Goodness-of-Fit p-value:", p_value_fit, "\n")
 # - A high p-value (> 0.05) suggests a good model fit to the data, as we do not reject H0.
 # - A low p-value (≤ 0.05) would indicate a poor fit, suggesting that the model does not describe the data well.
 
+# Calculate VIF values for all predictor variables in the model
+vif_values <- vif(poisson_model)
+
+# Output the VIF values for interpretation
+cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
+print(vif_values)
+#Interpretation:
+# - VIF values above 5 (or in some cases, 10) indicate multicollinearity issues.
+
 
 # Berechnung der vorhergesagten Werte für Visualisierung
 poisson_model$model$fitted <- predict(poisson_model, type = "response")
@@ -742,107 +753,281 @@ These results suggest that Pick-up and GEELY exhibit the highest, though statist
 
 Further analysis indicates that vehicle age (AGE_VEHICLE) has a rate ratio of 0.956, meaning that the claim rate decreases by approximately 4.4% with each additional year (p-value < 0.001). The number of seats (SEATS_NUM) shows a rate ratio of 1.009, indicating that each additional seat slightly increases the claim probability, though significantly. Engine capacity (CCM_TON) shows no practical change in claim rate with a rate ratio of 1.000031, though it is statistically significant (p-value < 0.001). Insured value (INSURED_VALUE) has a rate ratio of 0.99999986, effectively showing no influence on claim frequency, although the effect is statistically significant. Premium amount (PREMIUM) exhibits a rate ratio of 1.000019, suggesting a minimal increase in claim probability with rising premiums; again, the effect is significant but very small.
 
-An analysis comparing actual to predicted values, however, reveals that the Poisson model has difficulty accurately capturing the number of claims, particularly at higher claim counts. Most predictions are concentrated in the low range, systematically underestimating actual claim frequencies, which suggests a strong concentration of predictions at the lower end.
+The analysis of the Poisson model reveals significant multicollinearity, reflected in extremely high VIF values for some variables. Notably, the variables TYPE_VEHICLEMotor-cycle (VIF of 200.88), TYPE_VEHICLETruck (107.23), TYPE_VEHICLEPick-up (82.92), INSR_TYPEPrivate (80.14), and MAKETOYOTA (50.55) stand out. These high values indicate that these variables are highly correlated with other predictors, especially among the vehicle type variables, suggesting redundancy within the model. Other variables, such as CCM_TON (33.28), MAKEISUZU (28.86), MAKEIVECO (23.94), and MAKETATA (30.58), also display moderate multicollinearity, while some variables, like MAKEGEELY (3.99), show lower VIF values and are less strongly correlated with other predictors.
+
+The plots of estimated vs. actual values show that the Poisson model has difficulties in accurately modelling the distribution of claims, especially for higher claims values. Most of the predicted values are close to zero and systematically underestimate the actual loss frequencies as they increase. This systematic underestimation and the high number of zero claims indicate that the simple distribution of the Poisson model may not be sufficient to fully represent the structure of the data.
 
 Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) model could represent a useful alternative. Such a model can distinguish between structural zeros (cases where no claims occur) and random zeros (cases where claims could occur but did not), potentially improving predictive accuracy for higher claim counts without violating model assumptions about variance.
 
+As a further alternative, simplifying the model, for example by removing fewer significant variables, could be a sensible measure to improve the model.
 
-### Massnahme 1): Zero-Inflated Poisson (ZIP) model
+
+### Massnahme 1): Zero-Inflated Poisson (ZIP) model (eventuell weglassen, machts naemlich ned besser)
 
 ```{r zero_inflated_pois_model, cache=TRUE}
 
+# Anpassung eines Zero-Inflated Poisson (ZIP)-Modells
+zip_model <- zeroinfl(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE + 
+                        AGE_VEHICLE + SEATS_NUM + CCM_TON + INSURED_VALUE + PREMIUM, 
+                      data = dat_amount_claims, dist = "poisson")
+
+# Zusammenfassung des Modells
+summary(zip_model)
+
+# Überprüfung der Koeffizienten und ihrer Exponentialwerte (Rate Ratios)
+coef(zip_model)
+exp(coef(zip_model))
+
+
+# Calculate VIF values for all predictor variables in the model
+vif_values_zip <- vif(zip_model)
+
+# Output the VIF values for interpretation
+cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
+print(vif_values_zip)
+#Interpretation:
+# - VIF values above 5 (or in some cases, 10) indicate multicollinearity issues.
+
+
+# Diagnose der Modellanpassung (angepasste vs. tatsächliche Werte)
+# Berechnung der vorhergesagten Werte
+dat_amount_claims$fitted_zip <- predict(zip_model, type = "response")
+
+# Plot der geschätzten vs. tatsächlichen Schadensfälle
+ggplot(dat_amount_claims, aes(x = fitted_zip, y = AMOUNT_CLAIMS)) +
+  geom_point(color = "darkblue") + 
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") + 
+  labs(x = "Fitted Values (ZIP)", y = "Actual Number of Claims", 
+       title = "Zero-Inflated Poisson: Fitted vs. Actual Number of Claims") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
+        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
 
 ```
 
 
 ## Binomial
+
+
 ```{r Binomial_Model, cache=TRUE}
 
-#Erstellen eines logistischen Regressionsmodells
-fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE + INSURED_VALUE + PREMIUM + AGE_VEHICLE + 
-             MAKE + SEATS_NUM + CCM_TON + USAGE, 
+#Anpassen eines logistischen Regressionsmodells
+fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE +  USAGE + TYPE_VEHICLE + 
+             MAKE + AGE_VEHICLE + SEATS_NUM + CCM_TON_LOG + INSURED_VALUE_log +
+               PREMIUM_log + AMOUNT_CLAIMS_PAID, 
              data = clean_dat_motor, 
-             family = binomial)
+             family = binomial(link= "logit"))
 
-# Zusammenfassung des Modells anzeigen
-summary(fit.binom)
-drop1(fit.binom, test= "LRT")
+#Inferenz und Signifikanztests
+summary(fit.binom)  # Wald-Test zur Überprüfung der Signifikanz einzelner Koeffizienten
+
+#Likelihood-Ratio-Test (LRT) für die Signifikanz einzelner Variablen
+drop1(fit.binom, test = "LRT")
+
+#Berechnung AIC (Modellgütebewertung)
+aic_logit_binom <- AIC(fit.binom)
+cat("AIC des logit-Modells:", aic_logit_binom, "\n")
+
+#Modellgüte: Berechnung von Pseudo-R^2-Werten mit Nagelkerke für Modellbewertung
+nagelkerke(fit.binom)$Pseudo.R.squared.for.model.vs.null
+#McFadden's Pseudo R^2: 0.033 3.4%
+#Nagelkerke: 0.048 -> 4.8% 
+#Entsprechend erkl?rt das Modell ca.3.4% der Devianz (McFadden)
+#bzw. 4.84% der Varianz (Nagelkerke). schlechte Ergebnisse
+
+# Berechnung des globalen F-Tests zur Überprüfung der Signifikanz des gesamten Modells
+TD <- fit.binom$null.deviance - fit.binom$deviance  # Teststatistik
+df_diff <- fit.binom$df.null - fit.binom$df.residual  # Freiheitsgrade
+p_value <- 1 - pchisq(TD, df = df_diff)  # p-Wert für den F-Test
+cat("Globale Teststatistik (TD):", TD, "\n")
+cat("p-Wert des globalen Tests:", p_value, "\n")
+
+# Berechnung der Deviance-Residuals zur Überprüfung der Anpassung
+deviance_residuals <- residuals(fit.binom, type = "deviance")
+cat("Zusammenfassung der Deviance-Residuals:\n")
+summary(deviance_residuals)
+
+# Überprüfung der Overdispersion im Modell
+deviance <- deviance(fit.binom)
+df_residual <- df.residual(fit.binom)
+overdispersion_ratio <- deviance / df_residual
+cat("Overdispersion Ratio (Deviance / DF):", overdispersion_ratio, "\n")
+
+# Globale Modellüberprüfung durch Likelihood-Ratio-Test gegen das Nullmodell
+null_model <- glm(CLAIM_PAID ~ 1, data = clean_dat_motor, family = binomial(link = "logit"))
+lrt_statistic <- 2 * (logLik(fit.binom) - logLik(null_model))
+cat("Likelihood-Ratio-Test-Statistik gegen Nullmodell:", lrt_statistic, "\n")
+
+# ROC-Kurve und AUC zur Modellbewertung
+library(pROC)  # Falls noch nicht geladen
+predicted_probabilities <- predict(fit.binom, type = "response")
+roc_curve <- roc(clean_dat_motor$CLAIM_PAID, predicted_probabilities)
+auc_value <- auc(roc_curve)
+cat("AUC-Wert des Modells:", auc_value, "\n")
+
+# Visualisierung der ROC-Kurve
+plot(roc_curve, main = "ROC-Kurve für logistische Regression", col = "blue")
+
+
+
+
+
+
+##Residuenanalyse?
+#par(mfrow= c(2, 3), mar= c(3.5, 3.5, 2, 1), mgp= c(2.25, 1, 0))
+#termplot(fit.binom, partial= TRUE, smooth= panel.smooth,
+#         col.term= "black", col.smth= "red")
+##Partielle Resiudenplotz zeigen Verst?sse geg. Linearit?t, Var. ph zeigt sogar  quadr. Effekt
+##Output loschen
+#plot(fit.binom, which= 5)
+#
+#
+## Wahrscheinlichkeiten vorhersagen
+#clean_dat_motor_undersampled$predicted_probabilities <- predict(fit.binom_undersampled2, type = "response")
+#
+## Klassifikation vorhersagen (0 oder 1)
+#clean_dat_motor_undersampled$predicted_class <- ifelse(clean_dat_motor_undersampled$predicted_probabilities > 0.5, 1, 0)
+#
+## Modellgüte prüfen
+#table(clean_dat_motor_undersampled$CLAIM_PAID, clean_dat_motor_undersampled$predicted_class)
+#
+## Genauigkeit berechnen
+#accuracy_undersampled <- mean(clean_dat_motor_undersampled$CLAIM_PAID == clean_dat_motor_undersampled$predicted_class)
+#print(paste("Genauigkeit des undersampelten Modells:", accuracy_undersampled))
+#
+#
+#
+#
+## Umwandlung in Faktoren für die Auswertung
+#predicted_class <- as.factor(clean_dat_motor_undersampled$predicted_class)
+#actual_class <- as.factor(clean_dat_motor_undersampled$CLAIM_PAID)
+#
+#
+## Sicherstellen, dass predicted_class und actual_class die gleichen Levels haben
+#levels(predicted_class) <- levels(actual_class)
+#
+## Levels überprüfen
+#levels(predicted_class)
+#levels(actual_class)
+#
+## Berechnung der Metriken
+#confusionMatrix(predicted_class, actual_class)
+
 
 ```
 
-INSR_TYPE and CCM_Ton do not appear to be significant. A new model is adapted without these two variables.
+Modellgüte
+Die Berechnung von Pseudo-R²-Werten ergab niedrige Werte (McFadden: 3,4% und Nagelkerke: 4,8%). Diese niedrigen Werte zeigen, dass das Modell nur einen kleinen Teil der Varianz in der Zielvariablen CLAIM_PAID erklären kann. Es handelt sich also um ein Modell mit begrenzter Erklärungskraft.
+
+Die Modellgüte wurde mittels Pseudo-R²-Werten bewertet. Der McFadden-Wert (0.0337) und der Nagelkerke-Wert (0.0484) sind relativ niedrig und deuten darauf hin, dass das Modell nur einen kleinen Anteil der Varianz in der Zielvariablen erklärt. Diese Werte deuten darauf hin, dass das Modell nur begrenzte Vorhersagekraft besitzt und möglicherweise noch wichtige Prädiktoren fehlen oder die Variablenkategorien weitere Anpassungen benötigen.
+
+
+Globale Modellsignifikanz:
+Der globale F-Test (Wald-Test) zeigt, dass die Gesamtmodellstatistik (TD) 2709.95 beträgt, und der p-Wert des Tests ist nahe null. Dies deutet darauf hin, dass das Modell als Ganzes statistisch signifikant ist. Das bedeutet, dass zumindest eine der erklärenden Variablen in signifikantem Zusammenhang mit der Zielvariablen steht und somit das Modell besser ist als ein Nullmodell (Modell ohne erklärende Variablen).
+
+Ergebnisse des Likelihood-Ratio-Tests
+Gemäss dem Likelihood-Ratio-Test, scheint (INSR_TYPE) keinen signifikanten Einfluss zu haben.
+
+
+
+Der AUC-Wert (Fläche unter der Kurve) von 0,629 deutet auf eine relativ moderate Diskriminierungsfähigkeit hin, was bedeutet, dass das Modell etwas besser als zufälliges Raten ist, aber noch Raum für Verbesserungen bietet.
+
+
+Modellanpassung und Signifikanz:
+Der AIC (Akaike Informationskriterium) des Modells beträgt 77716,2. Ein niedrigerer AIC-Wert zeigt in der Regel eine bessere Anpassung an.
+Das Overdispersion-Verhältnis beträgt 0,7766, was unter 1 liegt und auf keine signifikante Overdispersion hinweist.
+Mehrere Prädiktoren sind statistisch signifikant (z.B. SEX, TYPE_VEHICLE, MAKE, PREMIUM_log, usw.).
+
+Likelihood-Ratio-Test:
+
+Der Likelihood-Ratio-Test gegen das Nullmodell ergibt einen Wert von 2709,954, was darauf hinweist, dass das vollständige Modell signifikant besser ist als das Nullmodell.
+
+ROC und AUC:
+Die ROC-Kurve zeigt den Kompromiss zwischen Sensitivität und Spezifität.
+Der AUC-Wert beträgt 0,629, was auf eine gewisse Vorhersagekraft des Modells hindeutet, jedoch möglicherweise weitere Optimierungen erfordert.
+
+Pseudo R-Quadrat:
+Der McFadden-Pseudo-R-Quadrat beträgt 0,0337, was auf eine moderate Anpassung hinweist, während der Nagelkerke-Pseudo-R-Quadrat 0,0484 beträgt, was ebenfalls eine begrenzte Erklärungskraft des Modells andeutet.
+
+
+### Massnahme 1): Entfernen von Variablen
 
 ```{r Binomial_Model_sign, cache=TRUE}
 
-#Erstellen eines logistischen Regressionsmodells
-fit.binom2 <- glm(CLAIM_PAID ~ SEX +  INSURED_VALUE + PREMIUM + AGE_VEHICLE + 
-             MAKE + SEATS_NUM + USAGE, 
-             data = clean_dat_motor, 
-             family = binomial)
+# Neues Modell ohne INSR_TYPE
+fit.binom.sign <- glm(
+  CLAIM_PAID ~ SEX + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE + SEATS_NUM +
+               CCM_TON_LOG + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
+  data = clean_dat_motor,
+  family = binomial(link = "logit")
+)
 
-# Zusammenfassung des Modells anzeigen
-summary(fit.binom2)
-drop1(fit.binom2, test= "LRT")
+# Zusammenfassung des neuen Modells anzeigen (Signifikanz einzelner Variablen)
+summary(fit.binom.sign)
 
-# Wahrscheinlichkeiten vorhersagen
-clean_dat_motor$predicted_probabilities <- predict(fit.binom2, type = "response")
-
-# Klassifikation vorhersagen (0 oder 1)
-clean_dat_motor$predicted_class <- ifelse(clean_dat_motor$predicted_probabilities > 0.5, 1, 0)
-
-# Modellgüte prüfen
-table(clean_dat_motor$CLAIM_PAID, clean_dat_motor$predicted_class)
-
-# Optional: Genauigkeit berechnen
-accuracy <- mean(clean_dat_motor$CLAIM_PAID == clean_dat_motor$predicted_class)
-print(paste("Genauigkeit des Modells:", accuracy))
-
-```
-
-Schlechte Modellgüte
-
-### Massnahme 1): Down-Sampling (Balancing) und weniger Variablen
-
-```{r binom_balanced, cache=TRUE}
-# Anzahl der YES-Klasse ermitteln
-yes_class <- clean_dat_motor[clean_dat_motor$CLAIM_PAID == "YES", ]
-no_class <- clean_dat_motor[clean_dat_motor$CLAIM_PAID == "NO", ]
-
-# Anzahl der YES-Beobachtungen
-n_yes <- nrow(yes_class)
-
-# Zufällige Auswahl aus der NO-Klasse, sodass sie die gleiche Grösse wie die YES-Klasse hat
-set.seed(42)  # Für Reproduzierbarkeit
-no_class_undersampled <- no_class[sample(1:nrow(no_class), n_yes), ]
-
-# Erstellen eines neuen Datensatzes, der YES und die undersampelte NO-Klasse kombiniert
-clean_dat_motor_undersampled <- rbind(yes_class, no_class_undersampled)
-
-# Überprüfen der neuen Klassenverteilung
-table(clean_dat_motor_undersampled$CLAIM_PAID)
-
-# Logistisches Regressionsmodell mit undersampelten Daten
-fit.binom_undersampled <- glm(CLAIM_PAID ~ SEX + INSURED_VALUE + PREMIUM + AGE_VEHICLE + 
-                             MAKE + SEATS_NUM + USAGE, 
-                             data = clean_dat_motor_undersampled, 
-                             family = binomial)
-
-# Zusammenfassung des neuen Modells
-summary(fit.binom_undersampled)
-drop1(fit.binom_undersampled, test= "LRT") #SEATS_NUM not sign
+#Likelihood-Ratio-Test (LRT) für die Signifikanz einzelner Variablen
+drop1(fit.binom.sign, test = "LRT")
 
 
+anova(fit.binom, fit.binom.sign, test= "LRT")
+
+# AIC des neuen Modells berechnen und ausgeben
+aic_no_insr_seats <- AIC(fit.binom.sign)
+cat("AIC des Modells ohne INSR_TYPE:", aic_no_insr_seats, "\n")
+
+# Vergleich des AIC-Wertes mit dem ursprünglichen Modell
+aic_difference <- aic_logit_binom - aic_no_insr_seats
+cat("AIC-Unterschied zum ursprünglichen Modell:", aic_difference, "\n")
+
+# Berechnung des globalen F-Tests zur Überprüfung der Signifikanz des neuen Modells
+TD_no_insr_seats <- fit.binom.sign$null.deviance - fit.binom.sign$deviance  # Teststatistik
+df_diff_no_insr_seats <- fit.binom.sign$df.null - fit.binom.sign$df.residual  # Freiheitsgrade
+p_value_no_insr_seats <- 1 - pchisq(TD_no_insr_seats, df = df_diff_no_insr_seats)  # p-Wert für den F-Test
+
+cat("Globale Teststatistik (TD) des neuen Modells:", TD_no_insr_seats, "\n")
+cat("p-Wert des globalen Tests des neuen Modells:", p_value_no_insr_seats, "\n")
+
+# Vergleich der Pseudo-R^2-Werte (Modellgüte) mit Nagelkerke
+nagelkerke_new <- nagelkerke(fit.binom.sign)$Pseudo.R.squared.for.model.vs.null
+print(nagelkerke_new)
+
+# Berechnung der Deviance-Residuals zur Überprüfung der Anpassung
+deviance_residuals <- residuals(fit.binom.sign, type = "deviance")
+cat("Zusammenfassung der Deviance-Residuals:\n")
+summary(deviance_residuals)
+
+# Überprüfung der Overdispersion im Modell
+deviance <- deviance(fit.binom.sign)
+df_residual <- df.residual(fit.binom.sign)
+overdispersion_ratio <- deviance / df_residual
+cat("Overdispersion Ratio (Deviance / DF):", overdispersion_ratio, "\n")
+
+# Globale Modellüberprüfung durch Likelihood-Ratio-Test gegen das Nullmodell
+null_model <- glm(CLAIM_PAID ~ 1, data = clean_dat_motor, family = binomial(link = "logit"))
+lrt_statistic <- 2 * (logLik(fit.binom.sign) - logLik(null_model))
+cat("Likelihood-Ratio-Test-Statistik gegen Nullmodell:", lrt_statistic, "\n")
+
+# ROC-Kurve und AUC zur Modellbewertung
+library(pROC)  # Falls noch nicht geladen
+predicted_probabilities <- predict(fit.binom.sign, type = "response")
+roc_curve <- roc(clean_dat_motor$CLAIM_PAID, predicted_probabilities)
+auc_value <- auc(roc_curve)
+cat("AUC-Wert des Modells:", auc_value, "\n")
+
+# Visualisierung der ROC-Kurve
+plot(roc_curve, main = "ROC-Kurve für logistische Regression", col = "blue")
 
 
 
-# Logistisches Regressionsmodell mit undersampelten Daten
-fit.binom_undersampled2 <- glm(CLAIM_PAID ~ SEX + INSURED_VALUE + PREMIUM + AGE_VEHICLE + 
-                             MAKE + USAGE, data = clean_dat_motor_undersampled, 
-                             family = binomial)
+#ROC mit Testdaten
+#Ist Modell besser als zuf?llige Sch?tzung?
+library(ROCR)
+pred<- prediction(yhat_new, credittest$Creditability) #(Vorhersage, echte ZV)
+perf<- performance(pred, "tpr", "fpr")
+plot(perf, lwd= 3)
+abline(a= 0, b= 1, col= "blue", lwd= 2)
+#Je gr?sser Gap / Berg ?ber Diagonaler, desto besser
 
-# Zusammenfassung des neuen Modells
-summary(fit.binom_undersampled2)
-drop1(fit.binom_undersampled2, test= "LRT")
 
 # Wahrscheinlichkeiten vorhersagen
 clean_dat_motor_undersampled$predicted_probabilities <- predict(fit.binom_undersampled2, type = "response")
@@ -874,37 +1059,48 @@ levels(actual_class)
 
 # Berechnung der Metriken
 confusionMatrix(predicted_class, actual_class)
-
-
 ```
 
-weitere Massnahmen: Schwellenwertanpassubg (hat wenig gebracht) Interaktionen
+AIC-Wert: Der AIC des neuen logistischen Modells beträgt 77714.2, was einen minimalen Rückgang gegenüber dem vorherigen Modell darstellt, aber die Anpassung nicht wesentlich beeinflusst.
+
+Zusammengefasst hat das Entfernen der Variable INSR_TYPE nur geringe Auswirkungen auf die Modellgüte und die Erklärungskraft. Falls gewünscht, können weitere Anpassungen oder zusätzliche Prädiktoren in Betracht gezogen werden, um die Modellleistung zu verbessern.
+
+
+
 ## Generalised Additive Model (GAM)
 ```{r GAM, cache=TRUE}
-# TODO
-#Bsp. Additives Modell anpassen
-#Daten vorbereiten
-library(car)
-library(gam)
-data(Prestige)
-#Additives Modell anpassen
-fit <-gam(prestige ~lo(income) +lo(education), data= Prestige) 
-plot(fit, se= TRUE, residuals= TRUE) #Partielle Residuenplots VI 95% Nicht lineare Effekte anschauen
-#Gibt es einen Nichtlinearen Anteil? Siehe Anova for Parametric Effects
-summary(fit)
 
-#Vorhersage
-#Bsp: Ansehen Einkommen bei 15J Ausbildung & Einkommen von 40000 Dollar?
-Prestige$lincome <-log(Prestige$income) #Logarithmieren
-fit2 <-gam(prestige ~lo(lincome) +lo(education), data = Prestige)
-x0 <-data.frame(lincome= log(40000),education= 15)
-predict(fit2, newdata= x0)
+#Additives Modell anpassen, das alle Variablen verwendet
+fit_full <- gam(CLAIM_PAID ~ lo(AGE_VEHICLE) + lo(PREMIUM_log) + lo(AMOUNT_CLAIMS_PAID) +
+                 SEX + USAGE + TYPE_VEHICLE + MAKE + lo(SEATS_NUM) + lo(CCM_TON_LOG) + lo(INSURED_VALUE_log),
+                 data = clean_dat_motor, family = binomial(link = "logit"))
+
+#Plot des Modells mit partiellen Residuen und Unsicherheitsintervallen
+plot(fit_full, se = TRUE, residuals = TRUE, main = "Additives Modell für CLAIM_PAID")
+
+#Zusammenfassung des Modells anzeigen
+summary(fit_full)
+
+
+#Vorhersage für spezifische Werte
+#Beispiel: Vorhersage für ein Fahrzeug mit 5 Jahren, einer Prämie von 300, 
+#einem Betrag der Schadenszahlungen von 1000, 2 Sitzen und Typ 'Car'
+x0 <- data.frame(AGE_VEHICLE = 5, PREMIUM_log = log(300), AMOUNT_CLAIMS_PAID = 1000,
+                 SEX = "Male", USAGE = "Private", TYPE_VEHICLE = "Car",
+                 SEATS_NUM = 2, CCM_TON_LOG = log(1), INSURED_VALUE_log = log(20000))  # Beispielwerte für Kategorielle Variablen
+predicted_probability <- predict(fit_full, newdata = x0, type = "response")
+predicted_probability
+
+
+
+# Residuenanalyse für das vollständige additive Modell
+par(mfrow = c(2, 2))
+plot(fit_full)
 
 #Residuenanalyse f?r Additive Modelle
 stats:::plot.lm(fit)
 
 #Bsp: Nichtparametrisches Modell Verwenden Sie gam und log
-library(gam)
 diamant$lPrice <-log(diamant$Price) #(Log Transformation)
 vC.gam1 <-gam(lPrice ~ lo(Carat), data= diamant)
 summary(vC.gam1)
@@ -990,7 +1186,7 @@ test <- svm_data[-trainIndex, ]
 #plotting to see if it can be linearly split
 
 selected_data <- svm_data[, c("AGE_VEHICLE", "INSURED_VALUE_LOG", "CLAIM_PAID_USD_LOG", "premium_category")]
-library(GGally)
+
 ggpairs(selected_data, aes(color = premium_category))
 ```
 
@@ -1080,7 +1276,13 @@ fit.improved <- best_model
 #                      trControl = trainControl(method = "cv"))
 
 ```
+
 # Conclusion
+
+
+
+
+
 
 
 
