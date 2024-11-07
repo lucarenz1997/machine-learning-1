@@ -1172,7 +1172,7 @@ registerDoParallel(cl)
 
 # Datenvorbereitung und Stichprobenerstellung
 set.seed(123)
-clean_dat_motor2 <- sample_n(clean_dat_motor, size = 10000)
+clean_dat_motor2 <- sample_n(clean_dat_motor, size = 1000)
 
 # Kontrollparameter für wiederholte Kreuzvalidierung
 ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
