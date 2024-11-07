@@ -1165,14 +1165,14 @@ Squared Error (RMSE).
 set.seed(123)
 svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 100000, replace = FALSE), ]
 
-hist(svm_data$PREMIUM_LOG, main = "Premium Distribution", xlab = "Premium", breaks = 30)
+hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
 
-plot(density(svm_data$PREMIUM_LOG, na.rm = TRUE), main = "Density of Premium")
+plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
 
-percentiles <- quantile(svm_data$PREMIUM_LOG, probs = c(0.25,0.5,0.75))
+percentiles <- quantile(svm_data$PREMIUM_log, probs = c(0.25,0.5,0.75))
 
 # Create custom categories for PREMIUM based on percentiles
-svm_data$premium_category <- cut(svm_data$PREMIUM_LOG, 
+svm_data$premium_category <- cut(svm_data$PREMIUM_log, 
                                  breaks = c(-Inf, percentiles[1], percentiles[2], percentiles[3], Inf), 
                                  labels = c("low", "medium", "high", "very_high"))
 print(table(svm_data$premium_category
