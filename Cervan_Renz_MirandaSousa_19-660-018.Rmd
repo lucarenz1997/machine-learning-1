@@ -29,6 +29,12 @@ if (!require("nnet")) install.packages("nnet")  # Neural Networks
 if (!require("e1071")) install.packages("e1071")  # Support Vector Machine (SVM)
 if (!require("MASS")) install.packages("MASS")
 if (!require("arm")) install.packages("arm")
+if (!require("pscl")) install.packages("pscl")
+if (!require("doParallel")) install.packages("doParallel")
+if (!require("rcompanion")) install.packages("rcompanion")
+if (!require("gam")) install.packages("gam")
+if (!require("MLmetrics")) install.packages("MLmetrics")
+if (!require("mccr")) install.packages("mccr")
 
 library(car)
 library(readr,quietly = T)
@@ -47,7 +53,9 @@ library(caret)
 library(pscl) #zeroinflated
 library(rcompanion)
 library(gam)
-library(doParallel)#SVM Parallelisierung 
+library(doParallel)#SVM Parallelisierung
+library(MLmetrics)  # For MCC calculation
+library(mccr)
 
 ```
 
@@ -565,7 +573,7 @@ clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
 clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
 #Log-Transformation mit log1p() wegen der vielen 0-Werte
 clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
-clean_dat_motor$CCM_TON_LOG <- log1p(clean_dat_motor$CCM_TON)
+clean_dat_motor$CCM_TON_log <- log1p(clean_dat_motor$CCM_TON)
 
 
 # Clear Workspace
@@ -585,7 +593,7 @@ A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the p
 
 #Fit the linear model
 lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
-                 AGE_VEHICLE + SEATS_NUM + CCM_TON_LOG +INSURED_VALUE_log +
+                 AGE_VEHICLE + SEATS_NUM + CCM_TON_log +INSURED_VALUE_log +
                  AMOUNT_CLAIMS_PAID, data = clean_dat_motor)
 
 #Summary of the model
@@ -605,8 +613,8 @@ qqline(lm_model$residuals, col = "red")
 
 #Residuals vs Fitted Values (check for patterns or heteroscedasticity)
 plot(lm_model$fitted.values, lm_model$residuals, 
-     main = "Residuals vs Fitted Values", 
-     xlab = "Fitted Values", 
+     main = "Residuals vs Fitted Values",
+     xlab = "Fitted Values",
      ylab = "Residuals")
 abline(h = 0, col = "red")
 
@@ -657,7 +665,7 @@ First, the data is grouped accordingly, and the results are analyzed to gather i
 
 ```{r data_for_poisson, cache=TRUE}
 
-#Data preparation: Aggregate the number of claims per combination 
+#Data preparation: Aggregate the number of claims per combination
 dat_amount_claims <- clean_dat_motor %>%
   group_by(SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, PREMIUM) %>%
   summarise(AMOUNT_CLAIMS = sum(CLAIM_PAID == "YES"), .groups = 'drop')
@@ -715,10 +723,10 @@ print(vif_values)
 # Berechnung der vorhergesagten Werte für Visualisierung
 poisson_model$model$fitted <- predict(poisson_model, type = "response")
 #ggplot2 Plot: Fitted vs. Actual values
-ggplot(poisson_model$model) + 
-    geom_point(aes(x = fitted, y = AMOUNT_CLAIMS), color = "darkblue") + 
+ggplot(poisson_model$model) +
+    geom_point(aes(x = fitted, y = AMOUNT_CLAIMS), color = "darkblue") +
     geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") + # Diagonale Linie als Referenz
-    labs(x = "Fitted Values \n", y = "Actual number Of Claims \n", 
+    labs(x = "Fitted Values \n", y = "Actual number Of Claims \n",
          title = "Poisson Regression: Fitted vs. Actual number of Claims \n") +
     theme(plot.title = element_text(hjust = 0.5),
           axis.title.x = element_text(face="bold", colour="blue", size = 12),
@@ -731,7 +739,7 @@ ggplot(poisson_model$model) +
 ##Poisson: (Wald Vertrauensintervall)
 #coef(poisson_model)["F"]
 #c(-1, 1) * qnorm(1 - 0.95/2) * summary(poisson_model)$coefficients["F", "Std. Error"]
-##Poisson: Punktschaetzung, 95% Vertrauensintervall 
+##Poisson: Punktschaetzung, 95% Vertrauensintervall
 #pred<- predict(herz.fit, se.fit= TRUE, type= "link")
 #pe<- exp(pred$fit)
 #lb<- exp(pred$fit + qnorm(1 - 0.05 / 2) * pred$se.fit) #untere Schranke
@@ -768,8 +776,8 @@ As a further alternative, simplifying the model, for example by removing fewer s
 ```{r zero_inflated_pois_model, cache=TRUE}
 
 # Anpassung eines Zero-Inflated Poisson (ZIP)-Modells
-zip_model <- zeroinfl(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE + 
-                        AGE_VEHICLE + SEATS_NUM + CCM_TON + INSURED_VALUE + PREMIUM, 
+zip_model <- zeroinfl(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE +
+                        AGE_VEHICLE + SEATS_NUM + CCM_TON + INSURED_VALUE + PREMIUM,
                       data = dat_amount_claims, dist = "poisson")
 
 # Zusammenfassung des Modells
@@ -796,9 +804,9 @@ dat_amount_claims$fitted_zip <- predict(zip_model, type = "response")
 
 # Plot der geschätzten vs. tatsächlichen Schadensfälle
 ggplot(dat_amount_claims, aes(x = fitted_zip, y = AMOUNT_CLAIMS)) +
-  geom_point(color = "darkblue") + 
-  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") + 
-  labs(x = "Fitted Values (ZIP)", y = "Actual Number of Claims", 
+  geom_point(color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Fitted Values (ZIP)", y = "Actual Number of Claims",
        title = "Zero-Inflated Poisson: Fitted vs. Actual Number of Claims") +
   theme(plot.title = element_text(hjust = 0.5),
         axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
@@ -813,9 +821,9 @@ ggplot(dat_amount_claims, aes(x = fitted_zip, y = AMOUNT_CLAIMS)) +
 ```{r Binomial_Model, cache=TRUE}
 
 #Anpassen eines logistischen Regressionsmodells
-fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE +  USAGE + TYPE_VEHICLE + 
-             MAKE + AGE_VEHICLE + SEATS_NUM + CCM_TON_LOG + INSURED_VALUE_log +
-               PREMIUM_log + AMOUNT_CLAIMS_PAID, 
+fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE +  USAGE + TYPE_VEHICLE +
+             MAKE + AGE_VEHICLE + SEATS_NUM + CCM_TON_log + INSURED_VALUE_log +
+               PREMIUM_log + AMOUNT_CLAIMS_PAID,
              data = clean_dat_motor, 
              family = binomial(link= "logit"))
 
@@ -832,7 +840,7 @@ cat("AIC des logit-Modells:", aic_logit_binom, "\n")
 #Modellgüte: Berechnung von Pseudo-R^2-Werten mit Nagelkerke für Modellbewertung
 nagelkerke(fit.binom)$Pseudo.R.squared.for.model.vs.null
 #McFadden's Pseudo R^2: 0.033 3.4%
-#Nagelkerke: 0.048 -> 4.8% 
+#Nagelkerke: 0.048 -> 4.8%
 #Entsprechend erkl?rt das Modell ca.3.4% der Devianz (McFadden)
 #bzw. 4.84% der Varianz (Nagelkerke). schlechte Ergebnisse
 
@@ -958,7 +966,7 @@ Der McFadden-Pseudo-R-Quadrat beträgt 0,0337, was auf eine moderate Anpassung h
 # Neues Modell ohne INSR_TYPE
 fit.binom.sign <- glm(
   CLAIM_PAID ~ SEX + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE + SEATS_NUM +
-               CCM_TON_LOG + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
+               CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
   data = clean_dat_motor,
   family = binomial(link = "logit")
 )
@@ -1073,7 +1081,7 @@ Zusammengefasst hat das Entfernen der Variable INSR_TYPE nur geringe Auswirkunge
 
 #Additives Modell anpassen, das alle Variablen verwendet
 fit_full <- gam(CLAIM_PAID ~ lo(AGE_VEHICLE) + lo(PREMIUM_log) + lo(AMOUNT_CLAIMS_PAID) +
-                 SEX + USAGE + TYPE_VEHICLE + MAKE + lo(SEATS_NUM) + lo(CCM_TON_LOG) + lo(INSURED_VALUE_log),
+                 SEX + USAGE + TYPE_VEHICLE + MAKE + lo(SEATS_NUM) + lo(CCM_TON_log) + lo(INSURED_VALUE_log),
                  data = clean_dat_motor, family = binomial(link = "logit"))
 
 #Plot des Modells mit partiellen Residuen und Unsicherheitsintervallen
@@ -1084,11 +1092,11 @@ summary(fit_full)
 
 
 #Vorhersage für spezifische Werte
-#Beispiel: Vorhersage für ein Fahrzeug mit 5 Jahren, einer Prämie von 300, 
+#Beispiel: Vorhersage für ein Fahrzeug mit 5 Jahren, einer Prämie von 300,
 #einem Betrag der Schadenszahlungen von 1000, 2 Sitzen und Typ 'Car'
 x0 <- data.frame(AGE_VEHICLE = 5, PREMIUM_log = log(300), AMOUNT_CLAIMS_PAID = 1000,
                  SEX = "Male", USAGE = "Private", TYPE_VEHICLE = "Car",
-                 SEATS_NUM = 2, CCM_TON_LOG = log(1), INSURED_VALUE_log = log(20000))  # Beispielwerte für Kategorielle Variablen
+                 SEATS_NUM = 2, CCM_TON_log = log(1), INSURED_VALUE_log = log(20000))  # Beispielwerte für Kategorielle Variablen
 predicted_probability <- predict(fit_full, newdata = x0, type = "response")
 predicted_probability
 
@@ -1139,7 +1147,7 @@ stats:::plot.lm(vC.gam4)
 #Bsp: 0.4 Carat, Reinheit IF Farbe D oder E?
 x0 <-data.frame(lCarat= log(c(0.4,0.4)), Colour= c("D","E"),
                 Clarity= c("IF","IF"), CBody= c("GIA","GIA"))
-h <-predict(vC.gam4, newdata= x0, interval= "prediction") #R?cktransformation 
+h <-predict(vC.gam4, newdata= x0, interval= "prediction") #R?cktransformation
 h #Logarithmierte Preise D und E
 
 ```
@@ -1190,8 +1198,8 @@ train_data <- clean_dat_motor2[sample_index, ]
 test_data <- clean_dat_motor2[-sample_index, ]
 
 # SVM-Modelltraining mit Kreuzvalidierung und Hyperparameter-Tuning
-svm_model <- train(CLAIM_PAID ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE + 
-                     SEATS_NUM + CCM_TON_LOG + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
+svm_model <- train(CLAIM_PAID ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE +
+                     SEATS_NUM + CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
                    data = train_data,
                    method = "svmRadial",
                    trControl = ctrl,
@@ -1249,8 +1257,8 @@ train_data <- clean_dat_motor[sample_index, ]
 test_data <- clean_dat_motor[-sample_index, ]
 
 # Train the SVM model with cross-validation and hyperparameter tuning
-svm_model <- train(CLAIM_PAID ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE + 
-                     SEATS_NUM + CCM_TON_LOG + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
+svm_model <- train(CLAIM_PAID ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE +
+                     SEATS_NUM + CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
                    data = train_data,
                    method = "svmRadial",     # SVM mit radialem Kernel
                    trControl = ctrl,          # Kontrollparameter für Kreuzvalidierung
@@ -1292,9 +1300,9 @@ confusionMatrix(data= pres_test , reference= test_data$CLAIM_PAID)
 ```
 
 
-```{r SVM preparation}
+```{r SVM preparation, cache=TRUE}
 set.seed(123)
-svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 100000, replace = FALSE), ]
+svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 10000, replace = FALSE), ]
 
 hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
 
@@ -1303,7 +1311,7 @@ plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
 percentiles <- quantile(svm_data$PREMIUM_log, probs = c(0.25,0.5,0.75))
 
 # Create custom categories for PREMIUM based on percentiles
-svm_data$premium_category <- cut(svm_data$PREMIUM_log, 
+svm_data$premium_category <- cut(svm_data$PREMIUM_log,
                                  breaks = c(-Inf, percentiles[1], percentiles[2], percentiles[3], Inf), 
                                  labels = c("low", "medium", "high", "very_high"))
 print(table(svm_data$premium_category
@@ -1316,16 +1324,246 @@ test <- svm_data[-trainIndex, ]
 
 #plotting to see if it can be linearly split
 
-selected_data <- svm_data[, c("AGE_VEHICLE", "INSURED_VALUE_LOG", "CLAIM_PAID_USD_LOG", "premium_category")]
-
+selected_data <- svm_data[, c("AGE_VEHICLE", "INSURED_VALUE_log", "premium_category")]
 ggpairs(selected_data, aes(color = premium_category))
 ```
 
-Given the overlaps and distribution of data points across different categories, the data does not appear to be linearly separable. This means that a non-linear kernel would likely be a better choice for capturing the complex relationships and boundaries between the classes.
+
+```{r svm luca2}
+# Parallelisierung einrichten
+library(doParallel)
+cl <- makeCluster(detectCores() - 1) # Verwende alle verfügbaren Kerne außer einem
+registerDoParallel(cl)
+
+# Kontrollparameter für wiederholte Kreuzvalidierung
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+# Hyperparameter-Raster für Tuning
+tune_grid <- expand.grid(
+  .C = c(0.1, 1, 10),       # Werte für 'cost'
+  .sigma = c(0.01, 0.1, 0.5) # Werte für 'gamma'
+)
+
+# Set seed for reproducibility and create a subset of the data
+set.seed(123)
+svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 1000, replace = FALSE), ]
+
+# Visualize the distribution and density of PREMIUM_log
+hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
+plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
+
+# Calculate percentiles and create custom categories for PREMIUM
+percentiles <- quantile(svm_data$PREMIUM_log, probs = c(0.25, 0.5, 0.75))
+svm_data$premium_category <- cut(svm_data$PREMIUM_log,
+                                 breaks = c(-Inf, percentiles[1], percentiles[2], percentiles[3], Inf), 
+                                 labels = c("low", "medium", "high", "very_high"))
+print(table(svm_data$premium_category))
+
+# Daten in Training und Test aufteilen (z. B. 70% Training, 30% Test)
+set.seed(123)
+trainIndex <- createDataPartition(svm_data$premium_category, p = 0.7, list = FALSE)
+train_data <- svm_data[trainIndex, ]
+test_data <- svm_data[-trainIndex, ]
+
+# SVM-Modelltraining mit Kreuzvalidierung und Hyperparameter-Tuning
+svm_model <- train(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_log + CLAIM_PAID_USD_log + 
+                     CCM_TON_log + MAKE + USAGE,
+                   data = train_data,
+                   method = "svmRadial",     # SVM mit radialem Kernel
+                   trControl = ctrl,         # Kontrollparameter für Kreuzvalidierung
+                   tuneGrid = tune_grid)     # Hyperparameter-Raster für Tuning
+
+# Stoppe den Cluster nach der Berechnung
+stopCluster(cl)
+
+# Modellbewertung
+print(svm_model$bestTune)     # Zeigt die besten Hyperparameter
+print(svm_model$finalModel)   # Zeigt das endgültige Modell
+
+# Modellzusammenfassung
+print(svm_model)
+
+# Vorhersage für die Testdaten
+predictions <- predict(svm_model, newdata = test_data)
+
+# Konfusionsmatrix zur Bewertung der Modellleistung
+conf_matrix <- confusionMatrix(predictions, test_data$premium_category)
+print(conf_matrix)
+
+# Genauigkeit der Trainingsdaten
+pred_train <- predict(svm_model, train_data)
+print(confusionMatrix(pred_train, train_data$premium_category))
+
+# Genauigkeit der Testdaten
+pred_test <- predict(svm_model, test_data)
+print(confusionMatrix(pred_test, test_data$premium_category))
+
+```
+
+
+```{r SVM MCC, cache=TRUE}
+# Parallelisierung einrichten
+cl <- makeCluster(detectCores() - 1) # Verwende alle verfügbaren Kerne außer einem
+registerDoParallel(cl)
+
+# Kontrollparameter für wiederholte Kreuzvalidierung
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+# Hyperparameter-Raster für Tuning
+tune_grid <- expand.grid(
+  .C = c(0.1, 1, 10),       # Werte für 'cost'
+  .sigma = c(0.01, 0.1, 0.5) # Werte für 'gamma'
+)
+
+# Set seed for reproducibility and create a subset of the data
+set.seed(123)
+svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 1000, replace = FALSE), ]
+
+# Visualize the distribution and density of PREMIUM_log
+hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
+plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
+
+# Calculate percentiles and create custom categories for PREMIUM
+percentiles <- quantile(svm_data$PREMIUM_log, probs = c(0.25, 0.5, 0.75))
+svm_data$premium_category <- cut(svm_data$PREMIUM_log,
+                                 breaks = c(-Inf, percentiles[1], percentiles[2], percentiles[3], Inf), 
+                                 labels = c("low", "medium", "high", "very_high"))
+print(table(svm_data$premium_category))
+
+# Daten in Training und Test aufteilen (z. B. 70% Training, 30% Test)
+set.seed(123)
+trainIndex <- createDataPartition(svm_data$premium_category, p = 0.7, list = FALSE)
+train_data <- svm_data[trainIndex, ]
+test_data <- svm_data[-trainIndex, ]
+
+# SVM-Modelltraining mit Kreuzvalidierung und Hyperparameter-Tuning
+svm_model <- train(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_log + CLAIM_PAID_USD_log + 
+                     CCM_TON_log + MAKE + USAGE,
+                   data = train_data,
+                   method = "svmRadial",     # SVM mit radialem Kernel
+                   trControl = ctrl,         # Kontrollparameter für Kreuzvalidierung
+                   tuneGrid = tune_grid)     # Hyperparameter-Raster für Tuning
+
+# Stoppe den Cluster nach der Berechnung
+stopCluster(cl)
+
+# Modellbewertung
+print(svm_model$bestTune)     # Zeigt die besten Hyperparameter
+print(svm_model$finalModel)   # Zeigt das endgültige Modell
+
+# Modellzusammenfassung
+print(svm_model)
+
+# Vorhersage für die Testdaten
+predictions <- predict(svm_model, newdata = test_data)
+
+# Konfusionsmatrix zur Bewertung der Modellleistung
+conf_matrix <- confusionMatrix(predictions, test_data$premium_category)
+print(conf_matrix)
+
+# Berechnung des MCC für die Testdaten
+mcc_test <- mccr(predictions, test_data$premium_category)
+print(paste("MCC for Test Data:", round(mcc_test, 4)))
+
+# Genauigkeit der Trainingsdaten
+pred_train <- predict(svm_model, train_data)
+conf_matrix_train <- confusionMatrix(pred_train, train_data$premium_category)
+print(conf_matrix_train)
+
+# Berechnung des MCC für die Trainingsdaten. 0 stimmt aber nicht meiner Meinung...
+mcc_train <- mccr(pred_train, train_data$premium_category)
+print(paste("MCC for Train Data:", round(mcc_train, 4)))
+
+```
+
+
+```{r SVM_full_percentiles, cache=TRUE}
+# Parallelisierung einrichten
+cl <- makeCluster(detectCores() - 1) # Verwende alle verfügbaren Kerne außer einem
+registerDoParallel(cl)
+
+# Kontrollparameter für wiederholte Kreuzvalidierung
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+# Hyperparameter-Raster für Tuning
+tune_grid <- expand.grid(
+  .C = c(0.1, 1, 10),       # Werte für 'cost'
+  .sigma = c(0.01, 0.1, 0.5) # Werte für 'gamma'
+)
+
+percentiles_full <- quantile(clean_dat_motor$PREMIUM_log, probs = c(0.25, 0.5, 0.75))
+
+# Assign categories based on the full dataset's percentiles
+clean_dat_motor$premium_category <- cut(clean_dat_motor$PREMIUM_log,
+                                         breaks = c(-Inf, percentiles_full[1], percentiles_full[2], percentiles_full[3], Inf),
+                                         labels = c("low", "medium", "high", "very_high"))
+
+
+# Daten in Training und Test aufteilen (z. B. 70% Training, 30% Test)
+set.seed(123)
+trainIndex <- createDataPartition(svm_data$premium_category, p = 0.7, list = FALSE)
+train_data <- svm_data[trainIndex, ]
+test_data <- svm_data[-trainIndex, ]
+
+# SVM-Modelltraining mit Kreuzvalidierung und Hyperparameter-Tuning
+svm_model <- train(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_log + CLAIM_PAID_USD_log + 
+                     CCM_TON_log + MAKE + USAGE,
+                   data = train_data,
+                   method = "svmRadial",     # SVM mit radialem Kernel
+                   trControl = ctrl,         # Kontrollparameter für Kreuzvalidierung
+                   tuneGrid = tune_grid)     # Hyperparameter-Raster für Tuning
+
+# Stoppe den Cluster nach der Berechnung
+stopCluster(cl)
+
+# Modellbewertung
+print(svm_model$bestTune)     # Zeigt die besten Hyperparameter
+print(svm_model$finalModel)   # Zeigt das endgültige Modell
+
+# Modellzusammenfassung
+print(svm_model)
+
+# Vorhersage für die Testdaten
+predictions <- predict(svm_model, newdata = test_data)
+
+# Konfusionsmatrix zur Bewertung der Modellleistung
+conf_matrix <- confusionMatrix(predictions, test_data$premium_category)
+print(conf_matrix)
+
+# Berechnung des MCC für die Testdaten
+mcc_test <- mccr(predictions, test_data$premium_category)
+print(paste("MCC for Test Data:", round(mcc_test, 4)))
+
+# Genauigkeit der Trainingsdaten
+pred_train <- predict(svm_model, train_data)
+conf_matrix_train <- confusionMatrix(pred_train, train_data$premium_category)
+print(conf_matrix_train)
+
+# Berechnung des MCC für die Trainingsdaten. 0 stimmt aber nicht meiner Meinung...
+mcc_train <- mccr(pred_train, train_data$premium_category)
+print(paste("MCC for Train Data:", round(mcc_train, 4)))
+
+```
+
+This analysis explores the performance of a multiclass classification task using an SVM model with a radial kernel. The goal was to classify PREMIUM_log into categories: "low," "medium," "high," and "very_high," employing hyperparameter tuning and parallel computation for efficiency. Data preparation included sampling 1,000 entries from the cleaned dataset and visualizing the distribution of PREMIUM_log, followed by a 70/30 split for training and testing. It is important to note that the dataset is imbalanced, which may pose challenges in model training and evaluation, potentially impacting the reliability of certain performance metrics.
+
+Model training was carried out with 10-fold cross-validation repeated three times, leveraging parallel processing to speed up the evaluation. A grid search was performed to find optimal values for the hyperparameters .C and .sigma, ensuring the model's robustness and generalizability.
+
+The evaluation showed that the "very_high" category had the highest sensitivity at 0.8629, while the "low" category excelled in specificity at 0.9695 and positive predictive value at 0.8926. The MCC for each class revealed strong performance overall: ~0.986 for "low," ~0.802 for "medium," ~0.781 for "high," and ~1.038 for "very_high," though the latter may indicate overestimation and warrants further review.
+
+The code process incorporated parallelized cross-validation and grid search, facilitating comprehensive hyperparameter tuning. The findings highlighted an overall accuracy of 0.7771 and a Kappa statistic of 0.7029, with McNemar's test yielding a significant P-value of 0.008264, suggesting a noteworthy difference from random classification.
+
+To improve the model, checking the training set's class distribution and considering resampling techniques like SMOTE may be beneficial. Additionally, validating MCC calculations to ensure accuracy, especially for anomalous values, is recommended.
+
+In conclusion, while the model showed strong results for the "low" and "very_high" categories, further optimization is needed for "medium" and "high" to enhance overall performance.
+
+
+
+
 
 ```{r SVM radial, cache=TRUE}
 
-fit <- svm(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_LOG + MAKE + USAGE, 
+fit <- svm(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_log + MAKE + USAGE, 
              data = train, 
              kernel = "radial")
 
@@ -1358,55 +1596,84 @@ Hyperparameter Tuning:
 Increase Cost: Since the model has moderate sensitivity for “low” and “high” classes, increasing the cost parameter could encourage a tighter fit to these categories, potentially reducing the number of misclassifications. However, be cautious not to set it too high, as this could overfit on the “very high” class.
 Gamma Tuning: Experiment with slightly higher values of gamma to see if it improves precision in "medium" and "high" classes. This could make the model more responsive to feature distinctions within these overlapping categories.
 
-Alternative Kernel Exploration:
 
-Polynomial Kernel: For cases where there is complex overlap between classes (e.g., "medium" and "high"), the polynomial kernel can sometimes capture these relationships better than the radial kernel.
-Sigmoid Kernel: If the data has a certain linear-separability structure, experimenting with the sigmoid kernel could also improve classification.
-Feature Engineering:
-
-Interaction Terms: Create interaction terms between significant predictors, such as AGE_VEHICLE * INSURED_VALUE_LOG or CLAIM_PAID_USD_LOG * CCM_TON_LOG. These could help the model better distinguish between similar categories by capturing nuanced relationships.
-Dimensionality Reduction: Try PCA (Principal Component Analysis) to reduce noise in the data. By retaining only the principal components that explain the most variance, you can simplify the feature space, potentially improving the model’s accuracy and generalization.
-Class Rebalancing Techniques:
-
-If there’s a slight imbalance in the data (e.g., fewer instances in "high" or "medium" categories), techniques like SMOTE (Synthetic Minority Over-sampling Technique) could help balance the classes, improving model performance on the lower-represented classes.
-Try Ensemble Models for Comparison:
-
-You may also consider training a Random Forest or Gradient Boosting model as a baseline to compare against SVM. These models can sometimes capture complex relationships and reduce misclassification for categories like "medium" and "high."
-
-
+As previous results were already good but modifications were still possible, hyperparameter tuning will be used.
 ```{r SVM improvement from model#1}
 
 # Perform hyperparameter tuning with tune()
 
-# Define the formula with selected features
 
 # Tune the model
-tune.out <- tune(svm, premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_LOG + MAKE + USAGE, data = train, kernel = "radial",
-                 ranges = list(cost = c(0.1, 1, 10),
+tune.out <- tune(svm, premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_log + MAKE + USAGE, data = train, kernel = "radial",
+                 ranges = list(cost = c(0.1, 1, 10,100),
                                gamma = c(0.5, 1, 2)))
 
 # View the best parameters and summary
-print(tune.out)
+print(tune.out) # best performance: 0.2909148
 best_model <- tune.out$best.model
 
 # Print the best cost and gamma values
 best_params <- tune.out$best.parameters
-cat("Best Cost:", best_params$cost, "\n")
-cat("Best Gamma:", best_params$gamma, "\n")
+cat("Best Cost:", best_params$cost, "\n") # 10
+cat("Best Gamma:", best_params$gamma, "\n") #0.5
 
 # Fit the best model on the train data
 fit.improved <- best_model
 
+# View the best parameters and summary
+print(tune.out) # best performance: 0.2909148
+best_model <- tune.out$best.model
 
-# library(caret)
-# tune_grid <- expand.grid(C = c(1, 10, 100), gamma = c(0.01, 0.1, 1))
-# tuned_model <- train(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_LOG + MAKE + USAGE, 
-#                      data = train, 
-#                      method = "svmRadial", 
-#                      tuneGrid = tune_grid, 
-#                      trControl = trainControl(method = "cv"))
+# Print the best cost and gamma values
+best_params <- tune.out$best.parameters
+
+summary(fit.improved)
+
+predictions <- predict(fit.improved, test)
+confusionMatrix(predictions, test$premium_category)
+
 
 ```
+
+The best model was with cost = 10 and gamma of 0.5 but it did not seem to improve the model compared to previous one. To better capture variance in the dataset, cross-validation will be tried to check if it improves overall performance.
+
+```{r SVM cross-validation, cache=TRUE}
+
+# Tune the model
+tune.out <- tune(svm, premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_log + MAKE + USAGE, data = train, kernel = "radial",
+                 ranges = list(cost = c(0.1, 1, 10,100, 1000),
+                               gamma = c(0.5)),
+                 tunecontrol = tune.control(sampling="cross", cross=10))
+
+# View the best parameters and summary
+print(tune.out) # best performance: 0.2909148
+best_model_cv <- tune.out$best.model
+
+# Print the best cost and gamma values
+best_params <- tune.out$best.parameters
+cat("Best Cost:", best_params$cost, "\n") # 1
+cat("Best Gamma:", best_params$gamma, "\n") #0.5
+
+# Fit the best model on the train data
+fit.improved_cv <- best_model_cv
+
+summary(fit.improved_cv)
+
+predictions <- predict(fit.improved_cv, test)
+confusionMatrix(predictions, test$premium_category)
+```
+This cross-validated model exhibits marginal improvements in overall accuracy, Kappa, and balanced accuracy for "low," "medium," and "very_high" classes, indicating better generalization. This suggests that cross-validation helped find a model that performs more consistently across different subsets of the data.
+Accuracy improved from 70.18% to 71.11% indicating that the model is slightly better at classifying instances in a correct manner.
+LOW: minor improvement in sensitivity indicating better identifications of "low" classifications.
+Medium: Also a minor improvement of about 0.015
+High: Slightly worsened with the advantage of having increased specificity to avoid false positives.
+
+Generally speaking, adapting the cost to 1 led to improved sensitivity for medium and very_high without drastically reducing specificity.
+The gamma of 0.5 indicated that no excessive complexities were applied to correctly identify classes.
+
+This model is an improvement over previous versions, with a slight increase in accuracy and balanced accuracy across most classes. The careful tuning of cost and gamma, combined with cross-validation, allowed for a more balanced classification without sacrificing performance on any particular class.
+
+
 
 # Conclusion
 
@@ -1426,20 +1693,20 @@ fit.improved <- best_model
 #Coole Plots zum Aufzeigen von Interaktionen:
 
 # Boxplot von PREMIUM_log nach MAKE und USAGE
-ggplot(clean_dat_motor, aes(x=MAKE, y=PREMIUM_log, fill=USAGE)) + 
+ggplot(clean_dat_motor, aes(x=MAKE, y=PREMIUM_log, fill=USAGE)) +
   geom_boxplot() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(title = "Interaktion zwischen MAKE und USAGE", x = "MAKE", y = "PREMIUM_log")
 
 # Boxplot von PREMIUM_log nach TYPE_VEHICLE und USAGE
-ggplot(clean_dat_motor, aes(x=TYPE_VEHICLE, y=PREMIUM_log, fill=USAGE)) + 
+ggplot(clean_dat_motor, aes(x=TYPE_VEHICLE, y=PREMIUM_log, fill=USAGE)) +
   geom_boxplot() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(title = "Interaktion zwischen TYPE_VEHICLE und USAGE", x = "TYPE_VEHICLE", y = "PREMIUM_log")
 
 # Scatterplot von INSURED_VALUE_log und PREMIUM_log nach USAGE
-ggplot(clean_dat_motor, aes(x=INSURED_VALUE_log, y=PREMIUM_log, color=USAGE)) + 
-  geom_point(alpha=0.5) + 
+ggplot(clean_dat_motor, aes(x=INSURED_VALUE_log, y=PREMIUM_log, color=USAGE)) +
+  geom_point(alpha=0.5) +
   geom_smooth(method="lm", se=FALSE) +
   labs(title = "Interaktion zwischen INSURED_VALUE_log und USAGE", x = "INSURED_VALUE_log", y = "PREMIUM_log")
 
@@ -1452,7 +1719,7 @@ ggplot(clean_dat_motor, aes(x=INSURED_VALUE_log, y=PREMIUM_log, color=USAGE)) +
 ```{r quasiPois, cache=TRUE}
 
 #Quasi-Poisson
-quasi_poisson_model <- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM, 
+quasi_poisson_model <- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM,
                            family = quasipoisson, data = dat_amount_claims)
 
 # Summary of the model
@@ -1462,8 +1729,8 @@ drop1(quasi_poisson_model, test= "F")
 
 # Model diagnostics: Residuals vs. Fitted Plot
 plot(quasi_poisson_model$fitted.values, residuals(quasi_poisson_model, type = "deviance"),
-     xlab = "Fitted Values", 
-     ylab = "Deviance Residuals", 
+     xlab = "Fitted Values",
+     ylab = "Deviance Residuals",
      main = "Residuals vs Fitted (Quasi-Poisson)")
 abline(h = 0, col = "red")
 
