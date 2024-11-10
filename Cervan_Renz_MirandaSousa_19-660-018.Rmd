@@ -1160,9 +1160,9 @@ h #Logarithmierte Preise D und E
 
 
 ## Support Vector Machine (SVM)
+For the scenario of SVM models, it has been decided to do multiple-classifications for the premiums and divide it into 4 levels from low to very high.
 
-
-
+# to be removed? @Rafi
 Notizen Rafi
 SVM Teil:
   Cross validation or other methods for model comparing must be used on one single
@@ -1329,95 +1329,21 @@ ggpairs(selected_data, aes(color = premium_category))
 ```
 
 
-```{r svm luca2}
-# Parallelisierung einrichten
-library(doParallel)
-cl <- makeCluster(detectCores() - 1) # Verwende alle verfügbaren Kerne außer einem
-registerDoParallel(cl)
-
-# Kontrollparameter für wiederholte Kreuzvalidierung
-ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
-
-# Hyperparameter-Raster für Tuning
-tune_grid <- expand.grid(
-  .C = c(0.1, 1, 10),       # Werte für 'cost'
-  .sigma = c(0.01, 0.1, 0.5) # Werte für 'gamma'
-)
-
-# Set seed for reproducibility and create a subset of the data
-set.seed(123)
-svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 1000, replace = FALSE), ]
-
-# Visualize the distribution and density of PREMIUM_log
-hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
-plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
-
-# Calculate percentiles and create custom categories for PREMIUM
-percentiles <- quantile(svm_data$PREMIUM_log, probs = c(0.25, 0.5, 0.75))
-svm_data$premium_category <- cut(svm_data$PREMIUM_log,
-                                 breaks = c(-Inf, percentiles[1], percentiles[2], percentiles[3], Inf), 
-                                 labels = c("low", "medium", "high", "very_high"))
-print(table(svm_data$premium_category))
-
-# Daten in Training und Test aufteilen (z. B. 70% Training, 30% Test)
-set.seed(123)
-trainIndex <- createDataPartition(svm_data$premium_category, p = 0.7, list = FALSE)
-train_data <- svm_data[trainIndex, ]
-test_data <- svm_data[-trainIndex, ]
-
-# SVM-Modelltraining mit Kreuzvalidierung und Hyperparameter-Tuning
-svm_model <- train(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_log + CLAIM_PAID_USD_log + 
-                     CCM_TON_log + MAKE + USAGE,
-                   data = train_data,
-                   method = "svmRadial",     # SVM mit radialem Kernel
-                   trControl = ctrl,         # Kontrollparameter für Kreuzvalidierung
-                   tuneGrid = tune_grid)     # Hyperparameter-Raster für Tuning
-
-# Stoppe den Cluster nach der Berechnung
-stopCluster(cl)
-
-# Modellbewertung
-print(svm_model$bestTune)     # Zeigt die besten Hyperparameter
-print(svm_model$finalModel)   # Zeigt das endgültige Modell
-
-# Modellzusammenfassung
-print(svm_model)
-
-# Vorhersage für die Testdaten
-predictions <- predict(svm_model, newdata = test_data)
-
-# Konfusionsmatrix zur Bewertung der Modellleistung
-conf_matrix <- confusionMatrix(predictions, test_data$premium_category)
-print(conf_matrix)
-
-# Genauigkeit der Trainingsdaten
-pred_train <- predict(svm_model, train_data)
-print(confusionMatrix(pred_train, train_data$premium_category))
-
-# Genauigkeit der Testdaten
-pred_test <- predict(svm_model, test_data)
-print(confusionMatrix(pred_test, test_data$premium_category))
-
-```
-
-
+#start from here
 ```{r SVM MCC, cache=TRUE}
-# Parallelisierung einrichten
-cl <- makeCluster(detectCores() - 1) # Verwende alle verfügbaren Kerne außer einem
+# Setup parallelisation
+cl <- makeCluster(detectCores() - 1) 
 registerDoParallel(cl)
 
-# Kontrollparameter für wiederholte Kreuzvalidierung
 ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
 
-# Hyperparameter-Raster für Tuning
 tune_grid <- expand.grid(
-  .C = c(0.1, 1, 10),       # Werte für 'cost'
-  .sigma = c(0.01, 0.1, 0.5) # Werte für 'gamma'
+  .C = c(0.1, 1, 10),       
+  .sigma = c(0.01, 0.1, 0.5)
 )
 
-# Set seed for reproducibility and create a subset of the data
 set.seed(123)
-svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 1000, replace = FALSE), ]
+svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 1000, replace = FALSE), ] # only 1000 oobservations due to performance.
 
 # Visualize the distribution and density of PREMIUM_log
 hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
@@ -1430,137 +1356,68 @@ svm_data$premium_category <- cut(svm_data$PREMIUM_log,
                                  labels = c("low", "medium", "high", "very_high"))
 print(table(svm_data$premium_category))
 
-# Daten in Training und Test aufteilen (z. B. 70% Training, 30% Test)
+# Split into train & test data 70/30
 set.seed(123)
 trainIndex <- createDataPartition(svm_data$premium_category, p = 0.7, list = FALSE)
 train_data <- svm_data[trainIndex, ]
 test_data <- svm_data[-trainIndex, ]
 
-# SVM-Modelltraining mit Kreuzvalidierung und Hyperparameter-Tuning
+# Cross validation and hypertuning
 svm_model <- train(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_log + CLAIM_PAID_USD_log + 
                      CCM_TON_log + MAKE + USAGE,
                    data = train_data,
-                   method = "svmRadial",     # SVM mit radialem Kernel
-                   trControl = ctrl,         # Kontrollparameter für Kreuzvalidierung
-                   tuneGrid = tune_grid)     # Hyperparameter-Raster für Tuning
-
-# Stoppe den Cluster nach der Berechnung
+                   method = "svmRadial",     # radial kernel as there seems to be no linear relationship
+                   trControl = ctrl,         
+                   tuneGrid = tune_grid)     
 stopCluster(cl)
 
-# Modellbewertung
-print(svm_model$bestTune)     # Zeigt die besten Hyperparameter
-print(svm_model$finalModel)   # Zeigt das endgültige Modell
+# Evaluation of best model
+print(svm_model$bestTune)     # Best hyper parameters
+print(svm_model$finalModel)   # best model
 
-# Modellzusammenfassung
 print(svm_model)
 
-# Vorhersage für die Testdaten
-predictions <- predict(svm_model, newdata = test_data)
-
-# Konfusionsmatrix zur Bewertung der Modellleistung
-conf_matrix <- confusionMatrix(predictions, test_data$premium_category)
-print(conf_matrix)
-
-# Berechnung des MCC für die Testdaten
-mcc_test <- mccr(predictions, test_data$premium_category)
-print(paste("MCC for Test Data:", round(mcc_test, 4)))
-
-# Genauigkeit der Trainingsdaten
+# Predictions on training data
 pred_train <- predict(svm_model, train_data)
 conf_matrix_train <- confusionMatrix(pred_train, train_data$premium_category)
+print("Confusion metrics for TEST_DATA")
 print(conf_matrix_train)
 
-# Berechnung des MCC für die Trainingsdaten. 0 stimmt aber nicht meiner Meinung...
 mcc_train <- mccr(pred_train, train_data$premium_category)
-print(paste("MCC for Train Data:", round(mcc_train, 4)))
+print(paste("MCC for Train Data:", round(mcc_train, 4))) # something seems off here... manual calculation leads to roughly 0.58 whcih incidates a moderate positive correlation between predicted and actual classifications.
+
+
+# Predictions on test data
+pred_test <- predict(svm_model, newdata = test_data)
+
+conf_matrix <- confusionMatrix(pred_test, test_data$premium_category)
+print("Confusion metrics for TEST_DATA")
+print(conf_matrix)
+
+# Usage of MCC due to imbalanced dataset
+mcc_test <- mccr(pred_test, test_data$premium_category)
+print(paste("MCC for Test Data:", round(mcc_test, 4))) # something seems off here... manual calculation leads to roughyl 0.7 which is considered strong correlation between predicted and actual classifications.
 
 ```
 
+This analysis explores the performance of a multiclass classification task using an SVM model with a radial kernel. The goal was to classify PREMIUM_log into categories: "low," "medium," "high," and "very_high," employing hyperparameter tuning and parallel computation for efficiency. Data preparation included sampling 1000 entries from the cleaned dataset and visualizing the distribution of PREMIUM_log, followed by a 70/30 split for training and testing. It is important to note that the dataset is imbalanced, which may pose challenges in model training and evaluation, potentially impacting the reliability of certain performance metrics.
 
-```{r SVM_full_percentiles, cache=TRUE}
-# Parallelisierung einrichten
-cl <- makeCluster(detectCores() - 1) # Verwende alle verfügbaren Kerne außer einem
-registerDoParallel(cl)
-
-# Kontrollparameter für wiederholte Kreuzvalidierung
-ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
-
-# Hyperparameter-Raster für Tuning
-tune_grid <- expand.grid(
-  .C = c(0.1, 1, 10),       # Werte für 'cost'
-  .sigma = c(0.01, 0.1, 0.5) # Werte für 'gamma'
-)
-
-percentiles_full <- quantile(clean_dat_motor$PREMIUM_log, probs = c(0.25, 0.5, 0.75))
-
-# Assign categories based on the full dataset's percentiles
-clean_dat_motor$premium_category <- cut(clean_dat_motor$PREMIUM_log,
-                                         breaks = c(-Inf, percentiles_full[1], percentiles_full[2], percentiles_full[3], Inf),
-                                         labels = c("low", "medium", "high", "very_high"))
-
-
-# Daten in Training und Test aufteilen (z. B. 70% Training, 30% Test)
-set.seed(123)
-trainIndex <- createDataPartition(svm_data$premium_category, p = 0.7, list = FALSE)
-train_data <- svm_data[trainIndex, ]
-test_data <- svm_data[-trainIndex, ]
-
-# SVM-Modelltraining mit Kreuzvalidierung und Hyperparameter-Tuning
-svm_model <- train(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_log + CLAIM_PAID_USD_log + 
-                     CCM_TON_log + MAKE + USAGE,
-                   data = train_data,
-                   method = "svmRadial",     # SVM mit radialem Kernel
-                   trControl = ctrl,         # Kontrollparameter für Kreuzvalidierung
-                   tuneGrid = tune_grid)     # Hyperparameter-Raster für Tuning
-
-# Stoppe den Cluster nach der Berechnung
-stopCluster(cl)
-
-# Modellbewertung
-print(svm_model$bestTune)     # Zeigt die besten Hyperparameter
-print(svm_model$finalModel)   # Zeigt das endgültige Modell
-
-# Modellzusammenfassung
-print(svm_model)
-
-# Vorhersage für die Testdaten
-predictions <- predict(svm_model, newdata = test_data)
-
-# Konfusionsmatrix zur Bewertung der Modellleistung
-conf_matrix <- confusionMatrix(predictions, test_data$premium_category)
-print(conf_matrix)
-
-# Berechnung des MCC für die Testdaten
-mcc_test <- mccr(predictions, test_data$premium_category)
-print(paste("MCC for Test Data:", round(mcc_test, 4)))
-
-# Genauigkeit der Trainingsdaten
-pred_train <- predict(svm_model, train_data)
-conf_matrix_train <- confusionMatrix(pred_train, train_data$premium_category)
-print(conf_matrix_train)
-
-# Berechnung des MCC für die Trainingsdaten. 0 stimmt aber nicht meiner Meinung...
-mcc_train <- mccr(pred_train, train_data$premium_category)
-print(paste("MCC for Train Data:", round(mcc_train, 4)))
-
-```
-
-This analysis explores the performance of a multiclass classification task using an SVM model with a radial kernel. The goal was to classify PREMIUM_log into categories: "low," "medium," "high," and "very_high," employing hyperparameter tuning and parallel computation for efficiency. Data preparation included sampling 1,000 entries from the cleaned dataset and visualizing the distribution of PREMIUM_log, followed by a 70/30 split for training and testing. It is important to note that the dataset is imbalanced, which may pose challenges in model training and evaluation, potentially impacting the reliability of certain performance metrics.
-
-Model training was carried out with 10-fold cross-validation repeated three times, leveraging parallel processing to speed up the evaluation. A grid search was performed to find optimal values for the hyperparameters .C and .sigma, ensuring the model's robustness and generalizability.
+Model training was carried out with 10-fold cross-validation repeated three times, leveraging parallel processing to speed up the evaluation. A grid search was performed to find optimal values for the hyperparameters c (cost) and sigma, ensuring the model's robustness and generalizability.
 
 The evaluation showed that the "very_high" category had the highest sensitivity at 0.8629, while the "low" category excelled in specificity at 0.9695 and positive predictive value at 0.8926. The MCC for each class revealed strong performance overall: ~0.986 for "low," ~0.802 for "medium," ~0.781 for "high," and ~1.038 for "very_high," though the latter may indicate overestimation and warrants further review.
 
-The code process incorporated parallelized cross-validation and grid search, facilitating comprehensive hyperparameter tuning. The findings highlighted an overall accuracy of 0.7771 and a Kappa statistic of 0.7029, with McNemar's test yielding a significant P-value of 0.008264, suggesting a noteworthy difference from random classification.
+The code process incorporated parallelized cross-validation and grid search, facilitating comprehensive hyperparameter tuning. The findings highlighted an overall accuracy of 0.7771 and a Kappa statistic of 0.7029, with McNemar's test yielding a significant P-value of 0.008264 and mcc-value of roughly 0.7, suggesting a noteworthy difference from random classification.
 
-To improve the model, checking the training set's class distribution and considering resampling techniques like SMOTE may be beneficial. Additionally, validating MCC calculations to ensure accuracy, especially for anomalous values, is recommended.
+To improve the model, checking the training set's class distribution and considering resampling techniques like SMOTE could be performed to further improve the model. Additionally, validating MCC calculations to ensure accuracy, especially for anomalous values, is recommended.
 
 In conclusion, while the model showed strong results for the "low" and "very_high" categories, further optimization is needed for "medium" and "high" to enhance overall performance.
 
 
+# Conclusion
 
+# Reserve
 
-
+## SVM
 ```{r SVM radial, cache=TRUE}
 
 fit <- svm(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_log + MAKE + USAGE, 
@@ -1672,20 +1529,6 @@ Generally speaking, adapting the cost to 1 led to improved sensitivity for mediu
 The gamma of 0.5 indicated that no excessive complexities were applied to correctly identify classes.
 
 This model is an improvement over previous versions, with a slight increase in accuracy and balanced accuracy across most classes. The careful tuning of cost and gamma, combined with cross-validation, allowed for a more balanced classification without sacrificing performance on any particular class.
-
-
-
-# Conclusion
-
-
-
-
-
-
-
-
-
-# Reserve
 ### Massnahme 1):  Interaktionen
 
 ```{r lm_interaktion, cache=TRUE}
