@@ -29,6 +29,7 @@ if (!require("nnet")) install.packages("nnet")  # Neural Networks
 if (!require("e1071")) install.packages("e1071")  # Support Vector Machine (SVM)
 if (!require("MASS")) install.packages("MASS")
 if (!require("arm")) install.packages("arm")
+if (!require("caret")) install.packages("caret")
 if (!require("pscl")) install.packages("pscl")
 if (!require("doParallel")) install.packages("doParallel")
 if (!require("rcompanion")) install.packages("rcompanion")
