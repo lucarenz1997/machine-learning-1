@@ -11,7 +11,7 @@ See the [Project Requirements](#project-requirements) for more information.
 <details> 
 
 <summary> 
-  Details
+  Details (Academic requirements)
 </summary>
 
 ## Group work
@@ -347,3 +347,5 @@ penalised.
 
 </details>
 
+
+## ToDo
