@@ -1409,7 +1409,7 @@ The evaluation showed that the "very_high" category had the highest sensitivity 
 
 The code process incorporated parallelized cross-validation and grid search, facilitating comprehensive hyperparameter tuning. The findings highlighted an overall accuracy of 0.7771 and a Kappa statistic of 0.7029, with McNemar's test yielding a significant P-value of 0.008264 and mcc-value of roughly 0.7, suggesting a noteworthy difference from random classification.
 
-To improve the model, checking the training set's class distribution and considering resampling techniques like SMOTE could be performed to further improve the model. Additionally, validating MCC calculations to ensure accuracy, especially for anomalous values, is recommended.
+To improve the model, checking the training set's class distribution and considering resampling techniques like random oversampling or SMOTE could be performed to further improve the model. Additionally, validating MCC calculations to ensure accuracy, especially for anomalous values, is recommended.
 
 In conclusion, while the model showed strong results for the "low" and "very_high" categories, further optimization is needed for "medium" and "high" to enhance overall performance.
 
