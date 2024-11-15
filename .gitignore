@@ -35,3 +35,7 @@ po/*~
 rsconnect/
 /data/
 .idea
+# copy folder
+*-copy*/
+
+

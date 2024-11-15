@@ -1,6 +1,6 @@
 ---
 authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
-date: "2024-01-10"  
+date: "`r Sys.Date()`"   
 title: "ML1"
 output: "html_document"
 ---
@@ -34,7 +34,6 @@ if (!require("gam")) install.packages("gam")
 if (!require("MLmetrics")) install.packages("MLmetrics")
 if (!require("mccr")) install.packages("mccr")
 if (!require("NeuralNetTools")) install.packages("NeuralNetTools")
-if (!require("keras")) install.packages("keras")
 
 library(car)
 library(readr,quietly = T)
@@ -57,7 +56,6 @@ library(doParallel)#SVM Parallelisierung
 library(MLmetrics)  # For MCC calculation
 library(mccr)
 library(NeuralNetTools) # For Neural Network visualization
-library(keras)  # For Neural Networks
 
 ```
 
@@ -824,7 +822,7 @@ ggplot(dat_amount_claims, aes(x = fitted_zip, y = AMOUNT_CLAIMS)) +
 A neural network model is fitted to predict the premium amount based on the characteristics of the insured vehicles and the driver. The model is trained using the cleaned and transformed data, and the results are analyzed to evaluate the model's performance.
 
 
-```{r neuralnetworkv2, results='hide'}
+```{r Neural Network, results='hide'}
 # Data Preparation: Split the data into training and testing sets
 set.seed(123)
 train_index <- sample(seq_len(nrow(clean_dat_motor)), 0.8 * nrow(clean_dat_motor))
@@ -922,9 +920,11 @@ The neural network model was trained to predict the log-transformed premium amou
 
 The plots of predicted vs. actual premium amounts show that the neural network model generally performs well in predicting the premium amounts. The points are clustered around the diagonal line, indicating a good alignment between the actual and predicted values. The model captures the general trend of the premiums, with some deviations for higher premium values. The model's performance can be further evaluated by considering additional metrics such as the R-squared value, RMSE, MAE, and MAPE, which provide insights into the model's accuracy and predictive power.
 
+### Neural Network Cross Validation
+
 Nevertheless, we cannot be sure that those values for the model above are truly correct or it was luck that the model performs well at a first instance. To solve this question, the NN will be run again using **k-fold Cross Validation** with hyperparameter tuning. This approach will help ensure that the model's performance is robust and not due to overfitting or random chance. The k-fold Cross Validation will produce a more reliable estimate of the model's performance by splitting the data into k = 10 subsets, training the model on k-1 subsets, and validating it on the remaining subset. This process is repeated k times, and the results are averaged to provide a comprehensive evaluation of the model.
 
-```{r nnetworkv4, results='hide'}
+```{r Neural Network Cross Validation, results='hide'}
 # Repeat neural network with caret and cross validation
 # Load necessary libraries
 library(caret)
