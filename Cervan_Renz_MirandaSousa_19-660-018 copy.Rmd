@@ -1,0 +1,1024 @@
+---
+authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
+date: "2024-01-10"  
+title: "ML1"
+output: "html_document"
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r load_packages, echo =FALSE, cache=TRUE}
+
+#Install and import libraries.
+if (!require("car")) install.packages("car")  # Support Vector Machine (SVM)
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("ROI")) install.packages("ROI")
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("lubridate")) install.packages("lubridate")
+if (!require("corrplot")) install.packages("corrplot")
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("GGally")) install.packages("GGally")
+if (!require("mgcv")) install.packages("mgcv")  # Generalised Additive Model (GAM)
+if (!require("nnet")) install.packages("nnet")  # Neural Networks
+if (!require("e1071")) install.packages("e1071")  # Support Vector Machine (SVM)
+if (!require("MASS")) install.packages("MASS")
+if (!require("arm")) install.packages("arm")
+if (!require("caret")) install.packages("caret")
+if (!require("pscl")) install.packages("pscl")
+if (!require("doParallel")) install.packages("doParallel")
+if (!require("rcompanion")) install.packages("rcompanion")
+if (!require("gam")) install.packages("gam")
+if (!require("MLmetrics")) install.packages("MLmetrics")
+if (!require("mccr")) install.packages("mccr")
+if (!require("NeuralNetTools")) install.packages("NeuralNetTools")
+if (!require("keras")) install.packages("keras")
+
+library(car)
+library(readr,quietly = T)
+library(ggplot2, quietly = T)
+library(ROI, quietly = T)
+library(tidyverse, quietly = T)
+library(lubridate, quietly = T)
+library(corrplot, quietly = T)
+library(dplyr)
+library(GGally)
+library(mgcv)  # For Generalised Additive Models
+library(nnet)  # For Neural Networks
+library(e1071)  # For Support Vector Machine
+library(arm)
+library(caret)
+library(pscl) #zeroinflated
+library(rcompanion)
+library(gam)
+library(doParallel)#SVM Parallelisierung
+library(MLmetrics)  # For MCC calculation
+library(mccr)
+library(NeuralNetTools) # For Neural Network visualization
+library(keras)  # For Neural Networks
+
+```
+
+
+# Data Preprocessing
+
+```{r data_prep, echo=FALSE, cache=TRUE}
+
+# DATA LOAD
+raw_dat_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
+
+dim(raw_dat_motor)
+str(raw_dat_motor)
+
+#DATA PREP
+
+#EFFECTIVE_YR
+#Entfernen der Spalte EFFECTIVE_YR (Hat keinen Nutzen, da nicht entziffert werden kann)
+raw_dat_motor <- raw_dat_motor[ , !(names(raw_dat_motor) %in% "EFFECTIVE_YR")]
+
+#CARRYING_CAPACITY
+#Entfernen der Spalte CARRYING_CAPACITY
+raw_dat_motor <- raw_dat_motor[ , !(names(raw_dat_motor) %in% "CARRYING_CAPACITY")]
+
+#CLAIM_PAID
+raw_dat_motor$CLAIM_PAID_USD <- ifelse(is.na(raw_dat_motor$CLAIM_PAID), 0, raw_dat_motor$CLAIM_PAID)
+raw_dat_motor$CLAIM_PAID <- ifelse(raw_dat_motor$CLAIM_PAID_USD == 0, "NO", "YES")
+
+# Entfernen von Duplikaten und Zählen der entfernten Zeilen
+removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
+# Ausgabe der Anzahl der entfernten Duplikate
+cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+
+#SEX
+raw_dat_motor$SEX <- factor(raw_dat_motor$SEX, 
+                            levels = c(0, 1, 2), 
+                            labels = c("Legal entity", "Male", "Female"))
+table(raw_dat_motor$SEX)
+
+#INSR_BEGIN
+raw_dat_motor$INSR_BEGIN <- dmy(raw_dat_motor$INSR_BEGIN)
+
+#INSR_END
+raw_dat_motor$INSR_END <- dmy(raw_dat_motor$INSR_END)
+
+#DURATION
+raw_dat_motor$DURATION <- as.numeric(as.Date(raw_dat_motor$INSR_END) - as.Date(raw_dat_motor$INSR_BEGIN))
+hist(raw_dat_motor$DURATION)
+#Gleiche DURATION (Vertragsdauer) zur Vergleichbarkeit
+raw_dat_motor <- raw_dat_motor[raw_dat_motor$DURATION == 364, ]
+
+#Jahr des Versicherungsbeginns extrahieren und als neue Variable hinzufügen
+raw_dat_motor$START_INS_YR <- year(as.Date(raw_dat_motor$INSR_BEGIN))
+
+#INSR_TYPE
+raw_dat_motor$INSR_TYPE <- factor(raw_dat_motor$INSR_TYPE, 
+                                  levels = c(1201, 1202, 1204), 
+                                  labels = c("Private", "Commercial", "Motor trade road risk"))
+
+#INSURED_VALUE
+#Überprüfen der Anzahl der fehlenden Werte
+missing_values <- sum(is.na(raw_dat_motor$INSURED_VALUE))
+cat("Fehlende Werte in INSURED_VALUE:", missing_values, "\n")
+
+#Zusammenfassung der statistischen Kennzahlen
+summary_stats <- summary(raw_dat_motor$INSURED_VALUE)
+cat("Zusammenfassung der statistischen Kennzahlen von INSURED_VALUE:\n")
+print(summary_stats)
+
+#Ermittlung der Anzahl der Einträge, die 0 als Wert haben
+zero_values <- sum(raw_dat_motor$INSURED_VALUE == 0, na.rm = TRUE)
+cat("Anzahl der Einträge mit dem Wert 0 in INSURED_VALUE:", zero_values, "\n")
+
+#Überprüfe, wie viele Datensätze betroffen sind
+zero_insured_value <- raw_dat_motor[raw_dat_motor$INSURED_VALUE == 0, ]
+cat("Anzahl der Datensätze mit INSURED_VALUE = 0:", nrow(zero_insured_value), "\n")
+
+#Zusammenfassung der betroffenen Datensätze nach verschiedenen Variablen, um Muster zu erkennen
+cat("Verteilung der Versicherungstypen (INSR_TYPE) bei INSURED_VALUE = 0:\n")
+table(raw_dat_motor$INSR_TYPE) #Alle
+print(table(zero_insured_value$INSR_TYPE)) #nur 0
+
+cat("\nVerteilung der Fahrzeugtypen (TYPE_VEHICLE) bei INSURED_VALUE = 0:\n")
+print(table(zero_insured_value$TYPE_VEHICLE))
+
+cat("\nVerteilung der Fahrzeugnutzung (USAGE) bei INSURED_VALUE = 0:\n")
+print(table(zero_insured_value$USAGE))
+
+#Statistische Kennzahlen für andere Variablen bei INSURED_VALUE = 0 (z.B. PREMIUM)
+cat("\nZusammenfassung der Prämien (PREMIUM) bei INSURED_VALUE = 0:\n")
+summary(zero_insured_value$PREMIUM)
+
+#Visualisierung der Fahrzeugnutzung bei INSURED_VALUE = 0
+ggplot(zero_insured_value, aes(x = USAGE)) +
+  geom_bar(fill = "blue", color = "black") +
+  labs(title = "Verteilung der Fahrzeugnutzung bei INSURED_VALUE = 0", x = "Fahrzeugnutzung", y = "Anzahl") +
+  theme_minimal()
+
+#Fazit: Es wurde kein Zusammenhang festgestellt. Vermutlich ist der Versicherungswert von 0 darauf zurückzuführen, dass gesetzlich nur eine Haftpflichtversicherung erforderlich ist. In diesen Fällen gibt es keinen festgelegten Wert für Schäden am Fahrzeug selbst. Daher werden Datensätze mit einem INSURED_VALUE von 0 aus der Analyse entfernt, da sie keine relevanten Informationen für die Bewertung von Fahrzeugwerten enthalten.
+
+#Entfernen der Zeilen, bei denen INSURED_VALUE gleich 0 ist
+raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE != 0, ]
+
+#Überprüfen, ob die Zeilen erfolgreich entfernt wurden
+cat("Anzahl der verbleibenden Datensätze:", nrow(raw_dat_motor), "\n")
+
+#Verteilung von INSURED_VALUE visualisieren (Histogramm)
+ggplot(raw_dat_motor, aes(x = INSURED_VALUE)) +
+  geom_histogram(binwidth = 50000, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Verteilung von INSURED_VALUE", x = "Versicherter Wert", y = "Häufigkeit") +
+  theme_minimal()
+
+#Boxplot zur Identifizierung von Ausreissern
+ggplot(raw_dat_motor, aes(y = INSURED_VALUE)) +
+  geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
+  labs(title = "Boxplot von INSURED_VALUE", y = "Versicherter Wert") +
+  theme_minimal()
+
+#Überprüfung der statistischen Kennzahlen ohne die 0-Werte
+cat("Zusammenfassung der statistischen Kennzahlen ohne 0-Werte:\n")
+print(summary(raw_dat_motor$INSURED_VALUE))
+
+#Verteilung der log-transformierten INSURED_VALUE (nur für nicht-null Werte)
+ggplot(raw_dat_motor[raw_dat_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VALUE))) +
+  geom_histogram(binwidth = 0.2, fill = "green", color = "black", alpha = 0.7) +
+  labs(title = "Log-transformierte Verteilung von INSURED_VALUE (ohne Nullwerte)", x = "log(Versicherter Wert)", y = "Häufigkeit") +
+  theme_minimal()
+
+summary(raw_dat_motor$INSURED_VALUE)
+
+#Ausreisser INSURED_VALUE entfernen 
+raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE >= 10, ]
+summary(raw_dat_motor$INSURED_VALUE)
+
+#Workspace
+rm(zero_insured_value)
+
+#PREMIUM
+#Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
+data.frame(
+  PREMIUM_0_Percent = round(100 * sum(raw_dat_motor$PREMIUM == 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
+  PREMIUM_NA_Percent = round(100 * sum(is.na(raw_dat_motor$PREMIUM)) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
+  PREMIUM_MORE_Percent = round(100 * sum(raw_dat_motor$PREMIUM > 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), 4)
+)
+
+#Entfernen der Zeilen, bei denen PREMIUM NA oder 0 ist
+raw_dat_motor <- raw_dat_motor[!(is.na(raw_dat_motor$PREMIUM) | raw_dat_motor$PREMIUM == 0), ]
+
+
+# Entfernen von Duplikaten und Zählen der entfernten Zeilen
+removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
+# Ausgabe der Anzahl der entfernten Duplikate
+cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+
+# OBJECT_ID
+# Anzahl der Gesamtzeilen im Datensatz
+total_rows <- nrow(raw_dat_motor)
+
+# Anzahl der einzigartigen OBJECT_IDs
+unique_object_ids <- length(unique(raw_dat_motor$OBJECT_ID))
+
+# Überprüfen, ob OBJECT_IDs einmalig sind
+if (total_rows == unique_object_ids) {
+  cat("Die OBJECT_IDs sind einmalig.\n")
+} else {
+  cat("Die OBJECT_IDs sind NICHT einmalig.\n")
+  cat("Anzahl der Duplikate:", total_rows - unique_object_ids, "\n")
+  
+  # Häufigkeit der OBJECT_IDs
+  object_id_counts <- table(raw_dat_motor$OBJECT_ID)
+  
+  # Durchschnittliche und maximale Häufigkeit von OBJECT_ID
+  avg_object_id_freq <- mean(object_id_counts)
+  max_object_id_freq <- max(object_id_counts)
+  
+  cat("Durchschnittliche Häufigkeit der OBJECT_ID:", round(avg_object_id_freq, 3), "\n")
+  cat("Maximale Häufigkeit der OBJECT_ID:", max_object_id_freq, "\n")
+  
+  # Häufigkeit der Kombination von OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE und PREMIUM
+  combo_counts <- raw_dat_motor %>%
+    group_by(OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM) %>%
+    summarise(count = n(), .groups = 'drop')
+  
+  # Durchschnittliche und maximale Häufigkeit der Kombination
+  avg_combo_freq <- mean(combo_counts$count) # Durchschnittliche Häufigkeit der Kombination
+  max_combo_freq <- max(combo_counts$count)   # Maximale Häufigkeit der Kombination
+  
+  cat("Durchschnittliche Häufigkeit der Kombination (OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM):", round(avg_combo_freq, 3), "\n")
+  cat("Maximale Häufigkeit der Kombination (OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM):", max_combo_freq, "\n")
+}
+
+#Teilweise gibt es bei CLAIM_PAID== YES eine vervielfachung
+#Korrektur bzw. entfernen dieser mehrfachen Zeilen
+raw_dat_motor <- raw_dat_motor %>%
+  group_by(SEX, INSR_BEGIN, INSR_END, INSR_TYPE, INSURED_VALUE, PREMIUM, OBJECT_ID, PROD_YEAR, SEATS_NUM, TYPE_VEHICLE, CCM_TON, MAKE, USAGE) %>%
+  # Zähle die Anzahl der Zeilen in jeder Gruppe
+  mutate(group_size = n()) %>%
+  ungroup() %>%
+  # Entferne Zeilen nur, wenn es eine Doppelzeile gibt und CLAIM_PAID == "NO" und CLAIM_PAID_USD <= 1
+  filter(!(group_size > 1 & CLAIM_PAID == "NO" & CLAIM_PAID_USD <= 1)) %>%
+  dplyr::select(-group_size)  # Entferne die Hilfsspalte
+
+#Korrektur Wiederspruch bei INSR_TYPE
+raw_dat_motor <- raw_dat_motor %>%
+  group_by(SEX, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM, OBJECT_ID, PROD_YEAR, SEATS_NUM, TYPE_VEHICLE, CCM_TON, MAKE, USAGE) %>%
+  filter(!(n() > 1 & INSR_TYPE != "Commercial")) %>%  # Behalte nur die Zeilen mit "Commercial"
+  ungroup()  # Ungroup, um das Gruppierungsobjekt zu entfernen
+
+# Clear Workspace
+rm(list = setdiff(ls(), "raw_dat_motor"))
+
+
+#PROD_YEAR
+#Zeilen mit PROD_YEAR NA entfernen
+raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$PROD_YEAR),]
+summary(raw_dat_motor$PROD_YEAR)
+
+#SEATS_NUM
+#Analyse SEATS_NUM: Anzahl der Zeilen mit SEATS_NUM == 0, NA und anderen Werten
+data.frame(
+  SEATS_NUM_0 = sum(raw_dat_motor$SEATS_NUM == 0, na.rm = TRUE),
+  SEATS_NUM_NA = sum(is.na(raw_dat_motor$SEATS_NUM)),
+  SEATS_NUM_OTHER = sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE)
+)
+#Relativ: Prozentsatz der Zeilen mit SEATS_NUM == 0, NA oder anderen Werten
+data.frame(
+  SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(raw_dat_motor$SEATS_NUM) | raw_dat_motor$SEATS_NUM == 0) / nrow(raw_dat_motor),
+  SEATS_NUM_OTHER_Percent = 100 * sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(raw_dat_motor)
+)
+#Zeilen mit SEATS_NUM NA entfernen
+raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$SEATS_NUM),]
+summary(raw_dat_motor$SEATS_NUM)
+
+#Problematik: Es gibt SEATS_NUM mit 0
+
+##Erstellen separater Datensätze für SEATS_NUM == 0 und SEATS_NUM > 0
+#data_seats_num_0 <- subset(raw_dat_motor, SEATS_NUM == 0)
+#data_seats_num_other <- subset(raw_dat_motor, SEATS_NUM > 0 & !is.na(SEATS_NUM))
+## Tabellen der Fahrzeugtypen für beide Datensätze
+#table(data_seats_num_0$TYPE_VEHICLE)
+#table(data_seats_num_other$TYPE_VEHICLE)
+
+##SEATS_NUM Alternative 1: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
+##Liste der Fahrzeugtypen, bei denen SEATS_NUM == 0 unplausibel ist (Trailers and semitrailers, Tractor, Tanker werden gelassen)
+#unplausible_types <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Station Wagones", "Tanker", "Truck")
+##Entfernen der Zeilen, bei denen SEATS_NUM == 0 und der Fahrzeugtyp unplausibel ist
+#raw_dat_motor <- raw_dat_motor[!(raw_dat_motor$SEATS_NUM == 0 & raw_dat_motor$TYPE_VEHICLE %in% unplausible_types), ]
+#
+#
+##SEATS_NUM Alternative 2: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
+#raw_dat_motor <- raw_dat_motor[!(is.na(raw_dat_motor$SEATS_NUM) | raw_dat_motor$SEATS_NUM == 0), ]
+#
+##SEATS_NUM Alternative 3: Entfernen der SEATS_NUM-Spalte, da viele NA und schlechte Datenqualität
+##raw_dat_motor <- subset(raw_dat_motor, select = -SEATS_NUM)
+
+#TYPE_VEHICLE
+#Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (5)
+#table(raw_dat_motor$TYPE_VEHICLE)
+raw_dat_motor <- raw_dat_motor[raw_dat_motor$TYPE_VEHICLE != "Trade plates", ]
+
+#CCM_TON
+summary(raw_dat_motor$CCM_TON)
+#Relativ CCM_TON 0
+data.frame(
+  CCM_TON_0_Percent = 100 * mean(raw_dat_motor$CCM_TON == 0, na.rm = TRUE),
+  CCM_TON_MORE_Percent = 100 * mean(raw_dat_motor$CCM_TON > 0, na.rm = TRUE))
+# Erstellen separater Datensätze für CCM_TON == 0 und CCM_TON > 0
+data_CCM_TON_0 <- subset(raw_dat_motor, CCM_TON == 0)
+data_CCM_TON_other <- subset(raw_dat_motor, CCM_TON > 0 & !is.na(CCM_TON))
+# Tabellen der Fahrzeugtypen für beide Datensätze
+table(data_CCM_TON_0$TYPE_VEHICLE)
+table(data_CCM_TON_other$TYPE_VEHICLE)
+# Liste der Fahrzeugtypen, bei denen CCM_TON == 0 unplausibel ist (Tractor,Trailers and semitrailers werden gelassen)
+unplausible_types_ccm <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Truck", "Station Wagones", "Tanker", "Special construction")
+# Entfernen der Zeilen, bei denen CCM_TON == 0 und der Fahrzeugtyp unplausibel ist
+raw_dat_motor <- raw_dat_motor[!(raw_dat_motor$CCM_TON == 0 & raw_dat_motor$TYPE_VEHICLE %in% unplausible_types_ccm), ]
+
+
+#USAGE
+#table(raw_dat_motor$USAGE)
+#Wenige Ausprägungen entfernen
+raw_dat_motor <- subset(raw_dat_motor, !(USAGE %in% c("Fire fighting", "Learnes", "Others")))
+
+
+
+#MAKE
+#Zeilen mit MAKE NA entfernen
+raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$MAKE),]
+#MAKE in Grossbuchstaben umwandeln
+raw_dat_motor$MAKE <- toupper(raw_dat_motor$MAKE)
+
+#Entfernen von Duplikaten und Zählen der entfernten Zeilen
+removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
+#Ausgabe der Anzahl der entfernten Duplikate
+cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+# Behalten von Zeilen, in denen MAKE mit Buchstaben beginnt
+raw_dat_motor <- raw_dat_motor[grepl("^[A-Za-z]", raw_dat_motor$MAKE), ]
+table(raw_dat_motor$MAKE)
+
+
+#Manuelle Korrekturen von MAKE
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("PORCHE", "FORSCHE")] <- "PORSCHE"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE == "YAMHA"] <- "YAMAHA"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("VOLKSWAGON", "VOLKS WAGON")] <- "VOLKSWAGEN"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("TOYOTAA", "TOYOTA*", "TOYTA", "TOYOTA AUTOMOBILE",
+                                             "TOYATA", "T0Y0TA", "COMPACT YARIS", "YARIS",
+                                             "LAND CRUISER", "VITZ")] <- "TOYOTA"
+raw_dat_motor$MAKE[grepl("^TOYOTA", raw_dat_motor$MAKE)] <- "TOYOTA"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("NISAN", "NISSAN*")] <- "NISSAN"
+raw_dat_motor$MAKE[grepl("^NISSAN", raw_dat_motor$MAKE)] <- "NISSAN"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("RENGE  ROVER", "RANGEROVER")] <- "RANGE ROVER"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("RENALT", "RENUALT", "RENAULT/STOLARCZYK", "RENAULT*")] <- "RENAULT"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("PEUGEOUT", "PEJOT", "PAGOT")] <- "PEUGEOT"
+raw_dat_motor$MAKE[grepl("^PEUGEOT", raw_dat_motor$MAKE)] <- "PEUGEOT"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("BMB")] <- "BMW"
+raw_dat_motor$MAKE[grepl("^BMW", raw_dat_motor$MAKE)] <- "BMW"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MISTIBUSH", "MITSUBISHI*", "MITSUBUSHI")] <- "MITSUBISHI"
+raw_dat_motor$MAKE[grepl("^FORD", raw_dat_motor$MAKE)] <- "FORD"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("SPORTAGE")] <- "KIA"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MERCEEDES", "MERCEEDICE", "MERCEDICE", "MERCHEDES")] <- "MERCEDES"
+raw_dat_motor$MAKE[grepl("^MERCEDES", raw_dat_motor$MAKE)] <- "MERCEDES"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("SUZIKE")] <- "SUZUKI"
+raw_dat_motor$MAKE[grepl("^SUZUKI", raw_dat_motor$MAKE)] <- "SUZUKI"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("HYUNDI GETZ")] <- "HYUNDAI"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("ISUSU")] <- "ISUZU"
+raw_dat_motor$MAKE[grepl("^ISUZU", raw_dat_motor$MAKE)] <- "ISUZU"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("FRANKUN IVECO")] <- "IVECO"
+raw_dat_motor$MAKE[grepl("^IVECO", raw_dat_motor$MAKE)] <- "IVECO"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("LANDROVER")] <- "LAND ROVER"
+
+
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("DONGFANG", "DONFING", "DONG FENGSHEN", "DONG FENG")] <- "DONGFENG"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MAHANDRA")] <- "MAHINDRA"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("HOLAND CAR")] <- "ABAY"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("CALABRASE")] <- "CALABRESE"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("GELYION", "GENLION", "GELION", "GENLYONIVECO", "HONGYAN")] <- "GENLYON"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("DHATSU", "DIATSU", "DIAHATSU")] <- "DAIHATSU"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("DAWOO", "DAWWO", "DEAWOO", "DEAWOO USE")] <- "DAEWOO"
+raw_dat_motor$MAKE[grepl("^LIFAN", raw_dat_motor$MAKE)] <- "LIFAN"
+raw_dat_motor$MAKE[grepl("^BAIC", raw_dat_motor$MAKE)] <- "BAIC"
+raw_dat_motor$MAKE[grepl("^LOADER", raw_dat_motor$MAKE)] <- "LOADER"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("MOTOR CYCLE", "MOTOR  CYCLE")] <- "MOTORCYCLE"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("AUTO", "AUTOMOBIL")] <- "AUTOMOBILE"
+raw_dat_motor$MAKE[grepl("^CATERPILLAR", raw_dat_motor$MAKE)] <- "CATERPILLAR"
+raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("LIBER DOZER", "LIBERR MOBILE CRANE",
+                                             "LIEBERR MOBILE CRANE", "LEABER CATO CRANE",
+                                             "LEBHER CRANE", "CRANE LEBEHER",
+                                             "CRANE LEBHERER", "LIBER", "LIBEHER CRANE",
+                                             "LIBERR MOBILECRANE", "CRANELEBHER")] <- "LIEBHERR"
+
+#table(raw_dat_motor$MAKE)
+
+#Zähle die Anzahl der Einträge pro MAKE, wo CLAIM_PAID == "YES"
+count_claims_paid <- raw_dat_motor %>%
+  group_by(MAKE, CLAIM_PAID ) %>%                 # Gruppiere nach MAKE
+  summarise(count = n()) %>%        # Zähle die Einträge pro Gruppe
+  arrange(desc(count)) 
+
+###############################################################################################
+
+
+#Liste der gewünschten Fahrzeughersteller (Make)
+selected_makes <- c("TOYOTA", "ISUZU", "NISSAN", "IVECO", "SINO HOWO", 
+                    "MITSUBISHI", "BISHOFTU", "LIFAN", "FORD", "HYUNDAI", 
+                    "MAZDA", "GEELY", "DAEWOO", "MERCEDES", "TATA", 
+                    "FIAT", "SINO", "SUZUKI", "GENLYON", "RENAULT")
+
+#Filtern des Datensatzes nach den ausgewählten Fahrzeugherstellern
+clean_dat_motor <- subset(raw_dat_motor, MAKE %in% selected_makes)
+
+#Wenige Ausprägungen entfernen
+#table(clean_dat_motor$SEX) #OK
+
+#table(clean_dat_motor$USAGE)
+clean_dat_motor <- subset(clean_dat_motor, !(USAGE %in% c("Agricultural Any Farm",
+                                                          "Agricultural Own Farm",
+                                                          "Special Construction", "Taxi")))
+
+#table(clean_dat_motor$TYPE_VEHICLE)
+#Wenige Ausprägungen entfernen
+clean_dat_motor <- subset(clean_dat_motor, !(TYPE_VEHICLE %in% c("Tractor")))
+
+#table(clean_dat_motor$INSR_TYPE)
+#Wenige Ausprägungen entfernen
+clean_dat_motor <- subset(clean_dat_motor, !(INSR_TYPE %in% c("Motor trade road risk")))
+
+#table(clean_dat_motor$MAKE)
+
+#CLAIM_PAID
+data.frame(
+  CLAIM_PAID_0 = sum(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0 = sum(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+
+data.frame(
+  CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+
+#New Variable: age_vehicle
+clean_dat_motor$AGE_VEHICLE <- 2018 - clean_dat_motor$PROD_YEAR
+#Entfernen von PROD_YEAR
+clean_dat_motor<- clean_dat_motor[,-8]
+
+
+
+#New variable: AMOUNT_CLAIMS_PAID (Number of previous claims per object ID)
+clean_dat_motor <- clean_dat_motor %>%
+  # Für jede object_ID und jedes Startjahr, kumuliere die Anzahl vorheriger Claims mit "YES"
+  group_by(OBJECT_ID) %>%
+  arrange(OBJECT_ID, START_INS_YR) %>%
+  mutate(
+    AMOUNT_CLAIMS_PAID = sapply(seq_along(START_INS_YR), function(i) {
+      sum(CLAIM_PAID[1:(i-1)] == "YES" & START_INS_YR[1:(i-1)] < START_INS_YR[i])
+    })
+  ) %>%
+  ungroup()
+
+
+###############################################################################################
+
+#Vergleich zum Rohdatensatz
+#CLAIM_PAID
+data.frame(
+  CLAIM_PAID_0 = sum(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0 = sum(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+
+data.frame(
+  CLAIM_PAID_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+
+data.frame(
+  CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+
+
+###############################################################################################
+
+#NA
+colSums(is.na(raw_dat_motor)) 
+colSums(is.na(clean_dat_motor)) 
+
+#Entfernen der Variablen 'versicherungsbeginn' und 'versicherungsende'
+clean_dat_motor <- subset(clean_dat_motor, select = -c(INSR_BEGIN, INSR_END, DURATION))
+
+# Neuanordnung der Spalten: Zuerst OBJECT_ID, dann START_INS_YR, dann der Rest
+clean_dat_motor <- clean_dat_motor %>%
+  dplyr::select(OBJECT_ID, START_INS_YR, SEX, INSR_TYPE, USAGE, TYPE_VEHICLE,
+                MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, PREMIUM, CLAIM_PAID_USD, everything())
+
+#Data set too large: Draw 100000 random samples
+clean_dat_motor_origin<- clean_dat_motor
+set.seed(123)
+clean_dat_motor <- sample_n(clean_dat_motor, size = 100000)
+
+
+#Umwandlung der kategorialen Variablen in Factor-Variablen
+clean_dat_motor$OBJECT_ID <- as.factor(clean_dat_motor$OBJECT_ID)
+clean_dat_motor$SEX <- as.factor(clean_dat_motor$SEX)
+clean_dat_motor$INSR_TYPE <- as.character(clean_dat_motor$INSR_TYPE)
+clean_dat_motor$INSR_TYPE <- as.factor(clean_dat_motor$INSR_TYPE)
+clean_dat_motor$MAKE <- as.factor(clean_dat_motor$MAKE)
+clean_dat_motor$USAGE <- as.factor(clean_dat_motor$USAGE)
+clean_dat_motor$CLAIM_PAID <- as.factor(clean_dat_motor$CLAIM_PAID)
+clean_dat_motor$TYPE_VEHICLE <- as.factor(clean_dat_motor$TYPE_VEHICLE)
+clean_dat_motor$START_INS_YR <- as.factor(clean_dat_motor$START_INS_YR)
+
+
+# Clear Workspace
+rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
+rm(clean_dat_motor_origin)
+
+
+```
+
+
+
+# Graphical Data Analysis
+
+First, the distribution of the individual numerical variables is analysed to determine whether any transformations are necessary.
+
+```{r graph_data_analysis, cache = TRUE}
+
+# Auswahl nur der numerischen Variablen
+numeric_vars <- clean_dat_motor %>%
+  select_if(is.numeric)
+
+# Erstellen von Histogrammen für jede numerische Variable
+for (var in names(numeric_vars)) {
+  print(
+    ggplot(clean_dat_motor, aes_string(x = var)) +
+      geom_histogram(bins = 30, color = "black", fill = "skyblue") +
+      ggtitle(paste("Histogram of", var)) +
+      theme_minimal() +
+      xlab(var) +
+      ylab("Frequency") +
+      theme(plot.title = element_text(hjust = 0.5))
+  )
+}
+
+###################################################################################
+
+#Weitere grafische Analysen
+boxplot(PREMIUM ~ SEX, data = clean_dat_motor,
+main = "Premium against sex",
+ylab = "Premium")
+
+boxplot(CLAIM_PAID_USD ~ SEX, data = clean_dat_motor,
+main = "Claim paid (USD) against sex",
+ylab = "Claim paid (USD)")
+
+
+##############################################
+
+#Log-Transformation
+clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
+clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
+#Log-Transformation mit log1p() wegen der vielen 0-Werte
+clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
+clean_dat_motor$CCM_TON_log <- log1p(clean_dat_motor$CCM_TON)
+
+
+# Clear Workspace
+rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
+
+```
+
+The histograms show that the variables INSURED_VALUE, PREMIUM, CLAIM_PAID_USD and CCM_TON are right-skewed and require a log transformation. The transformed variables can be inserted in the later regression models instead of the original variables.
+
+
+# Models
+## Linear Model
+
+
+A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the premium is incurred at the start of the contract and this would therefore not make technical sense. Instead, a bonus-malus system is taken into account by adding AMOUNT_CLAIMS_PAID.
+
+```{r linear_model, cache = TRUE}
+
+#Fit the linear model
+lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
+                 AGE_VEHICLE + SEATS_NUM + CCM_TON_log +INSURED_VALUE_log +
+                 AMOUNT_CLAIMS_PAID, data = clean_dat_motor)
+
+#Summary of the model
+summary(lm_model)
+#Perform an F-test to drop non-significant categorical variables one at a time
+drop1(lm_model, test= "F") #Bei mehrere Kat Var.
+#coefficients
+coef(lm_model)
+
+#Variance Inflation Factor (VIF) for each predictor to check for multicollinearity
+#vif(lm_model)
+
+#Residual Analysis
+#Q-Q Plot to assess if residuals follow a normal distribution
+qqnorm(lm_model$residuals)
+qqline(lm_model$residuals, col = "red")
+
+#Residuals vs Fitted Values (check for patterns or heteroscedasticity)
+plot(lm_model$fitted.values, lm_model$residuals, 
+     main = "Residuals vs Fitted Values",
+     xlab = "Fitted Values",
+     ylab = "Residuals")
+abline(h = 0, col = "red")
+
+#Model Performance
+#Calculation of Mean Squared Error (MSE)
+mse <- mean(lm_model$residuals^2)
+cat("Mean Squared Error (MSE):", mse, "\n")
+
+#Calculation of R-squared value
+r_squared <- summary(lm_model)$r.squared
+cat("R-squared:", r_squared, "\n")
+
+```
+
+
+The model summary shows that the Multiple R-squared value is 0.7308, indicating that the model can explain approximately 73.08% of the variance in premiums. This suggests that the model provides a good fit to the data. The F-test for the overall model is significant (p < 2.2e-16), indicating that the predictors as a group have a substantial effect on the premium.
+
+All predictors have a significant impact on the target variable PREMIUM_log. For instance, the categories SEX and USAGE (usage) have a significant effect on PREMIUM_log. Men pay slightly less compared to women, while certain usages, such as "Fare Paying Passengers," lead to higher premiums. In contrast, usages like "Own Goods" and "Private" are associated with lower premiums.
+
+The coefficient of INSURED_VALUE_log (0.7682) in the model shows that the insured value of the vehicle has a strong influence on the premium level. Since both the insured value and the premium are logarithmically transformed, this means that a 1% increase in the insured value results in approximately a 0.7682% increase in the premium. This illustrates the direct and positive relationship between vehicle value and premium: higher-insured vehicles attract proportionally higher premiums, as they represent a greater financial risk for the insurer. Overall, this coefficient confirms that vehicle value is one of the most significant factors in premium calculation.
+
+The coefficient of AMOUNT_CLAIMS_PAID, with a value of 0.1363, indicates that an increase in the number of claims leads to an increase in the log-transformed premium by approximately 0.1363. This means that each additional claim results in a proportional increase in the premium by about 13.63%. This coefficient highlights that an insured’s claim history has a significant impact on the premium level.
+
+The coefficient of AGE_VEHICLE is 0.0029, indicating that with each additional year of vehicle age, the log-transformed premium increases by about 0.0029. Since the target variable is logarithmic, this implies that an additional year in vehicle age leads to a minimal increase in the premium of approximately 0.29%.
+
+The coefficient of SEATS_NUM is -0.00175, which means that with each additional seat, the log-transformed premium decreases by approximately 0.00175. Given the logarithmic nature of the target variable, this can be interpreted as each additional seat leading to a slight reduction in the premium by around 0.175%.
+
+
+VIF:
+An analysis of multicollinearity revealed that the Variance Inflation Factor (VIF) for the variable INSR_TYPE is 5.85, which suggests possible multicollinearity. This could affect the model’s stability and interpretability and should be considered in further model optimization.
+
+
+Residuals Analysis
+Residuals vs. Fitted Plot:
+The Residuals vs. Fitted Plot displays a funnel-shaped pattern, indicating heteroskedasticity. The variance of the residuals increases with higher predicted values, meaning that the model is less accurate for larger premium values. This violates the assumption of constant variance, suggesting that homoskedasticity is not fully met.
+
+Normal Q-Q Plot:
+The Normal Q-Q Plot shows that the residuals do not lie perfectly along the line, indicating significant deviations from the theoretical normal distribution, particularly at the tails. These "heavy tails" suggest a non-normal distribution of residuals, potentially due to outliers or unmodeled non-linear relationships.
+
+To improve the model, various measures could be considered. One approach would be to transform the target variable, for example, using a Box-Cox transformation, to reduce heteroskedasticity and achieve a more stable residual variance. Additionally, incorporating non-linear relationships by including polynomial terms or using a generalized linear model (GLM) could be beneficial. This would allow the model to better capture complex relationships between variables, thereby enhancing predictive accuracy.
+
+
+## Poisson
+
+A Poisson model is fitted to predict the number of claims over a 5-year period based on the characteristics SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM.
+
+First, the data is grouped accordingly, and the results are analyzed to gather insights.
+
+```{r data_for_poisson, cache=TRUE}
+
+#Data preparation: Aggregate the number of claims per combination
+dat_amount_claims <- clean_dat_motor %>%
+  group_by(SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, PREMIUM) %>%
+  summarise(AMOUNT_CLAIMS = sum(CLAIM_PAID == "YES"), .groups = 'drop')
+
+summary(dat_amount_claims$AMOUNT_CLAIMS)
+hist(dat_amount_claims$AMOUNT_CLAIMS, breaks=max(dat_amount_claims$AMOUNT_CLAIMS)) #Zero-inflated Poisson Regression would fit better
+
+mean(dat_amount_claims$AMOUNT_CLAIMS) # calculate mean
+var(dat_amount_claims$AMOUNT_CLAIMS)
+#The variance is not much greater than the mean, over-dispersion can be neglegted in the model.
+
+```
+The analysis of the distribution of the target variable AMOUNT_CLAIMS reveals that a large portion of the values are zero. This concentration of zero values is confirmed by the median, as well as the 1st and 3rd quartiles, which are also at zero. Additionally, the distribution shows some high outliers with a maximum value of 46, indicating an uneven distribution with a few high values. The low mean of 0.1791 further supports this observation, suggesting a significant number of zero values.Given these distribution characteristics, the use of a Zero-Inflated Poisson (ZIP) model could be appropriate, as such a model can account for both random and structural zeros. Initially, however, a Poisson model will be fitted.
+
+```{r Poisson_Model, cache=TRUE}
+
+#Poisson Regression:
+poisson_model<- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE +  MAKE +
+                      AGE_VEHICLE + SEATS_NUM + CCM_TON + INSURED_VALUE + PREMIUM,
+                      family = poisson(link = "log"), data = dat_amount_claims)
+
+#Summary of the model
+summary(poisson_model)
+
+#Model coefficients and exponentiated coefficients (Rate Ratios)
+coef(poisson_model)
+exp(coef(poisson_model))
+
+# Diagnose Overdispersion
+overdispersion <- deviance(poisson_model) / df.residual(poisson_model)
+# Interpretation:
+# - A value close to 1 indicates an adequate fit without overdispersion.
+# - Values significantly greater than 1 suggest overdispersion, indicating that data variance exceeds the model's assumptions.
+#   If overdispersion is present, consider using a Negative Binomial model for a better fit.
+cat("Overdispersion ratio (Deviance / DF):", overdispersion, "\n")
+
+# Poisson Deviance Test: Check Goodness-of-Fit of the model
+# Calculate p-value for H0: The model adequately describes the data
+p_value_fit <- 1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
+cat("Goodness-of-Fit p-value:", p_value_fit, "\n")
+# Interpretation:
+# - A high p-value (> 0.05) suggests a good model fit to the data, as we do not reject H0.
+# - A low p-value (≤ 0.05) would indicate a poor fit, suggesting that the model does not describe the data well.
+
+# Calculate VIF values for all predictor variables in the model
+vif_values <- vif(poisson_model)
+
+# Output the VIF values for interpretation
+cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
+print(vif_values)
+#Interpretation:
+# - VIF values above 5 (or in some cases, 10) indicate multicollinearity issues.
+
+
+# Berechnung der vorhergesagten Werte für Visualisierung
+poisson_model$model$fitted <- predict(poisson_model, type = "response")
+#ggplot2 Plot: Fitted vs. Actual values
+ggplot(poisson_model$model) +
+    geom_point(aes(x = fitted, y = AMOUNT_CLAIMS), color = "darkblue") +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") + # Diagonale Linie als Referenz
+    labs(x = "Fitted Values \n", y = "Actual number Of Claims \n",
+         title = "Poisson Regression: Fitted vs. Actual number of Claims \n") +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.title.x = element_text(face="bold", colour="blue", size = 12),
+          axis.title.y = element_text(face="bold", colour="blue", size = 12))
+
+
+
+##Poisson: (Profile-Likelihood-Vertrauensintervalle)
+#confint(poisson_model)
+##Poisson: (Wald Vertrauensintervall)
+#coef(poisson_model)["F"]
+#c(-1, 1) * qnorm(1 - 0.95/2) * summary(poisson_model)$coefficients["F", "Std. Error"]
+##Poisson: Punktschaetzung, 95% Vertrauensintervall
+#pred<- predict(herz.fit, se.fit= TRUE, type= "link")
+#pe<- exp(pred$fit)
+#lb<- exp(pred$fit + qnorm(1 - 0.05 / 2) * pred$se.fit) #untere Schranke
+#ub<- exp(pred$fit - qnorm(1 - 0.05 / 2) * pred$se.fit) #obere Schranke
+#rbind(lb, ub)
+
+#Poisson: Inferenz
+#Signifikanztest der einzelnen Parameter
+
+```
+The analysis of the Poisson model for predicting claim frequency indicated no overdispersion. The calculated overdispersion value, represented by the ratio of deviance to degrees of freedom, is 0.688, which is significantly below 1. This suggests that the model does not overestimate variance in the data, and overdispersion is not an issue. The Goodness-of-Fit test further confirms the adequacy of the model, as the p-value of 1 supports the null hypothesis that the model sufficiently describes the data.
+
+The Poisson regression model for predicting the number of claims reveals that several variables show statistically significant relationships with claim frequency. The model indicates statistically significant differences in claim frequency across categories (p-value < 0.001). The group of legal entities, which serves as the reference category, exhibits the highest claim rate. Compared to legal entities, males have a rate ratio of 0.666, reflecting a 33.4% lower claim rate, while females have the lowest claim frequency, with a rate ratio of 0.623, or 37.7% below that of legal entities.
+
+For the insurance type (INSR_TYPE), it was found that INSR_TYPEPrivate has a rate ratio of 1.284, indicating that private insurers have a 28.4% higher claim probability compared to the reference category INSR_TYPECommercial. The variables TYPE_VEHICLE and MAKE also show significant differences in claim rates. Among vehicle types, Pick-up has the highest claim rate, with a rate ratio of 1.121, representing a 12.1% increase in claim probability compared to the reference category Automobile; however, this effect is not statistically significant (p-value = 0.120). Conversely, Motor-cycle has the lowest claim rate, with a rate ratio of 0.039, indicating an approximately 96% reduced claim probability and a highly significant result (p-value < 0.001).
+
+Among vehicle brands, GEELY shows the highest claim rate with a rate ratio of 1.040, which, however, represents no meaningful change compared to the reference brand BISHOFTU and is statistically insignificant (p-value = 0.709). Conversely, MERCEDES has the lowest claim rate, with a rate ratio of 0.403, indicating a 59.7% lower claim probability compared to BISHOFTU and is highly significant (p-value < 0.001).
+
+These results suggest that Pick-up and GEELY exhibit the highest, though statistically insignificant, claim rates, while Motor-cycle and MERCEDES show the lowest and statistically significant claim rates relative to their respective reference categories.
+
+Further analysis indicates that vehicle age (AGE_VEHICLE) has a rate ratio of 0.956, meaning that the claim rate decreases by approximately 4.4% with each additional year (p-value < 0.001). The number of seats (SEATS_NUM) shows a rate ratio of 1.009, indicating that each additional seat slightly increases the claim probability, though significantly. Engine capacity (CCM_TON) shows no practical change in claim rate with a rate ratio of 1.000031, though it is statistically significant (p-value < 0.001). Insured value (INSURED_VALUE) has a rate ratio of 0.99999986, effectively showing no influence on claim frequency, although the effect is statistically significant. Premium amount (PREMIUM) exhibits a rate ratio of 1.000019, suggesting a minimal increase in claim probability with rising premiums; again, the effect is significant but very small.
+
+The analysis of the Poisson model reveals significant multicollinearity, reflected in extremely high VIF values for some variables. Notably, the variables TYPE_VEHICLEMotor-cycle (VIF of 200.88), TYPE_VEHICLETruck (107.23), TYPE_VEHICLEPick-up (82.92), INSR_TYPEPrivate (80.14), and MAKETOYOTA (50.55) stand out. These high values indicate that these variables are highly correlated with other predictors, especially among the vehicle type variables, suggesting redundancy within the model. Other variables, such as CCM_TON (33.28), MAKEISUZU (28.86), MAKEIVECO (23.94), and MAKETATA (30.58), also display moderate multicollinearity, while some variables, like MAKEGEELY (3.99), show lower VIF values and are less strongly correlated with other predictors.
+
+The plots of estimated vs. actual values show that the Poisson model has difficulties in accurately modelling the distribution of claims, especially for higher claims values. Most of the predicted values are close to zero and systematically underestimate the actual loss frequencies as they increase. This systematic underestimation and the high number of zero claims indicate that the simple distribution of the Poisson model may not be sufficient to fully represent the structure of the data.
+
+Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) model could represent a useful alternative. Such a model can distinguish between structural zeros (cases where no claims occur) and random zeros (cases where claims could occur but did not), potentially improving predictive accuracy for higher claim counts without violating model assumptions about variance.
+
+As a further alternative, simplifying the model, for example by removing fewer significant variables, could be a sensible measure to improve the model.
+
+
+### Massnahme 1): Zero-Inflated Poisson (ZIP) model (eventuell weglassen, machts naemlich ned besser)
+
+```{r zero_inflated_pois_model, cache=TRUE}
+
+# Anpassung eines Zero-Inflated Poisson (ZIP)-Modells
+zip_model <- zeroinfl(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE +
+                        AGE_VEHICLE + SEATS_NUM + CCM_TON + INSURED_VALUE + PREMIUM,
+                      data = dat_amount_claims, dist = "poisson")
+
+# Zusammenfassung des Modells
+summary(zip_model)
+
+# Überprüfung der Koeffizienten und ihrer Exponentialwerte (Rate Ratios)
+coef(zip_model)
+exp(coef(zip_model))
+
+
+# Calculate VIF values for all predictor variables in the model
+vif_values_zip <- vif(zip_model)
+
+# Output the VIF values for interpretation
+cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
+print(vif_values_zip)
+#Interpretation:
+# - VIF values above 5 (or in some cases, 10) indicate multicollinearity issues.
+
+
+# Diagnose der Modellanpassung (angepasste vs. tatsächliche Werte)
+# Berechnung der vorhergesagten Werte
+dat_amount_claims$fitted_zip <- predict(zip_model, type = "response")
+
+# Plot der geschätzten vs. tatsächlichen Schadensfälle
+ggplot(dat_amount_claims, aes(x = fitted_zip, y = AMOUNT_CLAIMS)) +
+  geom_point(color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Fitted Values (ZIP)", y = "Actual Number of Claims",
+       title = "Zero-Inflated Poisson: Fitted vs. Actual Number of Claims") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
+        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
+
+```
+
+
+
+## Neural Network
+
+A neural network model is fitted to predict the premium amount based on the characteristics of the insured vehicles and the driver. The model is trained using the cleaned and transformed data, and the results are analyzed to evaluate the model's performance.
+
+
+```{r neuralnetworkv2, cache=TRUE, message=FALSE}
+str(clean_dat_motor)
+
+# Data Preparation: Split the data into training and testing sets
+set.seed(123)
+train_index <- sample(seq_len(nrow(clean_dat_motor)), 0.8 * nrow(clean_dat_motor))
+train_data <- clean_dat_motor[train_index, ]
+test_data <- clean_dat_motor[-train_index, ]
+
+# Scale numeric features for better performance (important for nnet models)
+scale_features <- function(data) {
+  data$AGE_VEHICLE <- scale(data$AGE_VEHICLE)
+  data$SEATS_NUM <- scale(data$SEATS_NUM)
+  data$CCM_TON_log <- scale(data$CCM_TON_log)
+  data$INSURED_VALUE_log <- scale(data$INSURED_VALUE_log)
+  data$AMOUNT_CLAIMS_PAID <- scale(data$AMOUNT_CLAIMS_PAID)
+  return(data)
+}
+
+train_data <- scale_features(train_data)
+test_data <- scale_features(test_data)
+
+# Check if the model already exists
+model_path <- "nn_model.rds"
+if (file.exists(model_path)) {
+  nn_model <- readRDS(model_path)
+  cat("Neural network model loaded from", model_path, "\n")
+} else {
+  # Fit the neural network model using nnet
+  nn_model <- nnet(
+    PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
+      AGE_VEHICLE + SEATS_NUM + CCM_TON_log + INSURED_VALUE_log +
+      AMOUNT_CLAIMS_PAID,
+    data = train_data,
+    size = 5,           # Number of neurons in the hidden layer
+    linout = TRUE,      # Linear output for regression tasks
+    maxit = 100,         # Max iterations for training
+    trace = FALSE       # Suppress training output
+  )
+  
+  # Save the neural network model as an RDS file
+  saveRDS(nn_model, model_path)
+  cat("Neural network model saved as", model_path, "\n")
+}
+
+nn_model
+
+# visualize the neural network model
+plotnet(nn_model, alpha = 0.5, margin = 0.1, cex = 0.8)
+
+# Predict on the test data
+test_data$predicted_premium_log <- predict(nn_model, test_data)
+
+# Convert predicted log values back to the original scale
+test_data$predicted_premium <- exp(test_data$predicted_premium_log)
+test_data$PREMIUM <- exp(test_data$PREMIUM_log)
+
+#Visualize Predicted vs. Actual Premium (log-transformed)
+library(ggplot2)
+ggplot(test_data, aes(x = PREMIUM_log, y = predicted_premium_log)) +
+  geom_point(color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Actual Premium (log-transformed)",
+       y = "Predicted Premium (log-transformed)",
+       title = "Predicted vs. Actual Premium") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
+        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
+# add legend
+scale_color_manual(values = c("Actual" = "darkblue", "Predicted" = "red"))
+
+# Visualize Predicted vs. Actual Premium (Original Scale)
+ggplot(test_data, aes(x = PREMIUM, y = predicted_premium)) +
+  geom_point(color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Actual Premium",
+       y = "Predicted Premium",
+       title = "Predicted vs. Actual Premium") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
+        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
+# add legend
+scale_color_manual(values = c("Actual" = "darkblue", "Predicted" = "red"))
+
+
+# Save the neural network model as an RDS file
+model_path <- "nn_model.rds"
+if (!file.exists(model_path)) {
+  saveRDS(nn_model, model_path)
+  cat("Neural network model saved as", model_path, "\n")
+} else {
+  cat("Neural network model already exists as", model_path, "\n")
+}
+
+# Evaluate the model
+mse <- mean((test_data$PREMIUM_log - test_data$predicted_premium_log)^2)
+cat("Mean Squared Error (MSE):", mse, "\n")
+
+# accuracy metrics
+r_squared <- 1 - mse / var(test_data$PREMIUM_log)
+cat("R-squared:", r_squared, "\n")
+
+rmse <- sqrt(mse)
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+
+mae <- mean(abs(test_data$PREMIUM_log - test_data$predicted_premium_log))
+cat("Mean Absolute Error (MAE):", mae, "\n")
+
+mape <- mean(abs(test_data$PREMIUM_log - test_data$predicted_premium_log) / test_data$PREMIUM_log) * 100
+cat("Mean Absolute Percentage Error (MAPE):", mape, "%\n")
+
+```
+
+The neural network model was trained to predict the log-transformed premium amount based on the characteristics of the insured vehicles. The model was fitted using the nnet package, with the training data split into 80% training and 20% testing sets. The neural network model was trained with a hidden layer size of 5 neurons, linear output for regression tasks, and a maximum of 100 iterations for training. 
+
+The plots of predicted vs. actual premium amounts show that the neural network model generally performs well in predicting the premium amounts. The points are clustered around the diagonal line, indicating a good alignment between the actual and predicted values. The model captures the general trend of the premiums, with some deviations for higher premium values. The model's performance can be further evaluated by considering additional metrics such as the R-squared value, RMSE, MAE, and MAPE, which provide insights into the model's accuracy and predictive power.
+
+The evaluation of the neural network model revealed a Mean Squared Error (MSE) of 0.23, indicating the average squared difference between the actual and predicted log-transformed premium amounts. The R-squared value of 0.75 suggests that the model can explain approximately 75.10% of the variance in the log-transformed premiums, indicating a good fit to the data. The Root Mean Squared Error (RMSE) of 0.48 represents the square root of the MSE, providing a measure of the model's prediction accuracy. The Mean Absolute Error (MAE) of 0.30 indicates the average absolute difference between the actual and predicted log-transformed premiums. The Mean Absolute Percentage Error (MAPE) of 3.48% represents the average percentage difference between the actual and predicted premiums, providing a measure of the model's relative accuracy.
+
+Overall, the neural network model demonstrates good performance in predicting the premium amounts based on the characteristics of the insured vehicles. The model captures the underlying patterns in the data and provides accurate predictions of the premium amounts. The evaluation metrics indicate that the model has a high level of accuracy and predictive power, which could make it a valuable tool for premium prediction in the insurance industry.
+
+```{r nnetworkv4}
+# Repeat neural network with caret and cross validation
+# Load necessary libraries
+library(caret)
+library(nnet)
+
+# Define the control function for cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+
+# Define the grid of hyperparameters to tune
+tune_grid <- expand.grid(size = c(3, 5, 7), decay = c(0, 0.1, 0.01))
+
+# Check if the model already exists
+model_path_cv <- "nn_model_cv.rds"
+if (file.exists(model_path_cv)) {
+  nn_model_cv <- readRDS(model_path_cv)
+  cat("Neural network model with cross-validation loaded from", model_path_cv, "\n")
+} else {
+  # Train the neural network model using caret with cross-validation
+  set.seed(123)
+  nn_model_cv <- train(
+    PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
+      AGE_VEHICLE + SEATS_NUM + CCM_TON_log + INSURED_VALUE_log +
+      AMOUNT_CLAIMS_PAID,
+    data = train_data,
+    method = "nnet",
+    trControl = train_control,
+    tuneGrid = tune_grid,
+    linout = TRUE,
+    trace = FALSE,
+    maxit = 100
+  )
+  
+  # Save the neural network model with cross-validation as an RDS file
+  saveRDS(nn_model_cv, model_path_cv)
+  cat("Neural network model with cross-validation saved as", model_path_cv, "\n")
+}
+
+# Print the best model and its parameters
+print(nn_model_cv)
+print(nn_model_cv$bestTune)
+
+# Predict on the test data using the best model
+test_data$predicted_premium_log_cv <- predict(nn_model_cv, test_data)
+
+# Convert predicted log values back to the original scale
+test_data$predicted_premium_cv <- exp(test_data$predicted_premium_log_cv)
+
+# Evaluate the model
+mse_cv <- mean((test_data$PREMIUM_log - test_data$predicted_premium_log_cv)^2)
+cat("Mean Squared Error (MSE) with CV:", mse_cv, "\n")
+
+r_squared_cv <- 1 - mse_cv / var(test_data$PREMIUM_log)
+cat("R-squared with CV:", r_squared_cv, "\n")
+
+rmse_cv <- sqrt(mse_cv)
+cat("Root Mean Squared Error (RMSE) with CV:", rmse_cv, "\n")
+
+mae_cv <- mean(abs(test_data$PREMIUM_log - test_data$predicted_premium_log_cv))
+cat("Mean Absolute Error (MAE) with CV:", mae_cv, "\n")
+
+mape_cv <- mean(abs(test_data$PREMIUM_log - test_data$predicted_premium_log_cv) / test_data$PREMIUM_log) * 100
+cat("Mean Absolute Percentage Error (MAPE) with CV:", mape_cv, "%\n")
+
+# Visualize Predicted vs. Actual Premium (Original Scale) with CV
+ggplot(test_data, aes(x = PREMIUM, y = predicted_premium_cv)) +
+  geom_point(color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Actual Premium",
+       y = "Predicted Premium (CV)",
+       title = "Predicted vs. Actual Premium with Cross-Validation") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
+        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
+
+
+```
