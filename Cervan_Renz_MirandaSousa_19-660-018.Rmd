@@ -1298,7 +1298,7 @@ if (file.exists(model_path_cv)) {
 }
 
 nn_model_cv
-
+plot(nn_model_cv)
 # Predict on the test data using the best model
 test_data$predicted_premium_log_cv <- predict(nn_model_cv, test_data)
 
@@ -1345,6 +1345,8 @@ ggplot(test_data, aes(x = PREMIUM, y = predicted_premium_cv)) +
 | Neural Network                 | 0.2345529                | 0.7510002 | 0.4843067                     | 0.3009332                 | 3.488952 %                            |
 | Neural Network Cross Validation| 0.2343864                | 0.751177  | 0.4841347                     | 0.2981682                 | 3.462526 %                            |
 
+The weights decay plot shows how the RMSE (Root Mean Square Error) from cross-validation varies with the number of hidden units in a neural network for different weight decay values (0, 0.01, and 0.1). As the number of hidden units increases from 3 to 5, RMSE decreases across all weight decay values, suggesting improved model accuracy with additional capacity. However, beyond 5 hidden units, RMSE levels off or slightly increases, especially when weight decay is low or absent, indicating potential overfitting. Weight decay, a regularization technique to prevent overfitting, has a noticeable effect as the number of hidden units increases; while it slightly raises RMSE at lower hidden units, it helps to control error at higher hidden units. The optimal configuration, with the lowest RMSE, occurs at 5 hidden units regardless of weight decay, though weight decay of 0.1 becomes more beneficial as the model complexity increases, particularly at 6 and 7 hidden units.
+
 The results from both the neural network and the neural network with cross-validation are very similar, with only minor differences in the evaluation metrics. This consistency suggests that the model is robust and performs well regardless of the validation method used. The cross-validation approach confirms the reliability of the neural network model, indicating that it is not overfitting and generalizes well to unseen data.
 
 The evaluation of the neural network model revealed a Mean Squared Error (MSE) of 0.23, indicating the average squared difference between the actual and predicted log-transformed premium amounts. The R-squared value of 0.75 suggests that the model can explain approximately 75.10% of the variance in the log-transformed premiums, indicating a good fit to the data. The Root Mean Squared Error (RMSE) of 0.48 represents the square root of the MSE, providing a measure of the model's prediction accuracy. The Mean Absolute Error (MAE) of 0.30 indicates the average absolute difference between the actual and predicted log-transformed premiums. The Mean Absolute Percentage Error (MAPE) of 3.46% represents the average percentage difference between the actual and predicted premiums, providing a measure of the model's relative accuracy.
@@ -1355,7 +1357,7 @@ Overall, the neural network model demonstrates good performance in predicting th
 ## Support Vector Machine (SVM)
 For the scenario of SVM models, it has been decided to do multiple-classifications for the premiums and divide it into 4 levels from low to very high.
 
-# to be removed? @Rafi
+## to be removed? @Rafi
 Notizen Rafi
 SVM Teil:
   Cross validation or other methods for model comparing must be used on one single
