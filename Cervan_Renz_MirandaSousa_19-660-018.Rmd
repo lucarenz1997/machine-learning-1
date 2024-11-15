@@ -1,7 +1,7 @@
 ---
 pdf_document: default
 authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
-date: "2024-01-10"
+date: "`r Sys.Date()`"
 output:
   word_document: default
   pdf_document: default
@@ -9,7 +9,7 @@ title: "ML1"
 ---
   
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, cache=TRUE)
 ```
 
 
@@ -36,6 +36,7 @@ if (!require("rcompanion")) install.packages("rcompanion")
 if (!require("gam")) install.packages("gam")
 if (!require("MLmetrics")) install.packages("MLmetrics")
 if (!require("mccr")) install.packages("mccr")
+if (!require("NeuralNetTools")) install.packages("NeuralNetTools")
 
 library(car)
 library(readr,quietly = T)
@@ -57,6 +58,7 @@ library(gam)
 library(doParallel)#SVM Parallelisierung
 library(MLmetrics)  # For MCC calculation
 library(mccr)
+library(NeuralNetTools) # For Neural Network visualization
 
 ```
 
@@ -1154,10 +1156,200 @@ h #Logarithmierte Preise D und E
 ```
 
 ## Neural Network
-```{r Neural_Network, cache=TRUE}
-# TODO
 
+A neural network model is fitted to predict the premium amount based on the characteristics of the insured vehicles and the driver. The model is trained using the cleaned and transformed data, and the results are analyzed to evaluate the model's performance.
+
+
+```{r Neural Network, results='hide'}
+# Data Preparation: Split the data into training and testing sets
+set.seed(123)
+train_index <- sample(seq_len(nrow(clean_dat_motor)), 0.8 * nrow(clean_dat_motor))
+train_data <- clean_dat_motor[train_index, ]
+test_data <- clean_dat_motor[-train_index, ]
+
+# Scale numeric features for better performance (important for nnet models)
+scale_features <- function(data) {
+  data$AGE_VEHICLE <- scale(data$AGE_VEHICLE)
+  data$SEATS_NUM <- scale(data$SEATS_NUM)
+  data$CCM_TON_log <- scale(data$CCM_TON_log)
+  data$INSURED_VALUE_log <- scale(data$INSURED_VALUE_log)
+  data$AMOUNT_CLAIMS_PAID <- scale(data$AMOUNT_CLAIMS_PAID)
+  return(data)
+}
+
+train_data <- scale_features(train_data)
+test_data <- scale_features(test_data)
+
+# Check if the model already exists
+model_path <- "nn_model.rds"
+if (file.exists(model_path)) {
+  nn_model <- readRDS(model_path)
+  cat("Neural network model loaded from", model_path, "\n")
+} else {
+  # Fit the neural network model using nnet
+  nn_model <- nnet(
+    PREMIUM_log ~ .,
+    data = train_data,
+    size = 5,           # Number of neurons in the hidden layer
+    linout = TRUE,      # Linear output for regression tasks
+    maxit = 100,         # Max iterations for training
+    trace = FALSE       # Suppress training output
+  )
+  
+  # Save the neural network model as an RDS file
+  saveRDS(nn_model, model_path)
+  cat("Neural network model saved as", model_path, "\n")
+}
+
+nn_model
+
+# visualize the neural network model
+plotnet(nn_model, alpha = 0.5, margin = 0.1, cex = 0.8)
+# Predict on the test data
+test_data$predicted_premium_log <- predict(nn_model, test_data)
+
+# Convert predicted log values back to the original scale
+test_data$predicted_premium <- exp(test_data$predicted_premium_log)
+test_data$PREMIUM <- exp(test_data$PREMIUM_log)
+
+
+# Visualize Predicted vs. Actual Premium (Original Scale)
+ggplot(test_data, aes(x = PREMIUM, y = predicted_premium)) +
+  geom_point(color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Actual Premium",
+       y = "Predicted Premium",
+       title = "Predicted vs. Actual Premium") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
+        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
+
+# Save the neural network model as an RDS file
+model_path <- "nn_model.rds"
+if (!file.exists(model_path)) {
+  saveRDS(nn_model, model_path)
+} else {
+}
+
+# Evaluate the model
+mse <- mean((test_data$PREMIUM_log - test_data$predicted_premium_log)^2)
+
+# accuracy metrics
+r_squared <- 1 - mse / var(test_data$PREMIUM_log)
+
+rmse <- sqrt(mse)
+
+mae <- mean(abs(test_data$PREMIUM_log - test_data$predicted_premium_log))
+
+mape <- mean(abs(test_data$PREMIUM_log - test_data$predicted_premium_log) / test_data$PREMIUM_log) * 100
+
+# make a table of the results
+results <- data.frame(Model = "Neural Network",
+                      MSE = mse,
+                      R_squared = r_squared,
+                      RMSE = rmse,
+                      MAE = mae,
+                      MAPE = mape)
+
+#results
 ```
+
+The neural network model was trained to predict the log-transformed premium amount based on the characteristics of the insured vehicles. The model was fitted using the nnet package, with the training data split into 80% training and 20% testing sets. The neural network model was trained with a hidden layer size of 5 neurons, linear output for regression tasks, and a maximum of 100 iterations for training. 
+
+The plots of predicted vs. actual premium amounts show that the neural network model generally performs well in predicting the premium amounts. The points are clustered around the diagonal line, indicating a good alignment between the actual and predicted values. The model captures the general trend of the premiums, with some deviations for higher premium values. The model's performance can be further evaluated by considering additional metrics such as the R-squared value, RMSE, MAE, and MAPE, which provide insights into the model's accuracy and predictive power.
+
+### Neural Network Cross Validation
+
+Nevertheless, we cannot be sure that those values for the model above are truly correct or it was luck that the model performs well at a first instance. To solve this question, the NN will be run again using **k-fold Cross Validation** with hyperparameter tuning. This approach will help ensure that the model's performance is robust and not due to overfitting or random chance. The k-fold Cross Validation will produce a more reliable estimate of the model's performance by splitting the data into k = 10 subsets, training the model on k-1 subsets, and validating it on the remaining subset. This process is repeated k times, and the results are averaged to provide a comprehensive evaluation of the model.
+
+```{r Neural Network Cross Validation, results='hide'}
+# Repeat neural network with caret and cross validation
+# Load necessary libraries
+library(caret)
+library(nnet)
+
+# Define the control function for cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+
+# Define the grid of hyperparameters to tune
+tune_grid <- expand.grid(size = c(3, 5, 7), decay = c(0, 0.1, 0.01))
+
+# Check if the model already exists
+model_path_cv <- "nn_model_cv.rds"
+if (file.exists(model_path_cv)) {
+  nn_model_cv <- readRDS(model_path_cv)
+} else {
+  # Train the neural network model using caret with cross-validation
+  set.seed(123)
+  nn_model_cv <- train(
+    PREMIUM_log ~ .,
+    data = train_data,
+    method = "nnet",
+    trControl = train_control,
+    tuneGrid = tune_grid,
+    linout = TRUE,
+    trace = FALSE,
+    maxit = 100
+  )
+
+  # Save the neural network model with cross-validation as an RDS file
+  saveRDS(nn_model_cv, model_path_cv)
+  cat("Neural network model with cross-validation saved as", model_path_cv, "\n")
+}
+
+nn_model_cv
+
+# Predict on the test data using the best model
+test_data$predicted_premium_log_cv <- predict(nn_model_cv, test_data)
+
+# Convert predicted log values back to the original scale
+test_data$predicted_premium_cv <- exp(test_data$predicted_premium_log_cv)
+
+# Evaluate the model
+mse_cv <- mean((test_data$PREMIUM_log - test_data$predicted_premium_log_cv)^2)
+
+r_squared_cv <- 1 - mse_cv / var(test_data$PREMIUM_log)
+
+rmse_cv <- sqrt(mse_cv)
+
+mae_cv <- mean(abs(test_data$PREMIUM_log - test_data$predicted_premium_log_cv))
+
+mape_cv <- mean(abs(test_data$PREMIUM_log - test_data$predicted_premium_log_cv) / test_data$PREMIUM_log) * 100
+
+# print evaluations of the model as a table
+results_cv <- data.frame(Model = "Neural Network Cross Validation",
+                         MSE = mse_cv,
+                         R_squared = r_squared_cv,
+                         RMSE = rmse_cv,
+                         MAE = mae_cv,
+                         MAPE = mape_cv)
+
+#results_cv
+
+# Visualize Predicted vs. Actual Premium (Original Scale) with CV
+ggplot(test_data, aes(x = PREMIUM, y = predicted_premium_cv)) +
+  geom_point(color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Actual Premium",
+       y = "Predicted Premium (CV)",
+       title = "Predicted vs. Actual Premium with Cross-Validation") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
+        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
+```
+
+## Results
+
+| Model                          | Mean Squared Error (MSE) | R-squared | Root Mean Squared Error (RMSE) | Mean Absolute Error (MAE) | Mean Absolute Percentage Error (MAPE) |
+|---------|:------:|:-----:|:----:|:------:|:----:|
+| Neural Network                 | 0.2345529                | 0.7510002 | 0.4843067                     | 0.3009332                 | 3.488952 %                            |
+| Neural Network Cross Validation| 0.2343864                | 0.751177  | 0.4841347                     | 0.2981682                 | 3.462526 %                            |
+
+The results from both the neural network and the neural network with cross-validation are very similar, with only minor differences in the evaluation metrics. This consistency suggests that the model is robust and performs well regardless of the validation method used. The cross-validation approach confirms the reliability of the neural network model, indicating that it is not overfitting and generalizes well to unseen data.
+
+The evaluation of the neural network model revealed a Mean Squared Error (MSE) of 0.23, indicating the average squared difference between the actual and predicted log-transformed premium amounts. The R-squared value of 0.75 suggests that the model can explain approximately 75.10% of the variance in the log-transformed premiums, indicating a good fit to the data. The Root Mean Squared Error (RMSE) of 0.48 represents the square root of the MSE, providing a measure of the model's prediction accuracy. The Mean Absolute Error (MAE) of 0.30 indicates the average absolute difference between the actual and predicted log-transformed premiums. The Mean Absolute Percentage Error (MAPE) of 3.46% represents the average percentage difference between the actual and predicted premiums, providing a measure of the model's relative accuracy.
+
+Overall, the neural network model demonstrates good performance in predicting the premium amounts based on the characteristics of the insured vehicles and drivers. The model captures the underlying patterns in the data and provides accurate predictions of the premium amounts. The evaluation metrics indicate that the model has a high level of accuracy and predictive power, which could make it a valuable tool for premium prediction in the insurance industry.
 
 
 ## Support Vector Machine (SVM)
