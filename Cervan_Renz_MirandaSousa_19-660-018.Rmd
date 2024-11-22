@@ -61,7 +61,8 @@ library(mccr)
 library(NeuralNetTools) # For Neural Network visualization
 
 ```
-
+# Introduction
+ethiopian insurance & we are consulting about premium
 
 # Data Preprocessing
 
@@ -819,7 +820,7 @@ ggplot(dat_amount_claims, aes(x = fitted_zip, y = AMOUNT_CLAIMS)) +
 
 
 ## Binomial
-
+# TODO
 
 ```{r Binomial_Model, cache=TRUE}
 
@@ -1080,7 +1081,9 @@ Zusammengefasst hat das Entfernen der Variable INSR_TYPE nur geringe Auswirkunge
 
 
 ## Generalised Additive Model (GAM)
+# TODO description
 ```{r GAM, cache=TRUE}
+# TODO is draft
 
 #Additives Modell anpassen, das alle Variablen verwendet
 fit_full <- gam(CLAIM_PAID ~ lo(AGE_VEHICLE) + lo(PREMIUM_log) + lo(AMOUNT_CLAIMS_PAID) +
@@ -1262,12 +1265,9 @@ The plots of predicted vs. actual premium amounts show that the neural network m
 
 Nevertheless, we cannot be sure that those values for the model above are truly correct or it was luck that the model performs well at a first instance. To solve this question, the NN will be run again using **k-fold Cross Validation** with hyperparameter tuning. This approach will help ensure that the model's performance is robust and not due to overfitting or random chance. The k-fold Cross Validation will produce a more reliable estimate of the model's performance by splitting the data into k = 10 subsets, training the model on k-1 subsets, and validating it on the remaining subset. This process is repeated k times, and the results are averaged to provide a comprehensive evaluation of the model.
 
-```{r Neural Network Cross Validation, results='hide'}
+```{r Neural Network Cross Validation, results='hide', cache=TRUE}
 # Repeat neural network with caret and cross validation
-# Load necessary libraries
-library(caret)
-library(nnet)
-
+set.seed(123)
 # Define the control function for cross-validation
 train_control <- trainControl(method = "cv", number = 10)
 
@@ -1356,175 +1356,6 @@ Overall, the neural network model demonstrates good performance in predicting th
 
 ## Support Vector Machine (SVM)
 For the scenario of SVM models, it has been decided to do multiple-classifications for the premiums and divide it into 4 levels from low to very high.
-
-## to be removed? @Rafi
-Notizen Rafi
-SVM Teil:
-  Cross validation or other methods for model comparing must be used on one single
-methods (e.g. you use Cross Validation to compare 2-3 SVM models).
-• Students are free to choose a measure of fit that they find more appropriate.
-• In case students cannot find an appropriate measure of fit, they can use the Root Mean
-Squared Error (RMSE).
-
-```{r SVM_Rafi_turbo, cache=TRUE}
-
-
-# Parallelisierung einrichten
-cl <- makeCluster(detectCores() - 1) # Verwende alle verfügbaren Kerne außer einem
-registerDoParallel(cl)
-
-# Datenvorbereitung und Stichprobenerstellung
-set.seed(123)
-clean_dat_motor2 <- sample_n(clean_dat_motor, size = 1000)
-
-# Kontrollparameter für wiederholte Kreuzvalidierung
-ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
-
-# Hyperparameter-Raster für Tuning
-tune_grid <- expand.grid(
-  .C = c(0.1, 1, 10),        # Reduzierte Werte für 'cost'
-  .sigma = c(0.01, 0.1)      # Reduzierte Werte für 'gamma'
-)
-
-# Aufteilen der Daten in Training und Test (z. B. 70% Training, 30% Test)
-set.seed(123)
-sample_index <- sample(seq_len(nrow(clean_dat_motor2)), size = 0.7 * nrow(clean_dat_motor2))
-train_data <- clean_dat_motor2[sample_index, ]
-test_data <- clean_dat_motor2[-sample_index, ]
-
-# SVM-Modelltraining mit Kreuzvalidierung und Hyperparameter-Tuning
-svm_model <- train(CLAIM_PAID ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE +
-                     SEATS_NUM + CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
-                   data = train_data,
-                   method = "svmRadial",
-                   trControl = ctrl,
-                   tuneGrid = tune_grid)
-
-# Stoppe den Cluster nach der Berechnung
-stopCluster(cl)
-
-# Modellbewertung
-print(svm_model$bestTune)     # Zeigt die besten Hyperparameter
-print(svm_model$finalModel)   # Zeigt das endgültige Modell
-
-# Modellzusammenfassung
-print(svm_model)
-
-# Vorhersage für die Testdaten
-predictions <- predict(svm_model, newdata = test_data)
-
-# Konfusionsmatrix zur Bewertung der Modellleistung
-confusion_matrix <- table(Predicted = predictions, Actual = test_data$CLAIM_PAID)
-print(confusion_matrix)
-
-# Genauigkeit berechnen
-accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-print(paste("Accuracy:", round(accuracy, 4)))
-
-# Genauigkeit der Trainingsdaten
-pred_train <- predict(svm_model, train_data)
-print(confusionMatrix(data = pred_train, reference = train_data$CLAIM_PAID))
-
-# Genauigkeit der Testdaten
-pred_test <- predict(svm_model, test_data)
-print(confusionMatrix(data = pred_test, reference = test_data$CLAIM_PAID))
-
-
-```
-
-
-```{r SVM_Rafi, cache=TRUE}
-
-# Define trainControl with repeated cross-validation
-ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
-
-# Define a grid of hyperparameters for tuning
-tune_grid <- expand.grid(
-  .C = c(0.1, 1, 10),        # Reduzierte Werte für 'cost'
-  .sigma = c(0.01, 0.1)      # Reduzierte Werte für 'gamma'
-)
-
-
-# Split the data into training and testing sets (e.g., 70% training, 30% testing)
-set.seed(123) # For reproducibility
-sample_index <- sample(seq_len(nrow(clean_dat_motor)), size = 0.7 * nrow(clean_dat_motor))
-train_data <- clean_dat_motor[sample_index, ]
-test_data <- clean_dat_motor[-sample_index, ]
-
-# Train the SVM model with cross-validation and hyperparameter tuning
-svm_model <- train(CLAIM_PAID ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE +
-                     SEATS_NUM + CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
-                   data = train_data,
-                   method = "svmRadial",     # SVM mit radialem Kernel
-                   trControl = ctrl,          # Kontrollparameter für Kreuzvalidierung
-                   tuneGrid = tune_grid)      # Hyperparameter-Raster für Tuning
-
-#Modell Evaluation
-svm_model$bestTune
-
-#Modell anschauen
-svm_model$finalModel
-#Aus den 857 Trainingsdaten wurden 469 Support vectors kreiert (Siehe Train Anzl DS & Output)
-
-
-# Model Summary
-print(svm_model)
-
-# Predict on the test data
-predictions <- predict(svm_model, newdata = test_data)
-
-# Confusion Matrix to evaluate model performance
-confusion_matrix <- table(Predicted = predictions, Actual = test_data$CLAIM_PAID)
-print(confusion_matrix)
-
-# Calculate accuracy
-accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-print(paste("Accuracy:", round(accuracy, 4)))
-
-
-
-#Accuracy der Trainigsdaten
-pred_train<- predict(svm_model, train_data)
-confusionMatrix(data= pred_train , reference= train_data$CLAIM_PAID)
-#Accuracy der Testdaten
-pres_test<- predict(svm_model, test_data)
-confusionMatrix(data= pres_test , reference= test_data$CLAIM_PAID)
-
-
-
-```
-
-
-```{r SVM preparation, cache=TRUE}
-set.seed(123)
-svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 10000, replace = FALSE), ]
-
-hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
-
-plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
-
-percentiles <- quantile(svm_data$PREMIUM_log, probs = c(0.25,0.5,0.75))
-
-# Create custom categories for PREMIUM based on percentiles
-svm_data$premium_category <- cut(svm_data$PREMIUM_log,
-                                 breaks = c(-Inf, percentiles[1], percentiles[2], percentiles[3], Inf), 
-                                 labels = c("low", "medium", "high", "very_high"))
-print(table(svm_data$premium_category
-            ))
-
-# Splitting into training and testing test
-trainIndex <- createDataPartition(svm_data$premium_category, p = 0.7, list = FALSE)
-train <- svm_data[trainIndex, ]
-test <- svm_data[-trainIndex, ]
-
-#plotting to see if it can be linearly split
-
-selected_data <- svm_data[, c("AGE_VEHICLE", "INSURED_VALUE_log", "premium_category")]
-ggpairs(selected_data, aes(color = premium_category))
-```
-
-
-#start from here
 ```{r SVM MCC, cache=TRUE}
 # Setup parallelisation
 cl <- makeCluster(detectCores() - 1) 
@@ -1610,121 +1441,9 @@ In conclusion, while the model showed strong results for the "low" and "very_hig
 
 # Conclusion
 
-# Reserve
+# TODO
 
-## SVM
-```{r SVM radial, cache=TRUE}
-
-fit <- svm(premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_log + MAKE + USAGE, 
-             data = train, 
-             kernel = "radial")
-
-summary(fit)
-
-predictions <- predict(fit, test)
-confusionMatrix(predictions, test$premium_category)
-
-```
-Performance Analysis
-Overall Accuracy:
-
-Accuracy: 71.62% is still a solid performance for a four-class classification task but is slightly lower than before (72.24%). This drop could be due to sample variation, indicating the model may be sensitive to the specific data distribution in the training set.
-Class-Specific Performance:
-
-Class Sensitivity:
-The model performs best in identifying the “very high” class (Sensitivity = 0.8545), meaning it effectively detects most "very high" premium cases.
-The “low” (67.35%) and “high” (67.89%) classes show lower sensitivities, which implies that the model struggles to identify these categories as accurately. Misclassifications here likely contribute to the reduced accuracy.
-Specificity: High specificity across all classes, particularly for “low” (96.30%) and “very high” (91.17%), suggests the model effectively recognizes cases that do not belong to these categories.
-Positive Predictive Value (Precision):
-Precision is reasonable across classes but lowest for “high” (60.51%) and “medium” (67.54%), indicating that the model may confuse these categories with others.
-Balanced Accuracy:
-
-Balanced accuracy is lower for "medium" (77.63%) and "high" (76.57%) compared to "low" and "very high." This imbalance suggests the model is slightly less effective in distinguishing between “medium” and “high” categories.
-Recommendations for Improvement
-Given the above observations, here are several suggestions to improve model performance:
-
-Hyperparameter Tuning:
-
-Increase Cost: Since the model has moderate sensitivity for “low” and “high” classes, increasing the cost parameter could encourage a tighter fit to these categories, potentially reducing the number of misclassifications. However, be cautious not to set it too high, as this could overfit on the “very high” class.
-Gamma Tuning: Experiment with slightly higher values of gamma to see if it improves precision in "medium" and "high" classes. This could make the model more responsive to feature distinctions within these overlapping categories.
-
-
-As previous results were already good but modifications were still possible, hyperparameter tuning will be used.
-```{r SVM improvement from model#1}
-
-# Perform hyperparameter tuning with tune()
-
-
-# Tune the model
-tune.out <- tune(svm, premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_log + MAKE + USAGE, data = train, kernel = "radial",
-                 ranges = list(cost = c(0.1, 1, 10,100),
-                               gamma = c(0.5, 1, 2)))
-
-# View the best parameters and summary
-print(tune.out) # best performance: 0.2909148
-best_model <- tune.out$best.model
-
-# Print the best cost and gamma values
-best_params <- tune.out$best.parameters
-cat("Best Cost:", best_params$cost, "\n") # 10
-cat("Best Gamma:", best_params$gamma, "\n") #0.5
-
-# Fit the best model on the train data
-fit.improved <- best_model
-
-# View the best parameters and summary
-print(tune.out) # best performance: 0.2909148
-best_model <- tune.out$best.model
-
-# Print the best cost and gamma values
-best_params <- tune.out$best.parameters
-
-summary(fit.improved)
-
-predictions <- predict(fit.improved, test)
-confusionMatrix(predictions, test$premium_category)
-
-
-```
-
-The best model was with cost = 10 and gamma of 0.5 but it did not seem to improve the model compared to previous one. To better capture variance in the dataset, cross-validation will be tried to check if it improves overall performance.
-
-```{r SVM cross-validation, cache=TRUE}
-
-# Tune the model
-tune.out <- tune(svm, premium_category ~ SEX + AGE_VEHICLE + INSURED_VALUE_LOG + CLAIM_PAID_USD_LOG + CCM_TON_log + MAKE + USAGE, data = train, kernel = "radial",
-                 ranges = list(cost = c(0.1, 1, 10,100, 1000),
-                               gamma = c(0.5)),
-                 tunecontrol = tune.control(sampling="cross", cross=10))
-
-# View the best parameters and summary
-print(tune.out) # best performance: 0.2909148
-best_model_cv <- tune.out$best.model
-
-# Print the best cost and gamma values
-best_params <- tune.out$best.parameters
-cat("Best Cost:", best_params$cost, "\n") # 1
-cat("Best Gamma:", best_params$gamma, "\n") #0.5
-
-# Fit the best model on the train data
-fit.improved_cv <- best_model_cv
-
-summary(fit.improved_cv)
-
-predictions <- predict(fit.improved_cv, test)
-confusionMatrix(predictions, test$premium_category)
-```
-This cross-validated model exhibits marginal improvements in overall accuracy, Kappa, and balanced accuracy for "low," "medium," and "very_high" classes, indicating better generalization. This suggests that cross-validation helped find a model that performs more consistently across different subsets of the data.
-Accuracy improved from 70.18% to 71.11% indicating that the model is slightly better at classifying instances in a correct manner.
-LOW: minor improvement in sensitivity indicating better identifications of "low" classifications.
-Medium: Also a minor improvement of about 0.015
-High: Slightly worsened with the advantage of having increased specificity to avoid false positives.
-
-Generally speaking, adapting the cost to 1 led to improved sensitivity for medium and very_high without drastically reducing specificity.
-The gamma of 0.5 indicated that no excessive complexities were applied to correctly identify classes.
-
-This model is an improvement over previous versions, with a slight increase in accuracy and balanced accuracy across most classes. The careful tuning of cost and gamma, combined with cross-validation, allowed for a more balanced classification without sacrificing performance on any particular class.
-### Massnahme 1):  Interaktionen
+# TODO remove of do whatever you want
 
 ```{r lm_interaktion, cache=TRUE}
 
