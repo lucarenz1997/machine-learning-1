@@ -1411,7 +1411,19 @@ print(conf_matrix_train)
 
 mcc_train <- mccr(pred_train, train_data$premium_category)
 print(paste("MCC for Train Data:", round(mcc_train, 4))) # something seems off here... manual calculation leads to roughly 0.58 whcih incidates a moderate positive correlation between predicted and actual classifications.
+# manual calculation
 
+conf_table <- as.table(conf_matrix_train)
+TP <- conf_table[2, 2]  # True Positive
+TN <- conf_table[1, 1]  # True Negative
+FP <- conf_table[1, 2]  # False Positive
+FN <- conf_table[2, 1]  # False Negative
+
+# Calculate MCC
+mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+
+# Print MCC
+print(paste("MCC Train manually calculated:", round(mcc, 4)))
 
 # Predictions on test data
 pred_test <- predict(svm_model, newdata = test_data)
@@ -1423,6 +1435,20 @@ print(conf_matrix)
 # Usage of MCC due to imbalanced dataset
 mcc_test <- mccr(pred_test, test_data$premium_category)
 print(paste("MCC for Test Data:", round(mcc_test, 4))) # something seems off here... manual calculation leads to roughyl 0.7 which is considered strong correlation between predicted and actual classifications.
+
+# manual calculation
+
+conf_table <- as.table(conf_matrix)
+TP <- conf_table[2, 2]  # True Positive
+TN <- conf_table[1, 1]  # True Negative
+FP <- conf_table[1, 2]  # False Positive
+FN <- conf_table[2, 1]  # False Negative
+
+# Calculate MCC
+mcc <- (TP * TN - FP * FN) / sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
+
+# Print MCC
+print(paste("MCC manually calculated:", round(mcc, 4)))
 
 ```
 
@@ -1437,6 +1463,8 @@ The code process incorporated parallelized cross-validation and grid search, fac
 To improve the model, checking the training set's class distribution and considering resampling techniques like random oversampling or SMOTE could be performed to further improve the model. Additionally, validating MCC calculations to ensure accuracy, especially for anomalous values, is recommended.
 
 In conclusion, while the model showed strong results for the "low" and "very_high" categories, further optimization is needed for "medium" and "high" to enhance overall performance.
+
+Nevertheless, the model demonstrates reliable performance in classifying insurance premiums into the four categories with MCC of about 0.57 indicating a moderate to strong correlation between prediction and actual category.Therefore, the robust model can be used to classify premiums.Further refinement of tailorized features may improve overall performance, especially for medium and high categories.
 
 
 # Conclusion
