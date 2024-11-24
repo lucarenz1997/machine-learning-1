@@ -62,9 +62,12 @@ library(NeuralNetTools) # For Neural Network visualization
 
 ```
 # Introduction
-ethiopian insurance & we are consulting about premium
+Once of the major challenges for insurances is to estimate the appropriate premiums to charge each customer while not risking to lose any money. Therefore, this project aims at supporting an Ethiopian Insurance company to understand how their customers can benefit from having the most accurate and fair premium as they need and have to pay. Machine Learning helps in this case enormely to understand, what factors have a larger impact on the premium and how customers can be classified accordingly.
+
+In this document, the reader may find different algorithms to solve various aspects of the premium-calculations.
 
 # Data Preprocessing
+In order to apply such algorithms, the data had to be pre-processed. This process can be found below.
 
 ```{r data_prep, echo=FALSE, cache=TRUE}
 
@@ -1458,13 +1461,13 @@ Model training was carried out with 10-fold cross-validation repeated three time
 
 The evaluation showed that the "very_high" category had the highest sensitivity at 0.8629, while the "low" category excelled in specificity at 0.9695 and positive predictive value at 0.8926. The MCC for each class revealed strong performance overall: ~0.986 for "low," ~0.802 for "medium," ~0.781 for "high," and ~1.038 for "very_high," though the latter may indicate overestimation and warrants further review.
 
-The code process incorporated parallelized cross-validation and grid search, facilitating comprehensive hyperparameter tuning. The findings highlighted an overall accuracy of 0.7771 and a Kappa statistic of 0.7029, with McNemar's test yielding a significant P-value of 0.008264 and mcc-value of roughly 0.7, suggesting a noteworthy difference from random classification.
+The code process incorporated parallelized cross-validation and grid search, facilitating comprehensive hyperparameter tuning. The findings highlighted an overall accuracy of 0.7771 and a Kappa statistic of 0.7029, with McNemar's test yielding a significant P-value of 0.008264 and mcc-value of roughly 0.57, suggesting a noteworthy difference from random classification.
 
-To improve the model, checking the training set's class distribution and considering resampling techniques like random oversampling or SMOTE could be performed to further improve the model. Additionally, validating MCC calculations to ensure accuracy, especially for anomalous values, is recommended.
+To improve the model, checking the training set's class distribution and considering resampling techniques like random oversampling or SMOTE could be performed to further improve the model. 
 
 In conclusion, while the model showed strong results for the "low" and "very_high" categories, further optimization is needed for "medium" and "high" to enhance overall performance.
 
-Nevertheless, the model demonstrates reliable performance in classifying insurance premiums into the four categories with MCC of about 0.57 indicating a moderate to strong correlation between prediction and actual category.Therefore, the robust model can be used to classify premiums.Further refinement of tailorized features may improve overall performance, especially for medium and high categories.
+Nevertheless, the model demonstrates reliable performance in classifying insurance premiums into the four categories with MCC of about 0.57 indicating a moderate to strong correlation between prediction and actual category.Therefore, the robust model can be used to classify premiums.Further refinement of tailored features may improve overall performance, especially for medium and high categories.
 
 
 # Conclusion
