@@ -37,3 +37,5 @@ rsconnect/
 .idea
 # copy folders
 *-copy*/
+# _files folder
+*_files/
