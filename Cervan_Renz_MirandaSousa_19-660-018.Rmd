@@ -1103,9 +1103,8 @@ Zusammengefasst hat das Entfernen der Variable INSR_TYPE nur geringe Auswirkunge
 
 
 ## Generalised Additive Model (GAM)
-# TODO description
-```{r GAM, cache=TRUE}
-str(dat_amount_claims)
+A General Additive Model (GAM) is fitted to predict the number of claims based on the characteristics SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM. Similar to the Poisson model, the GAM model aims to capture the relationship between the predictors and the number of claims, allowing for non-linear relationships and interactions between variables.
+```{r GAM smoothed, cache=TRUE}
 # Convert unordered factors to factors
 dat_amount_claims$SEX <- as.factor(dat_amount_claims$SEX)
 dat_amount_claims$INSR_TYPE <- as.factor(dat_amount_claims$INSR_TYPE)
@@ -1125,17 +1124,33 @@ gam_model <- mgcv::gam(
   family = poisson(link = "log")
 )
 
-# Summary of the GAM model
-summary(gam_model)
-
-# Visualize the GAM model
-plot(gam_model, shade = TRUE, scale = 0)
-
 # Predict on the data for visualization
 dat_amount_claims$predicted_claims <- predict(gam_model, 
                                               newdata = dat_amount_claims, 
                                               type = "response")
 
+# ROC curve
+library(pROC)
+predicted_probabilities_gam <- predict(gam_model, type = "response")
+roc_curve_gam <- roc(dat_amount_claims$AMOUNT_CLAIMS, predicted_probabilities_gam)
+auc_value_gam <- auc(roc_curve_gam)
+cat("AUC value of the GAM model:", auc_value_gam, "\n")
+
+#Calculate RMSE
+rmse_gam <- sqrt(mean((dat_amount_claims$AMOUNT_CLAIMS - dat_amount_claims$predicted_claims)^2))
+cat("RMSE of the GAM model:", rmse_gam, "\n")
+
+```
+
+Different variations were used, with and without smoothing predictos and using B-splines with cubic regression. Cubic regression was chosen as it provided the best fit for the data with the smallest RMSE value, all values where ~0.02 of difference. The AUC value of the GAM model is 0.61, very similar to the results in the Poisson model. This indicates that the GAM model has a moderate ability to discriminate between the number of claims and the predictors. The RMSE value of the GAM model is 0.59, which is relatively low and indicates that the model's predictions are close to the actual values. 
+
+```{r GAM plots}
+
+# Visualize the GAM model
+# 2x2 grid of plots, keep plots aspect ratio 1:1
+par(mfrow = c(1, 2), mar = c(4, 4, 4, 2))
+plot(gam_model, shade = TRUE, scale = 0)
+par(mfrow = c(1, 1))
 # Plot the predicted vs. actual claims
 ggplot(dat_amount_claims, aes(x = predicted_claims, y = AMOUNT_CLAIMS)) +
   geom_point(color = "darkblue") +
@@ -1146,146 +1161,22 @@ ggplot(dat_amount_claims, aes(x = predicted_claims, y = AMOUNT_CLAIMS)) +
         axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
         axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
 
-# Calculate the deviance of the GAM model
-deviance_gam <- deviance(gam_model)
-cat("Deviance of the GAM model:", deviance_gam, "\n")
-
-# Calculate the AIC of the GAM model
-aic_gam <- AIC(gam_model)
-cat("AIC of the GAM model:", aic_gam, "\n")
-
-# Calculate the pseudo-R-squared values for the GAM model
-nagelkerke(gam_model)$Pseudo.R.squared.for.model.vs.null
-
-# Check for overdispersion in the GAM model
-overdispersion_gam <- deviance_gam / df.residual(gam_model)
-cat("Overdispersion ratio (Deviance / DF) for the GAM model:", 
-    overdispersion_gam, "\n")
-
-# Calculate the p-value for the GAM model
-p_value_gam <- 1 - pchisq(deviance_gam, df.residual(gam_model))
-cat("p-value for the GAM model:", p_value_gam, "\n")
-
-#Calcula RMSE
-rmse_gam <- sqrt(mean((dat_amount_claims$AMOUNT_CLAIMS - dat_amount_claims$predicted_claims)^2))
-cat("RMSE of the GAM model:", rmse_gam, "\n")
-
+# Plot the ROC curve
+plot(roc_curve_gam, main = "ROC Curve for GAM Model", col = "blue")
 ```
 
+Some interesting plots are shown, to illustrate how the predictors are related to the number of claims. The plots show the smooth functions of the predictors AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM. The plots illustrate the non-linear relationships between these predictors and the number of claims, capturing the complex interactions and patterns in the data. 
 
-## GAM v3 - Predicting Premium Amount
-```{r GAM v3}
-# Fit a Generalized Additive Model (GAM) to the data to predict `PREMIUM`
+For AGE_VEHICLE, is steady until 40 years where id declines rapidly, indicating that older vehicles have fewer claims. 
 
-# Check dataset structure and set up training/testing data
-set.seed(123)  # For reproducibility
-train_indices <- sample(seq_len(nrow(dat_amount_claims)), size = 0.7 * nrow(dat_amount_claims))
-train_data <- dat_amount_claims[train_indices, ]
-test_data <- dat_amount_claims[-train_indices, ]
+For SEATS_NUM, the number of claims increases with the number of seats related to "consumer vehicles", up to ~15 seats, where it starts to decline. There is a spike about 50 seats, probably related to commercial vehicles. The next valley and peak are related to very high number of seats, which are outliers and related to commercial or custom vehicles.
 
-# Fit a GAM model to predict `PREMIUM`
-gam_premium <- gam(
-  PREMIUM ~ s(INSURED_VALUE) + s(AGE_VEHICLE) + s(SEATS_NUM) + 
-    s(CCM_TON) + INSR_TYPE + USAGE + TYPE_VEHICLE,
-  family = Gamma(link = "log"),  # Suitable for continuous, positive, skewed data
-  data = train_data
-)
-summary(gam_premium)
-# Model evaluation
-# Predict on test set for PREMIUM
-test_data$premium_predictions <- predict(gam_premium, newdata = test_data, type = "response")
+For CCM_TON, the number of claims decreases with the engine capacity untill 2500cc, which is where most of the vehicles are, from motorcicles and utility cars. After that, the number of claims increases, probably related to commercial and sport vehicles. Around 5000cc is a common engine size for commercial vehicles such as busses and trucks, after that the number of claims increases rapidly.
 
-# Calculate RMSE for PREMIUM predictions
-premium_rmse <- sqrt(mean((test_data$PREMIUM - test_data$premium_predictions)^2))
-print(paste("Premium RMSE:", premium_rmse))
+For INSURED_VALUE, the number of claims decreases with the insured value, indicating that more expensive vehicles have fewer claims. This is expected as more expensive vehicles are usually driven more carefully and less often.
 
-# Visualize actual vs predicted PREMIUM
-ggplot(test_data, aes(x = PREMIUM, y = premium_predictions)) +
-  geom_point(alpha = 0.5, color = "darkblue") +
-  geom_abline(intercept = 0, slope = 1, color = "red") +
-  labs(title = "Actual vs Predicted PREMIUM", x = "Actual PREMIUM", y = "Predicted PREMIUM") +
-  theme_minimal()
+For PREMIUM, the number of claims increases with the premium amount, starting in negative for the cheapest premium values, probably related to the insurance type and the insured value. After that, the number of claims increases with the premium amount, indicating that higher premiums are associated with more claims. This could be due to higher premiums for higher-risk drivers or vehicles or simply due to the increased value of the insured vehicles and the related need to keep it in good condition, making smaller defects a claim, which would not be claimed in cheaper vehicles.
 
-# RMSE
-rmse_gam_premium <- sqrt(mean((test_data$PREMIUM - test_data$premium_predictions)^2))
-```
-
-## GAM v4 - Predicting Claims Amount
-```{r GAM v4}
-# Fit a GAM model to predict `AMOUNT_CLAIMS_PAID`
-gam_claims <- gam(
-  AMOUNT_CLAIMS ~ s(INSURED_VALUE) + s(AGE_VEHICLE) + s(SEATS_NUM) + 
-    s(CCM_TON) + INSR_TYPE + USAGE + TYPE_VEHICLE,
-  family = poisson(link = "log"),  # Suitable for count data
-  data = train_data
-)
-
-summary(gam_claims)
-
-# Model evaluation
-# Predict on test set for CLAIMS
-test_data$claims_predictions <- predict(gam_claims, newdata = test_data, type = "response")
-
-# Calculate RMSE for CLAIM predictions
-claims_rmse <- sqrt(mean((test_data$AMOUNT_CLAIMS - test_data$claims_predictions)^2))
-print(paste("Claims RMSE:", claims_rmse))
-
-# Visualize actual vs predicted CLAIMS
-ggplot(test_data, aes(x = AMOUNT_CLAIMS, y = claims_predictions)) +
-  geom_point(alpha = 0.5, color = "darkgreen") +
-  geom_abline(intercept = 0, slope = 1, color = "red") +
-  labs(title = "Actual vs Predicted CLAIMS", x = "Actual AMOUNT_CLAIMS_PAID", y = "Predicted AMOUNT_CLAIMS_PAID") +
-  theme_minimal()
-
-
-# RMSE 
-rmse_gam_claims <- sqrt(mean((test_data$AMOUNT_CLAIMS - test_data$claims_predictions)^2))
-cat("RMSE of the GAM model for CLAIMS:", rmse_gam_claims, "\n")
-
-```
-
-## GAM v5 - Predicting Number of Claims
-
-```{r Gam v5}
-#A GAM model is fitted to predict the number of claims over a 5-year period based on the characteristics SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM.
-
-# Convert unordered factors to factors
-dat_amount_claims$SEX <- as.factor(dat_amount_claims$SEX)
-dat_amount_claims$INSR_TYPE <- as.factor(dat_amount_claims$INSR_TYPE)
-dat_amount_claims$USAGE <- as.factor(dat_amount_claims$USAGE)
-dat_amount_claims$TYPE_VEHICLE <- as.factor(dat_amount_claims$TYPE_VEHICLE)
-dat_amount_claims$MAKE <- as.factor(dat_amount_claims$MAKE)
-
-# Fit a GAM model to predict the number of claims
-gam_model <- mgcv::gam(
-  AMOUNT_CLAIMS ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
-    s(AGE_VEHICLE, bs = "cr") +
-    s(SEATS_NUM, bs = "cr") +
-    s(CCM_TON, bs = "cr") +
-    s(INSURED_VALUE, bs = "cr") +
-    s(PREMIUM, bs = "cr"),
-  data = dat_amount_claims,
-  family = poisson(link = "log")
-)
-summary(gam_model)
-# Predict on the data for visualization
-dat_amount_claims$predicted_claims <- predict(gam_model, newdata = dat_amount_claims, type = "response")
-
-# Plot the predicted vs. actual claims
-
-ggplot(dat_amount_claims, aes(x = predicted_claims, y = AMOUNT_CLAIMS)) +
-  geom_point(color = "darkblue") +
-  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
-  labs(x = "Predicted Claims", y = "Actual Claims",
-       title = "GAM: Predicted vs. Actual Claims") +
-  theme(plot.title = element_text(hjust = 0.5),
-        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
-        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
-
-# RMSE
-rmse_gam <- sqrt(mean((dat_amount_claims$AMOUNT_CLAIMS - dat_amount_claims$predicted_claims)^2))
-cat("RMSE of the GAM model:", rmse_gam, "\n")
-```
 ## Neural Network
 
 A neural network model is fitted to predict the premium amount based on the characteristics of the insured vehicles and the driver. The model is trained using the cleaned and transformed data, and the results are analyzed to evaluate the model's performance.
