@@ -1375,6 +1375,8 @@ Overall, the neural network model demonstrates good performance in predicting th
 
 ## Support Vector Machine (SVM)
 For the scenario of SVM models, it has been decided to do multiple-classifications for the premiums and divide it into 4 levels from low to very high.
+
+For this model, Luca Renz was in the lead.
 ```{r SVM MCC, cache=TRUE}
 # Setup parallelisation
 cl <- makeCluster(detectCores() - 1) 
