@@ -81,12 +81,14 @@ library(NeuralNetTools) # For Neural Network visualization
 
 ```
 # Introduction
-Once of the major challenges for insurances is to estimate the appropriate premiums to charge each customer while not risking to lose any money. Therefore, this project aims at supporting an Ethiopian Insurance company to understand how their customers can benefit from having the most accurate and fair premium as they need and have to pay. Machine Learning helps in this case enormely to understand, what factors have a larger impact on the premium and how customers can be classified accordingly.
+One of the major challenges for insurances is to estimate the appropriate premiums to charge each customer while not risking to lose any money. Therefore, this project aims at supporting an Ethiopian Insurance company to understand how their customers can benefit from having the most accurate and fair premium as they need and have to pay. Machine Learning helps in this case enormously to understand, what factors have a larger impact on the premium and how customers can be classified accordingly.
 
 In this document, the reader may find different algorithms to solve various aspects of the premium-calculations.
 
 # Data Preprocessing
-In order to apply such algorithms, the data had to be pre-processed. This process can be found below.
+
+In order to apply such algorithms, the data has to be pre-processed. 
+In a very brief summary, the script removes unnecessary columns and duplicates, and handles missing and zero values, particularly for columns like INSURED_VALUE and SEATS_NUM. It converts certain columns to more meaningful categories, such as transforming SEX into factors representing legal entities and genders. The script also filters data to exclude irrelevant vehicle types and usage, ensuring the final dataset contains only pertinent records. Finally, it summarizes and adjusts the dataset further by converting appropriate columns into factors and removing variables not required for analysis.
 
 ```{r data_prep, echo=FALSE, cache=TRUE}
 
@@ -554,11 +556,9 @@ rm(clean_dat_motor_origin)
 
 ```
 
-
-
 # Graphical Data Analysis
 
-First, the distribution of the individual numerical variables is analysed to determine whether any transformations are necessary.
+First, the distribution of the individual numerical variables was analysed to determine whether any transformations were necessary.
 
 ```{r graph_data_analysis, cache = TRUE}
 
@@ -610,6 +610,8 @@ The histograms show that the variables INSURED_VALUE, PREMIUM, CLAIM_PAID_USD an
 
 
 # Models
+Once the pre-processing was completed and a good overview about the given data and domain knowledge what acquired, the team focused on defining models using several different methods shown in followed sub-sections.
+
 ## Linear Model
 
 A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the premium is incurred at the start of the contract and this would therefore not make technical sense. Instead, a bonus-malus system is taken into account by adding AMOUNT_CLAIMS_PAID.
@@ -1374,9 +1376,8 @@ Overall, the neural network model demonstrates good performance in predicting th
 
 
 ## Support Vector Machine (SVM)
+*Lead: Luca Renz*
 For the scenario of SVM models, it has been decided to do multiple-classifications for the premiums and divide it into 4 levels from low to very high.
-
-For this model, Luca Renz was in the lead.
 ```{r SVM MCC, cache=TRUE}
 # Setup parallelisation
 cl <- makeCluster(detectCores() - 1) 
@@ -1489,6 +1490,9 @@ Nevertheless, the model demonstrates reliable performance in classifying insuran
 
 
 # Conclusion
+#TODO
+Compare models and make some final suggestions to the client where we see most potential
+
 
 # Usage of Generative AI
 In the group project, generative AI was employed to facilitate coding tasks, generate text, and clarify complex concepts. This technology proved beneficial for automating repetitive tasks and assisting in the assembly of report sections, especially in presenting complex ideas in a clear manner.
