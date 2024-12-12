@@ -4,16 +4,16 @@ authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
 date: "`r Sys.Date()`"
 output:
   #word_document: default
-  #pdf_document: default
-  html_document: 
-    theme: darkly
+  pdf_document: default
+  #html_document: 
+  #  theme: darkly
     
     
 title: "ML1"
 ---
   
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, cache=TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, cache=TRUE, results='asis', fig.height=4.4)
 ```
 
 ```{css REFINE OR DELETE, echo=FALSE}
@@ -1378,8 +1378,11 @@ Overall, the neural network model demonstrates good performance in predicting th
 
 
 ## Support Vector Machine (SVM)
+
 *Lead: Luca Renz*
+
 For the scenario of SVM models, it has been decided to do multiple-classifications for the premiums and divide it into 4 levels from low to very high.
+
 ```{r SVM MCC, cache=TRUE}
 # Setup parallelisation
 cl <- makeCluster(detectCores() - 1) 
