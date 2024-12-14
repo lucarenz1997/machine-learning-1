@@ -762,22 +762,6 @@ ggplot(poisson_model$model) +
           axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
           axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
 
-
-
-##Poisson: (Profile-Likelihood Confidence Intervals)
-#confint(poisson_model)
-##Poisson: (Wald Confidence Interval)
-#coef(poisson_model)["F"]
-#c(-1, 1) * qnorm(1 - 0.95 / 2) * summary(poisson_model)$coefficients["F", "Std. Error"]
-##Poisson: Point Estimate, 95% Confidence Interval
-#pred <- predict(herz.fit, se.fit = TRUE, type = "link")
-#pe <- exp(pred$fit)
-#lb <- exp(pred$fit + qnorm(1 - 0.05 / 2) * pred$se.fit) #lower bound
-#ub <- exp(pred$fit - qnorm(1 - 0.05 / 2) * pred$se.fit) #upper bound
-#rbind(lb, ub)
-
-#Poisson: Inference
-#Significance test for individual parameters
 ```
 The Poisson model analysis shows no signs of overdispersion, as the overdispersion value of 0.688 is below 1. This indicates a possible underdispersion, but this is confirmed by the goodness-of-fit test (p-value = 1), which confirms a well-fitting model.
 
@@ -793,7 +777,7 @@ Further analysis indicates that vehicle age (AGE_VEHICLE) has a rate ratio of 0.
 
 The VIF values of all predictors are below the critical limit of 5, which indicates that there are no multicollinearity problems. The variables INSR_TYPE (3.75) and TYPE_VEHICLE (1.42) have the highest values, which indicates a moderate correlation with other predictors, but does not cause any stability problems in the model. Overall, the low VIF values support the robustness of the model estimates.
 
-The plot illustrates the relationship between the predicted values (Fitted Values) and the actual number of claims (Actual Number of Claims). Most actual values are concentrated in the lower range (0 to 10), while the predicted values are almost entirely clustered near zero. The model struggles to predict higher claim counts (>10), as evident from the significant deviations for extreme values. The red dashed line, representing the ideal fit between predicted and actual values, shows that many points fall below the line, indicating a systematic underestimation of actual claims by the model. This discrepancy may stem from the assumptions of the Poisson distribution, which assumes equal mean and variance. High variability or extreme values in the data can cause the model to perform poorly in capturing such cases.
+The plot illustrates the relationship between the predicted values (Fitted Values) and the actual number of claims (Actual Number of Claims). Most actual values are concentrated in the lower range (0 to 10), while the predicted values are almost entirely clustered near zero. The model struggles to predict higher claim counts (>10), as evident from the significant deviations for extreme values. The red dashed line, representing the ideal fit between predicted and actual values, shows that many points fall below the line, indicating a systematic underestimation of actual claims by the model. High variability or extreme values in the data can cause the model to perform poorly in capturing such cases.
 
 The plots of estimated vs. actual values show that the Poisson model has difficulties in accurately modelling the distribution of claims, especially for higher claims values. Most of the predicted values are close to zero and systematically underestimate the actual loss frequencies as they increase. This systematic underestimation and the high number of zero claims indicate that the simple distribution of the Poisson model may not be sufficient to fully represent the structure of the data.
 
