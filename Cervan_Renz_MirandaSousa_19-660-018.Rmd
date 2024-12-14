@@ -92,7 +92,7 @@ In a very brief summary, the script removes unnecessary columns and duplicates, 
 
 ```{r data_prep, echo=FALSE, cache=TRUE}
 
-# DATA LOAD
+#DATA LOAD
 raw_dat_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 
 dim(raw_dat_motor)
@@ -101,21 +101,21 @@ str(raw_dat_motor)
 #DATA PREP
 
 #EFFECTIVE_YR
-#Entfernen der Spalte EFFECTIVE_YR (Hat keinen Nutzen, da nicht entziffert werden kann)
+#Remove the column EFFECTIVE_YR (Not useful as it cannot be deciphered)
 raw_dat_motor <- raw_dat_motor[ , !(names(raw_dat_motor) %in% "EFFECTIVE_YR")]
 
 #CARRYING_CAPACITY
-#Entfernen der Spalte CARRYING_CAPACITY
+#Remove the column CARRYING_CAPACITY
 raw_dat_motor <- raw_dat_motor[ , !(names(raw_dat_motor) %in% "CARRYING_CAPACITY")]
 
 #CLAIM_PAID
 raw_dat_motor$CLAIM_PAID_USD <- ifelse(is.na(raw_dat_motor$CLAIM_PAID), 0, raw_dat_motor$CLAIM_PAID)
 raw_dat_motor$CLAIM_PAID <- ifelse(raw_dat_motor$CLAIM_PAID_USD == 0, "NO", "YES")
 
-# Entfernen von Duplikaten und Zählen der entfernten Zeilen
+#Remove duplicates and count the number of removed rows
 removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
-# Ausgabe der Anzahl der entfernten Duplikate
-cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+#Output the number of removed duplicates
+cat("Number of removed duplicates:", removed_count, "\n")
 
 #SEX
 raw_dat_motor$SEX <- factor(raw_dat_motor$SEX, 
@@ -135,7 +135,7 @@ hist(raw_dat_motor$DURATION)
 #Gleiche DURATION (Vertragsdauer) zur Vergleichbarkeit
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$DURATION == 364, ]
 
-#Jahr des Versicherungsbeginns extrahieren und als neue Variable hinzufügen
+#Extract year of insurance start and add as a new variable
 raw_dat_motor$START_INS_YR <- year(as.Date(raw_dat_motor$INSR_BEGIN))
 
 #INSR_TYPE
@@ -144,247 +144,249 @@ raw_dat_motor$INSR_TYPE <- factor(raw_dat_motor$INSR_TYPE,
                                   labels = c("Private", "Commercial", "Motor trade road risk"))
 
 #INSURED_VALUE
-#Überprüfen der Anzahl der fehlenden Werte
+#Check the number of missing values
 missing_values <- sum(is.na(raw_dat_motor$INSURED_VALUE))
-cat("Fehlende Werte in INSURED_VALUE:", missing_values, "\n")
+cat("Missing values in INSURED_VALUE:", missing_values, "\n")
 
-#Zusammenfassung der statistischen Kennzahlen
+#Summary of the statistical key figures
 summary_stats <- summary(raw_dat_motor$INSURED_VALUE)
-cat("Zusammenfassung der statistischen Kennzahlen von INSURED_VALUE:\n")
+cat("Summary of the statistical key figures of INSURED_VALUE:\n")
 print(summary_stats)
 
-#Ermittlung der Anzahl der Einträge, die 0 als Wert haben
+#Determine the number of entries with a value of 0
 zero_values <- sum(raw_dat_motor$INSURED_VALUE == 0, na.rm = TRUE)
-cat("Anzahl der Einträge mit dem Wert 0 in INSURED_VALUE:", zero_values, "\n")
+cat("Number of entries with the value 0 in INSURED_VALUE:", zero_values, "\n")
 
-#Überprüfe, wie viele Datensätze betroffen sind
+#Check how many records are affected
 zero_insured_value <- raw_dat_motor[raw_dat_motor$INSURED_VALUE == 0, ]
-cat("Anzahl der Datensätze mit INSURED_VALUE = 0:", nrow(zero_insured_value), "\n")
+cat("Number of data records with INSURED_VALUE = 0:", nrow(zero_insured_value), "\n")
 
-#Zusammenfassung der betroffenen Datensätze nach verschiedenen Variablen, um Muster zu erkennen
-cat("Verteilung der Versicherungstypen (INSR_TYPE) bei INSURED_VALUE = 0:\n")
-table(raw_dat_motor$INSR_TYPE) #Alle
-print(table(zero_insured_value$INSR_TYPE)) #nur 0
+#Summary of affected records by various variables to identify patterns
+cat("Distribution of INSR_TYPE with INSURED_VALUE = 0:\n")
+table(raw_dat_motor$INSR_TYPE) #All
+print(table(zero_insured_value$INSR_TYPE)) #Only 0
 
-cat("\nVerteilung der Fahrzeugtypen (TYPE_VEHICLE) bei INSURED_VALUE = 0:\n")
+cat("\nDistribution of TYPE_VEHICLE with INSURED_VALUE = 0:\n")
 print(table(zero_insured_value$TYPE_VEHICLE))
 
-cat("\nVerteilung der Fahrzeugnutzung (USAGE) bei INSURED_VALUE = 0:\n")
+cat("\nDistribution of USAGE with INSURED_VALUE = 0:\n")
 print(table(zero_insured_value$USAGE))
 
-#Statistische Kennzahlen für andere Variablen bei INSURED_VALUE = 0 (z.B. PREMIUM)
-cat("\nZusammenfassung der Prämien (PREMIUM) bei INSURED_VALUE = 0:\n")
+#Statistical key figures for other variables with INSURED_VALUE = 0 (e.g., PREMIUM)
+cat("\nSummary of the PREMIUM with INSURED_VALUE = 0:\n")
 summary(zero_insured_value$PREMIUM)
 
-#Visualisierung der Fahrzeugnutzung bei INSURED_VALUE = 0
+#Visualization of vehicle usage with INSURED_VALUE = 0
 ggplot(zero_insured_value, aes(x = USAGE)) +
   geom_bar(fill = "blue", color = "black") +
-  labs(title = "Verteilung der Fahrzeugnutzung bei INSURED_VALUE = 0", x = "Fahrzeugnutzung", y = "Anzahl") +
+  labs(title = "Distribution of USAGE with INSURED_VALUE = 0", x = "USAGE", y = "Amount") +
   theme_minimal()
 
-#Fazit: Es wurde kein Zusammenhang festgestellt. Vermutlich ist der Versicherungswert von 0 darauf zurückzuführen, dass gesetzlich nur eine Haftpflichtversicherung erforderlich ist. In diesen Fällen gibt es keinen festgelegten Wert für Schäden am Fahrzeug selbst. Daher werden Datensätze mit einem INSURED_VALUE von 0 aus der Analyse entfernt, da sie keine relevanten Informationen für die Bewertung von Fahrzeugwerten enthalten.
+#Conclusion: No connection was found. Presumably, the insurance value of 0 is due to the fact that only third-party liability insurance is legally required. In these cases, there is no fixed value for damage to the vehicle itself. Therefore, records with an INSURED_VALUE of 0 are removed from the analysis as they do not contain any relevant information for the assessment of vehicle values.
 
-#Entfernen der Zeilen, bei denen INSURED_VALUE gleich 0 ist
+#Remove rows where INSURED_VALUE is equal to 0
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE != 0, ]
 
-#Überprüfen, ob die Zeilen erfolgreich entfernt wurden
-cat("Anzahl der verbleibenden Datensätze:", nrow(raw_dat_motor), "\n")
+#Verify if the rows have been successfully removed
+cat("Number of remaining data records:", nrow(raw_dat_motor), "\n")
 
-#Verteilung von INSURED_VALUE visualisieren (Histogramm)
+#Visualize the distribution of INSURED_VALUE (Histogram)
 ggplot(raw_dat_motor, aes(x = INSURED_VALUE)) +
   geom_histogram(binwidth = 50000, fill = "blue", color = "black", alpha = 0.7) +
-  labs(title = "Verteilung von INSURED_VALUE", x = "Versicherter Wert", y = "Häufigkeit") +
+  labs(title = "Distribution of INSURED_VALUE", x = "INSURED_VALUE", y = "Frequency") +
   theme_minimal()
 
-#Boxplot zur Identifizierung von Ausreissern
+#Boxplot to identify outliers
 ggplot(raw_dat_motor, aes(y = INSURED_VALUE)) +
   geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
-  labs(title = "Boxplot von INSURED_VALUE", y = "Versicherter Wert") +
+  labs(title = "Boxplot of INSURED_VALUE", y = "INSURED_VALUE") +
   theme_minimal()
 
-#Überprüfung der statistischen Kennzahlen ohne die 0-Werte
-cat("Zusammenfassung der statistischen Kennzahlen ohne 0-Werte:\n")
+#Check the statistical key figures without 0 values
+cat("Summary of the statistical key figures without 0 values:\n")
 print(summary(raw_dat_motor$INSURED_VALUE))
 
-#Verteilung der log-transformierten INSURED_VALUE (nur für nicht-null Werte)
+#Distribution of the log-transformed INSURED_VALUE (only for non-zero values)
 ggplot(raw_dat_motor[raw_dat_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VALUE))) +
   geom_histogram(binwidth = 0.2, fill = "green", color = "black", alpha = 0.7) +
-  labs(title = "Log-transformierte Verteilung von INSURED_VALUE (ohne Nullwerte)", x = "log(Versicherter Wert)", y = "Häufigkeit") +
+  labs(title = "Log-transformed distribution of INSURED_VALUE (without zero values)", x = "log(INSURED_VALUE)", y = "Frequency") +
   theme_minimal()
 
 summary(raw_dat_motor$INSURED_VALUE)
 
-#Ausreisser INSURED_VALUE entfernen 
+#Remove outliers in INSURED_VALUE
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE >= 10, ]
 summary(raw_dat_motor$INSURED_VALUE)
 
-#Workspace
+#Workspace cleanup
 rm(zero_insured_value)
 
 #PREMIUM
-#Uberpruefung ob entfernen von PREMIUM = 0 vom Datensatz valide ist
+#Check if removing PREMIUM = 0 from the dataset is valid
 data.frame(
   PREMIUM_0_Percent = round(100 * sum(raw_dat_motor$PREMIUM == 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
   PREMIUM_NA_Percent = round(100 * sum(is.na(raw_dat_motor$PREMIUM)) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
   PREMIUM_MORE_Percent = round(100 * sum(raw_dat_motor$PREMIUM > 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), 4)
 )
 
-#Entfernen der Zeilen, bei denen PREMIUM NA oder 0 ist
+#Remove rows where PREMIUM is NA or 0
 raw_dat_motor <- raw_dat_motor[!(is.na(raw_dat_motor$PREMIUM) | raw_dat_motor$PREMIUM == 0), ]
 
-
-# Entfernen von Duplikaten und Zählen der entfernten Zeilen
+# Remove duplicates and count the number of removed rows
 removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
-# Ausgabe der Anzahl der entfernten Duplikate
-cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
+# Output the number of removed duplicates
+cat("Number of removed duplicates:", removed_count, "\n")
 
 # OBJECT_ID
-# Anzahl der Gesamtzeilen im Datensatz
+# Total number of rows in the dataset
 total_rows <- nrow(raw_dat_motor)
 
-# Anzahl der einzigartigen OBJECT_IDs
+# Number of unique OBJECT_IDs
 unique_object_ids <- length(unique(raw_dat_motor$OBJECT_ID))
 
-# Überprüfen, ob OBJECT_IDs einmalig sind
+# Check if OBJECT_IDs are unique
 if (total_rows == unique_object_ids) {
-  cat("Die OBJECT_IDs sind einmalig.\n")
+  cat("The OBJECT_IDs are unique.\n")
 } else {
-  cat("Die OBJECT_IDs sind NICHT einmalig.\n")
-  cat("Anzahl der Duplikate:", total_rows - unique_object_ids, "\n")
+  cat("The OBJECT_IDs are NOT unique.\n")
+  cat("Number of duplicates:", total_rows - unique_object_ids, "\n")
   
-  # Häufigkeit der OBJECT_IDs
+  # Frequency of OBJECT_IDs
   object_id_counts <- table(raw_dat_motor$OBJECT_ID)
   
-  # Durchschnittliche und maximale Häufigkeit von OBJECT_ID
+  # Average and maximum frequency of OBJECT_ID
   avg_object_id_freq <- mean(object_id_counts)
   max_object_id_freq <- max(object_id_counts)
   
-  cat("Durchschnittliche Häufigkeit der OBJECT_ID:", round(avg_object_id_freq, 3), "\n")
-  cat("Maximale Häufigkeit der OBJECT_ID:", max_object_id_freq, "\n")
+  cat("Average frequency of the OBJECT_ID:", round(avg_object_id_freq, 3), "\n")
+  cat("Maximum frequency of the OBJECT_ID:", max_object_id_freq, "\n")
   
-  # Häufigkeit der Kombination von OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE und PREMIUM
+  # Frequency of the combination of OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, and PREMIUM
   combo_counts <- raw_dat_motor %>%
     group_by(OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM) %>%
     summarise(count = n(), .groups = 'drop')
   
-  # Durchschnittliche und maximale Häufigkeit der Kombination
-  avg_combo_freq <- mean(combo_counts$count) # Durchschnittliche Häufigkeit der Kombination
-  max_combo_freq <- max(combo_counts$count)   # Maximale Häufigkeit der Kombination
+  # Average and maximum frequency of the combination
+  avg_combo_freq <- mean(combo_counts$count) # Average frequency of the combination
+  max_combo_freq <- max(combo_counts$count)  # Maximum frequency of the combination
   
-  cat("Durchschnittliche Häufigkeit der Kombination (OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM):", round(avg_combo_freq, 3), "\n")
-  cat("Maximale Häufigkeit der Kombination (OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM):", max_combo_freq, "\n")
+  cat("Average frequency of the combination (OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM):", round(avg_combo_freq, 3), "\n")
+  cat("Maximum frequency of the combination (OBJECT_ID, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM):", max_combo_freq, "\n")
 }
 
-#Teilweise gibt es bei CLAIM_PAID== YES eine vervielfachung
-#Korrektur bzw. entfernen dieser mehrfachen Zeilen
+#In some cases, CLAIM_PAID == YES results in duplication
+#Correction or removal of these duplicate rows
 raw_dat_motor <- raw_dat_motor %>%
   group_by(SEX, INSR_BEGIN, INSR_END, INSR_TYPE, INSURED_VALUE, PREMIUM, OBJECT_ID, PROD_YEAR, SEATS_NUM, TYPE_VEHICLE, CCM_TON, MAKE, USAGE) %>%
-  # Zähle die Anzahl der Zeilen in jeder Gruppe
+  # Count the number of rows in each group
   mutate(group_size = n()) %>%
   ungroup() %>%
-  # Entferne Zeilen nur, wenn es eine Doppelzeile gibt und CLAIM_PAID == "NO" und CLAIM_PAID_USD <= 1
+  # Remove rows only if it's a duplicate and CLAIM_PAID == "NO" and CLAIM_PAID_USD <= 1
   filter(!(group_size > 1 & CLAIM_PAID == "NO" & CLAIM_PAID_USD <= 1)) %>%
-  dplyr::select(-group_size)  # Entferne die Hilfsspalte
+  dplyr::select(-group_size)  # Remove the helper column
 
-#Korrektur Wiederspruch bei INSR_TYPE
+#Correction of inconsistency in INSR_TYPE
 raw_dat_motor <- raw_dat_motor %>%
   group_by(SEX, INSR_BEGIN, INSR_END, INSURED_VALUE, PREMIUM, OBJECT_ID, PROD_YEAR, SEATS_NUM, TYPE_VEHICLE, CCM_TON, MAKE, USAGE) %>%
-  filter(!(n() > 1 & INSR_TYPE != "Commercial")) %>%  # Behalte nur die Zeilen mit "Commercial"
-  ungroup()  # Ungroup, um das Gruppierungsobjekt zu entfernen
+  filter(!(n() > 1 & INSR_TYPE != "Commercial")) %>%  # Keep only rows with "Commercial"
+  ungroup()  # Ungroup to remove the grouping object
 
 # Clear Workspace
 rm(list = setdiff(ls(), "raw_dat_motor"))
 
-
 #PROD_YEAR
-#Zeilen mit PROD_YEAR NA entfernen
+#Remove rows with PROD_YEAR as NA
 raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$PROD_YEAR),]
 summary(raw_dat_motor$PROD_YEAR)
 
 #SEATS_NUM
-#Analyse SEATS_NUM: Anzahl der Zeilen mit SEATS_NUM == 0, NA und anderen Werten
+#Analysis of SEATS_NUM: Number of rows with SEATS_NUM == 0, NA, and other values
 data.frame(
   SEATS_NUM_0 = sum(raw_dat_motor$SEATS_NUM == 0, na.rm = TRUE),
   SEATS_NUM_NA = sum(is.na(raw_dat_motor$SEATS_NUM)),
   SEATS_NUM_OTHER = sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE)
 )
-#Relativ: Prozentsatz der Zeilen mit SEATS_NUM == 0, NA oder anderen Werten
+
+#Relative: Percentage of rows with SEATS_NUM == 0, NA, or other values
 data.frame(
   SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(raw_dat_motor$SEATS_NUM) | raw_dat_motor$SEATS_NUM == 0) / nrow(raw_dat_motor),
   SEATS_NUM_OTHER_Percent = 100 * sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(raw_dat_motor)
 )
-#Zeilen mit SEATS_NUM NA entfernen
+
+#Remove rows with SEATS_NUM as NA
 raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$SEATS_NUM),]
 summary(raw_dat_motor$SEATS_NUM)
 
-#Problematik: Es gibt SEATS_NUM mit 0
+#Issue: There are SEATS_NUM values equal to 0
 
-##Erstellen separater Datensätze für SEATS_NUM == 0 und SEATS_NUM > 0
+##Create separate datasets for SEATS_NUM == 0 and SEATS_NUM > 0
 #data_seats_num_0 <- subset(raw_dat_motor, SEATS_NUM == 0)
 #data_seats_num_other <- subset(raw_dat_motor, SEATS_NUM > 0 & !is.na(SEATS_NUM))
-## Tabellen der Fahrzeugtypen für beide Datensätze
+## Tables of vehicle types for both datasets
 #table(data_seats_num_0$TYPE_VEHICLE)
 #table(data_seats_num_other$TYPE_VEHICLE)
 
-##SEATS_NUM Alternative 1: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
-##Liste der Fahrzeugtypen, bei denen SEATS_NUM == 0 unplausibel ist (Trailers and semitrailers, Tractor, Tanker werden gelassen)
+##SEATS_NUM Alternative 1: Remove rows where SEATS_NUM is 0 or NULL
+##List of vehicle types where SEATS_NUM == 0 is implausible (Trailers and semitrailers, Tractor, Tanker are retained)
 #unplausible_types <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Station Wagones", "Tanker", "Truck")
-##Entfernen der Zeilen, bei denen SEATS_NUM == 0 und der Fahrzeugtyp unplausibel ist
+##Remove rows where SEATS_NUM == 0 and the vehicle type is implausible
 #raw_dat_motor <- raw_dat_motor[!(raw_dat_motor$SEATS_NUM == 0 & raw_dat_motor$TYPE_VEHICLE %in% unplausible_types), ]
 #
 #
-##SEATS_NUM Alternative 2: Entfernen der Zeilen wo SEATS_NUM 0 oder NULL ist
+##SEATS_NUM Alternative 2: Remove rows where SEATS_NUM is 0 or NULL
 #raw_dat_motor <- raw_dat_motor[!(is.na(raw_dat_motor$SEATS_NUM) | raw_dat_motor$SEATS_NUM == 0), ]
 #
-##SEATS_NUM Alternative 3: Entfernen der SEATS_NUM-Spalte, da viele NA und schlechte Datenqualität
+##SEATS_NUM Alternative 3: Remove the SEATS_NUM column due to many NAs and poor data quality
 ##raw_dat_motor <- subset(raw_dat_motor, select = -SEATS_NUM)
 
 #TYPE_VEHICLE
-#Entfernen der Zeilen, bei denen TYPE_VEHICLE == "Trade plates" Da zu wenige Auspraegungen (5)
+#Remove rows where TYPE_VEHICLE == "Trade plates" due to insufficient occurrences (5)
 #table(raw_dat_motor$TYPE_VEHICLE)
+
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$TYPE_VEHICLE != "Trade plates", ]
 
 #CCM_TON
 summary(raw_dat_motor$CCM_TON)
-#Relativ CCM_TON 0
+#Relative CCM_TON 0
 data.frame(
   CCM_TON_0_Percent = 100 * mean(raw_dat_motor$CCM_TON == 0, na.rm = TRUE),
   CCM_TON_MORE_Percent = 100 * mean(raw_dat_motor$CCM_TON > 0, na.rm = TRUE))
-# Erstellen separater Datensätze für CCM_TON == 0 und CCM_TON > 0
+# Create separate datasets for CCM_TON == 0 and CCM_TON > 0
 data_CCM_TON_0 <- subset(raw_dat_motor, CCM_TON == 0)
 data_CCM_TON_other <- subset(raw_dat_motor, CCM_TON > 0 & !is.na(CCM_TON))
-# Tabellen der Fahrzeugtypen für beide Datensätze
+# Tables of vehicle types for both datasets
 table(data_CCM_TON_0$TYPE_VEHICLE)
 table(data_CCM_TON_other$TYPE_VEHICLE)
-# Liste der Fahrzeugtypen, bei denen CCM_TON == 0 unplausibel ist (Tractor,Trailers and semitrailers werden gelassen)
+# List of vehicle types where CCM_TON == 0 is implausible (Tractor, Trailers, and semitrailers are retained)
 unplausible_types_ccm <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Truck", "Station Wagones", "Tanker", "Special construction")
-# Entfernen der Zeilen, bei denen CCM_TON == 0 und der Fahrzeugtyp unplausibel ist
+# Remove rows where CCM_TON == 0 and the vehicle type is implausible
 raw_dat_motor <- raw_dat_motor[!(raw_dat_motor$CCM_TON == 0 & raw_dat_motor$TYPE_VEHICLE %in% unplausible_types_ccm), ]
 
 
 #USAGE
 #table(raw_dat_motor$USAGE)
-#Wenige Ausprägungen entfernen
+#Remove rows with few occurrences
 raw_dat_motor <- subset(raw_dat_motor, !(USAGE %in% c("Fire fighting", "Learnes", "Others")))
 
 
 
 #MAKE
-#Zeilen mit MAKE NA entfernen
+#Remove rows where MAKE is NA
 raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$MAKE),]
-#MAKE in Grossbuchstaben umwandeln
+#Convert MAKE to uppercase
 raw_dat_motor$MAKE <- toupper(raw_dat_motor$MAKE)
 
-#Entfernen von Duplikaten und Zählen der entfernten Zeilen
+# Remove duplicates and count the number of removed rows
 removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
-#Ausgabe der Anzahl der entfernten Duplikate
-cat("Anzahl der entfernten Duplikate:", removed_count, "\n")
-# Behalten von Zeilen, in denen MAKE mit Buchstaben beginnt
+# Output the number of removed duplicates
+cat("Number of removed duplicates:", removed_count, "\n")
+# Keep rows where MAKE starts with a letter
 raw_dat_motor <- raw_dat_motor[grepl("^[A-Za-z]", raw_dat_motor$MAKE), ]
 table(raw_dat_motor$MAKE)
 
 
-#Manuelle Korrekturen von MAKE
+
+#Manual corrections from MAKE
 raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("PORCHE", "FORSCHE")] <- "PORSCHE"
 raw_dat_motor$MAKE[raw_dat_motor$MAKE == "YAMHA"] <- "YAMAHA"
 raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("VOLKSWAGON", "VOLKS WAGON")] <- "VOLKSWAGEN"
@@ -436,25 +438,25 @@ raw_dat_motor$MAKE[raw_dat_motor$MAKE %in% c("LIBER DOZER", "LIBERR MOBILE CRANE
 
 #table(raw_dat_motor$MAKE)
 
-#Zähle die Anzahl der Einträge pro MAKE, wo CLAIM_PAID == "YES"
+#Count the number of entries per MAKE where CLAIM_PAID == ‘YES’
 count_claims_paid <- raw_dat_motor %>%
-  group_by(MAKE, CLAIM_PAID ) %>%                 # Gruppiere nach MAKE
-  summarise(count = n()) %>%        # Zähle die Einträge pro Gruppe
+  group_by(MAKE, CLAIM_PAID ) %>%                 #Group by MAKE
+  summarise(count = n()) %>%         #Count the entries per group
   arrange(desc(count)) 
 
 ###############################################################################################
 
 
-#Liste der gewünschten Fahrzeughersteller (Make)
+#List of preferred vehicle manufacturers (Make)
 selected_makes <- c("TOYOTA", "ISUZU", "NISSAN", "IVECO", "SINO HOWO", 
                     "MITSUBISHI", "BISHOFTU", "LIFAN", "FORD", "HYUNDAI", 
                     "MAZDA", "GEELY", "DAEWOO", "MERCEDES", "TATA", 
                     "FIAT", "SINO", "SUZUKI", "GENLYON", "RENAULT")
 
-#Filtern des Datensatzes nach den ausgewählten Fahrzeugherstellern
+#Filter the data set according to the selected vehicle manufacturers
 clean_dat_motor <- subset(raw_dat_motor, MAKE %in% selected_makes)
 
-#Wenige Ausprägungen entfernen
+#Remove few features
 #table(clean_dat_motor$SEX) #OK
 
 #table(clean_dat_motor$USAGE)
@@ -463,11 +465,11 @@ clean_dat_motor <- subset(clean_dat_motor, !(USAGE %in% c("Agricultural Any Farm
                                                           "Special Construction", "Taxi")))
 
 #table(clean_dat_motor$TYPE_VEHICLE)
-#Wenige Ausprägungen entfernen
+#Remove few features
 clean_dat_motor <- subset(clean_dat_motor, !(TYPE_VEHICLE %in% c("Tractor")))
 
 #table(clean_dat_motor$INSR_TYPE)
-#Wenige Ausprägungen entfernen
+#Remove few features
 clean_dat_motor <- subset(clean_dat_motor, !(INSR_TYPE %in% c("Motor trade road risk")))
 
 #table(clean_dat_motor$MAKE)
@@ -483,7 +485,7 @@ data.frame(
 
 #New Variable: age_vehicle
 clean_dat_motor$AGE_VEHICLE <- 2018 - clean_dat_motor$PROD_YEAR
-#Entfernen von PROD_YEAR
+#Remove PROD_YEAR
 clean_dat_motor<- clean_dat_motor[,-8]
 
 
@@ -503,7 +505,7 @@ clean_dat_motor <- clean_dat_motor %>%
 
 ###############################################################################################
 
-#Vergleich zum Rohdatensatz
+#Comparison with the raw data set
 #CLAIM_PAID
 data.frame(
   CLAIM_PAID_0 = sum(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
@@ -524,10 +526,10 @@ data.frame(
 colSums(is.na(raw_dat_motor)) 
 colSums(is.na(clean_dat_motor)) 
 
-#Entfernen der Variablen 'versicherungsbeginn' und 'versicherungsende'
+#Remove the variables ‘start of insurance’ and ‘end of insurance’
 clean_dat_motor <- subset(clean_dat_motor, select = -c(INSR_BEGIN, INSR_END, DURATION))
 
-# Neuanordnung der Spalten: Zuerst OBJECT_ID, dann START_INS_YR, dann der Rest
+#Rearrange the columns: First OBJECT_ID, then START_INS_YR, then the rest
 clean_dat_motor <- clean_dat_motor %>%
   dplyr::select(OBJECT_ID, START_INS_YR, SEX, INSR_TYPE, USAGE, TYPE_VEHICLE,
                 MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, PREMIUM, CLAIM_PAID_USD, everything())
@@ -538,7 +540,7 @@ set.seed(123)
 clean_dat_motor <- sample_n(clean_dat_motor, size = 100000)
 
 
-#Umwandlung der kategorialen Variablen in Factor-Variablen
+#Transformation of categorical variables into factor variables
 clean_dat_motor$OBJECT_ID <- as.factor(clean_dat_motor$OBJECT_ID)
 clean_dat_motor$SEX <- as.factor(clean_dat_motor$SEX)
 clean_dat_motor$INSR_TYPE <- as.character(clean_dat_motor$INSR_TYPE)
@@ -550,7 +552,7 @@ clean_dat_motor$TYPE_VEHICLE <- as.factor(clean_dat_motor$TYPE_VEHICLE)
 clean_dat_motor$START_INS_YR <- as.factor(clean_dat_motor$START_INS_YR)
 
 
-# Clear Workspace
+#Clear Workspace
 rm(clean_dat_motor_origin)
 
 
@@ -561,12 +563,11 @@ rm(clean_dat_motor_origin)
 First, the distribution of the individual numerical variables was analysed to determine whether any transformations were necessary.
 
 ```{r graph_data_analysis, cache = TRUE}
-
-# Auswahl nur der numerischen Variablen
+# Selection of numeric variables only
 numeric_vars <- clean_dat_motor %>%
   select_if(is.numeric)
 
-# Erstellen von Histogrammen für jede numerische Variable
+# Create histograms for each numeric variable
 for (var in names(numeric_vars)) {
   print(
     ggplot(clean_dat_motor, aes_string(x = var)) +
@@ -581,7 +582,7 @@ for (var in names(numeric_vars)) {
 
 ###################################################################################
 
-#Weitere grafische Analysen
+#Additional graphical analyses
 boxplot(PREMIUM ~ SEX, data = clean_dat_motor,
 main = "Premium against sex",
 ylab = "Premium")
@@ -596,23 +597,22 @@ ylab = "Claim paid (USD)")
 #Log-Transformation
 clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
 clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
-#Log-Transformation mit log1p() wegen der vielen 0-Werte
+#Log-transformation using log1p() due to the many 0 values
 clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
 clean_dat_motor$CCM_TON_log <- log1p(clean_dat_motor$CCM_TON)
 
 
 # Clear Workspace
 rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
-
 ```
 
-The histograms show that the variables INSURED_VALUE, PREMIUM, CLAIM_PAID_USD and CCM_TON are right-skewed and require a log transformation. The transformed variables can be inserted in the later regression models instead of the original variables.
+The histograms show that the variables INSURED_VALUE, PREMIUM, CLAIM_PAID_USD and CCM_TON are right-skewed and require a log transformation. The transformed variables will be inserted in the later regression models instead of the original variables.
 
 
 # Models
 Once the pre-processing was completed and a good overview about the given data and domain knowledge what acquired, the team focused on defining models using several different methods shown in followed sub-sections.
 
-## Linear Model
+## Linear model
 
 A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the premium is incurred at the start of the contract and this would therefore not make technical sense. Instead, a bonus-malus system is taken into account by adding AMOUNT_CLAIMS_PAID.
 
@@ -669,6 +669,8 @@ The coefficient of AGE_VEHICLE is 0.0029, indicating that with each additional y
 
 The coefficient of SEATS_NUM is -0.00175, which means that with each additional seat, the log-transformed premium decreases by approximately 0.00175. Given the logarithmic nature of the target variable, this can be interpreted as each additional seat leading to a slight reduction in the premium by around 0.175%.
 
+The variable CCM_TON_log has a positive coefficient of 0.0109, indicating a small but statistically significant (p = 0.01241) relationship with the log-transformed premium (PREMIUM_log). This suggests that an increase in the log-transformed vehicle capacity (CCM_TON) is associated with a slight increase in the premium. However, its relatively small effect size indicates it plays a minor role compared to stronger predictors like AMOUNT_CLAIMS_PAID or INSURED_VALUE_log.
+
 
 VIF:
 An analysis of multicollinearity revealed that the Variance Inflation Factor (VIF) for the variable INSR_TYPE is 5.85, which suggests possible multicollinearity. This could affect the model’s stability and interpretability and should be considered in further model optimization.
@@ -684,7 +686,7 @@ The Normal Q-Q Plot shows that the residuals do not lie perfectly along the line
 To improve the model, various measures could be considered. One approach would be to transform the target variable, for example, using a Box-Cox transformation, to reduce heteroskedasticity and achieve a more stable residual variance. Additionally, incorporating non-linear relationships by including polynomial terms or using a generalized linear model (GLM) could be beneficial. This would allow the model to better capture complex relationships between variables, thereby enhancing predictive accuracy.
 
 
-## Poisson
+## Poisson model
 
 A Poisson model is fitted to predict the number of claims over a 5-year period based on the characteristics SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM.
 
@@ -700,17 +702,18 @@ dat_amount_claims <- clean_dat_motor %>%
 summary(dat_amount_claims$AMOUNT_CLAIMS)
 hist(dat_amount_claims$AMOUNT_CLAIMS, breaks=max(dat_amount_claims$AMOUNT_CLAIMS)) #Zero-inflated Poisson Regression would fit better
 
-mean(dat_amount_claims$AMOUNT_CLAIMS) # calculate mean
+#Mean vs. Variance
+mean(dat_amount_claims$AMOUNT_CLAIMS)
 var(dat_amount_claims$AMOUNT_CLAIMS)
 #The variance is not much greater than the mean, over-dispersion can be neglegted in the model.
 
 ```
-The analysis of the distribution of the target variable AMOUNT_CLAIMS reveals that a large portion of the values are zero. This concentration of zero values is confirmed by the median, as well as the 1st and 3rd quartiles, which are also at zero. Additionally, the distribution shows some high outliers with a maximum value of 46, indicating an uneven distribution with a few high values. The low mean of 0.1791 further supports this observation, suggesting a significant number of zero values.Given these distribution characteristics, the use of a Zero-Inflated Poisson (ZIP) model could be appropriate, as such a model can account for both random and structural zeros. Initially, however, a Poisson model will be fitted.
+The analysis of the distribution of the target variable AMOUNT_CLAIMS reveals that a large portion of the values are zero. This concentration of zero values is confirmed by the median, as well as the 1st and 3rd quartiles, which are also at zero. Additionally, the distribution shows some high outliers with a maximum value of 46, indicating an uneven distribution with a few high values. The low mean of 0.1791 further supports this observation, suggesting a significant number of zero values. Given these distribution characteristics, the use of a Zero-Inflated Poisson (ZIP) model could be appropriate, as such a model can account for both random and structural zeros. Initially, however, a Poisson model will be fitted.
 
 ```{r Poisson_Model, cache=TRUE}
 
 #Poisson Regression:
-poisson_model<- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE +  MAKE +
+poisson_model <- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE +
                       AGE_VEHICLE + SEATS_NUM + CCM_TON + INSURED_VALUE + PREMIUM,
                       family = poisson(link = "log"), data = dat_amount_claims)
 
@@ -721,7 +724,7 @@ summary(poisson_model)
 coef(poisson_model)
 exp(coef(poisson_model))
 
-# Diagnose Overdispersion
+#Diagnose Overdispersion
 overdispersion <- deviance(poisson_model) / df.residual(poisson_model)
 # Interpretation:
 # - A value close to 1 indicates an adequate fit without overdispersion.
@@ -743,41 +746,40 @@ vif_values <- vif(poisson_model)
 # Output the VIF values for interpretation
 cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
 print(vif_values)
-#Interpretation:
+# Interpretation:
 # - VIF values above 5 (or in some cases, 10) indicate multicollinearity issues.
 
 
-# Berechnung der vorhergesagten Werte für Visualisierung
+# Calculation of predicted values for visualization
 poisson_model$model$fitted <- predict(poisson_model, type = "response")
-#ggplot2 Plot: Fitted vs. Actual values
+# ggplot2 Plot: Fitted vs. Actual values
 ggplot(poisson_model$model) +
     geom_point(aes(x = fitted, y = AMOUNT_CLAIMS), color = "darkblue") +
-    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") + # Diagonale Linie als Referenz
-    labs(x = "Fitted Values \n", y = "Actual number Of Claims \n",
-         title = "Poisson Regression: Fitted vs. Actual number of Claims \n") +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") + # Diagonal line as reference
+    labs(x = "Fitted Values \n", y = "Actual Number of Claims \n",
+         title = "Poisson Regression: Fitted vs. Actual Number of Claims \n") +
     theme(plot.title = element_text(hjust = 0.5),
-          axis.title.x = element_text(face="bold", colour="blue", size = 12),
-          axis.title.y = element_text(face="bold", colour="blue", size = 12))
+          axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
+          axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
 
 
 
-##Poisson: (Profile-Likelihood-Vertrauensintervalle)
+##Poisson: (Profile-Likelihood Confidence Intervals)
 #confint(poisson_model)
-##Poisson: (Wald Vertrauensintervall)
+##Poisson: (Wald Confidence Interval)
 #coef(poisson_model)["F"]
-#c(-1, 1) * qnorm(1 - 0.95/2) * summary(poisson_model)$coefficients["F", "Std. Error"]
-##Poisson: Punktschaetzung, 95% Vertrauensintervall
-#pred<- predict(herz.fit, se.fit= TRUE, type= "link")
-#pe<- exp(pred$fit)
-#lb<- exp(pred$fit + qnorm(1 - 0.05 / 2) * pred$se.fit) #untere Schranke
-#ub<- exp(pred$fit - qnorm(1 - 0.05 / 2) * pred$se.fit) #obere Schranke
+#c(-1, 1) * qnorm(1 - 0.95 / 2) * summary(poisson_model)$coefficients["F", "Std. Error"]
+##Poisson: Point Estimate, 95% Confidence Interval
+#pred <- predict(herz.fit, se.fit = TRUE, type = "link")
+#pe <- exp(pred$fit)
+#lb <- exp(pred$fit + qnorm(1 - 0.05 / 2) * pred$se.fit) #lower bound
+#ub <- exp(pred$fit - qnorm(1 - 0.05 / 2) * pred$se.fit) #upper bound
 #rbind(lb, ub)
 
-#Poisson: Inferenz
-#Signifikanztest der einzelnen Parameter
-
+#Poisson: Inference
+#Significance test for individual parameters
 ```
-The analysis of the Poisson model for predicting claim frequency indicated no overdispersion. The calculated overdispersion value, represented by the ratio of deviance to degrees of freedom, is 0.688, which is significantly below 1. This suggests that the model does not overestimate variance in the data, and overdispersion is not an issue. The Goodness-of-Fit test further confirms the adequacy of the model, as the p-value of 1 supports the null hypothesis that the model sufficiently describes the data.
+The Poisson model analysis shows no signs of overdispersion, as the overdispersion value of 0.688 is below 1. This indicates a possible underdispersion, but this is confirmed by the goodness-of-fit test (p-value = 1), which confirms a well-fitting model.
 
 The Poisson regression model for predicting the number of claims reveals that several variables show statistically significant relationships with claim frequency. The model indicates statistically significant differences in claim frequency across categories (p-value < 0.001). The group of legal entities, which serves as the reference category, exhibits the highest claim rate. Compared to legal entities, males have a rate ratio of 0.666, reflecting a 33.4% lower claim rate, while females have the lowest claim frequency, with a rate ratio of 0.623, or 37.7% below that of legal entities.
 
@@ -789,209 +791,77 @@ These results suggest that Pick-up and GEELY exhibit the highest, though statist
 
 Further analysis indicates that vehicle age (AGE_VEHICLE) has a rate ratio of 0.956, meaning that the claim rate decreases by approximately 4.4% with each additional year (p-value < 0.001). The number of seats (SEATS_NUM) shows a rate ratio of 1.009, indicating that each additional seat slightly increases the claim probability, though significantly. Engine capacity (CCM_TON) shows no practical change in claim rate with a rate ratio of 1.000031, though it is statistically significant (p-value < 0.001). Insured value (INSURED_VALUE) has a rate ratio of 0.99999986, effectively showing no influence on claim frequency, although the effect is statistically significant. Premium amount (PREMIUM) exhibits a rate ratio of 1.000019, suggesting a minimal increase in claim probability with rising premiums; again, the effect is significant but very small.
 
-The analysis of the Poisson model reveals significant multicollinearity, reflected in extremely high VIF values for some variables. Notably, the variables TYPE_VEHICLEMotor-cycle (VIF of 200.88), TYPE_VEHICLETruck (107.23), TYPE_VEHICLEPick-up (82.92), INSR_TYPEPrivate (80.14), and MAKETOYOTA (50.55) stand out. These high values indicate that these variables are highly correlated with other predictors, especially among the vehicle type variables, suggesting redundancy within the model. Other variables, such as CCM_TON (33.28), MAKEISUZU (28.86), MAKEIVECO (23.94), and MAKETATA (30.58), also display moderate multicollinearity, while some variables, like MAKEGEELY (3.99), show lower VIF values and are less strongly correlated with other predictors.
+The VIF values of all predictors are below the critical limit of 5, which indicates that there are no multicollinearity problems. The variables INSR_TYPE (3.75) and TYPE_VEHICLE (1.42) have the highest values, which indicates a moderate correlation with other predictors, but does not cause any stability problems in the model. Overall, the low VIF values support the robustness of the model estimates.
+
+The plot illustrates the relationship between the predicted values (Fitted Values) and the actual number of claims (Actual Number of Claims). Most actual values are concentrated in the lower range (0 to 10), while the predicted values are almost entirely clustered near zero. The model struggles to predict higher claim counts (>10), as evident from the significant deviations for extreme values. The red dashed line, representing the ideal fit between predicted and actual values, shows that many points fall below the line, indicating a systematic underestimation of actual claims by the model. This discrepancy may stem from the assumptions of the Poisson distribution, which assumes equal mean and variance. High variability or extreme values in the data can cause the model to perform poorly in capturing such cases.
 
 The plots of estimated vs. actual values show that the Poisson model has difficulties in accurately modelling the distribution of claims, especially for higher claims values. Most of the predicted values are close to zero and systematically underestimate the actual loss frequencies as they increase. This systematic underestimation and the high number of zero claims indicate that the simple distribution of the Poisson model may not be sufficient to fully represent the structure of the data.
 
-Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) model could represent a useful alternative. Such a model can distinguish between structural zeros (cases where no claims occur) and random zeros (cases where claims could occur but did not), potentially improving predictive accuracy for higher claim counts without violating model assumptions about variance.
-
-As a further alternative, simplifying the model, for example by removing fewer significant variables, could be a sensible measure to improve the model.
+Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) model could represent a useful alternative. Such a model can distinguish between structural zeros (cases where no claims occur) and random zeros (cases where claims could occur but did not), potentially improving predictive accuracy for higher claim counts without violating model assumptions about variance. As a further alternative, simplifying the model, for example by removing fewer significant variables, could be a sensible measure to improve the model.
 
 
-### Massnahme 1): Zero-Inflated Poisson (ZIP) model (eventuell weglassen, machts naemlich ned besser)
-
-```{r zero_inflated_pois_model, cache=TRUE}
-
-# Anpassung eines Zero-Inflated Poisson (ZIP)-Modells
-zip_model <- zeroinfl(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE +
-                        AGE_VEHICLE + SEATS_NUM + CCM_TON + INSURED_VALUE + PREMIUM,
-                      data = dat_amount_claims, dist = "poisson")
-
-# Zusammenfassung des Modells
-summary(zip_model)
-
-# Überprüfung der Koeffizienten und ihrer Exponentialwerte (Rate Ratios)
-coef(zip_model)
-exp(coef(zip_model))
-
-
-# Calculate VIF values for all predictor variables in the model
-vif_values_zip <- vif(zip_model)
-
-# Output the VIF values for interpretation
-cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
-print(vif_values_zip)
-#Interpretation:
-# - VIF values above 5 (or in some cases, 10) indicate multicollinearity issues.
-
-
-# Diagnose der Modellanpassung (angepasste vs. tatsächliche Werte)
-# Berechnung der vorhergesagten Werte
-dat_amount_claims$fitted_zip <- predict(zip_model, type = "response")
-
-# Plot der geschätzten vs. tatsächlichen Schadensfälle
-ggplot(dat_amount_claims, aes(x = fitted_zip, y = AMOUNT_CLAIMS)) +
-  geom_point(color = "darkblue") +
-  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
-  labs(x = "Fitted Values (ZIP)", y = "Actual Number of Claims",
-       title = "Zero-Inflated Poisson: Fitted vs. Actual Number of Claims") +
-  theme(plot.title = element_text(hjust = 0.5),
-        axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
-        axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
-
-```
-
-
-# TODO Binomial
-## Binomial
-
+## Binomial model
 
 ```{r Binomial_Model, cache=TRUE}
 
-#Anpassen eines logistischen Regressionsmodells
+#Fitting a binomial regression model
 fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE +  USAGE + TYPE_VEHICLE +
-             MAKE + AGE_VEHICLE + SEATS_NUM + CCM_TON_log + INSURED_VALUE_log +
-               PREMIUM_log + AMOUNT_CLAIMS_PAID,
-             data = clean_dat_motor, 
-             family = binomial(link= "logit"))
+                   MAKE + AGE_VEHICLE + SEATS_NUM + CCM_TON_log + INSURED_VALUE_log +
+                   PREMIUM_log + AMOUNT_CLAIMS_PAID,
+                 data = clean_dat_motor, 
+                 family = binomial(link= "logit"))
 
-#Inferenz und Signifikanztests
-summary(fit.binom)  # Wald-Test zur Überprüfung der Signifikanz einzelner Koeffizienten
+#Inference and significance tests
+summary(fit.binom)
 
-#Likelihood-Ratio-Test (LRT) für die Signifikanz einzelner Variablen
+#Likelihood ratio test (LRT) for the significance of individual variables
 drop1(fit.binom, test = "LRT")
 
-#Berechnung AIC (Modellgütebewertung)
-aic_logit_binom <- AIC(fit.binom)
-cat("AIC des logit-Modells:", aic_logit_binom, "\n")
-
-#Modellgüte: Berechnung von Pseudo-R^2-Werten mit Nagelkerke für Modellbewertung
+#Model quality: Calculation of Pseudo-R^2 values using Nagelkerke for model evaluation
 nagelkerke(fit.binom)$Pseudo.R.squared.for.model.vs.null
-#McFadden's Pseudo R^2: 0.033 3.4%
-#Nagelkerke: 0.048 -> 4.8%
-#Entsprechend erkl?rt das Modell ca.3.4% der Devianz (McFadden)
-#bzw. 4.84% der Varianz (Nagelkerke). schlechte Ergebnisse
 
-# Berechnung des globalen F-Tests zur Überprüfung der Signifikanz des gesamten Modells
-TD <- fit.binom$null.deviance - fit.binom$deviance  # Teststatistik
-df_diff <- fit.binom$df.null - fit.binom$df.residual  # Freiheitsgrade
-p_value <- 1 - pchisq(TD, df = df_diff)  # p-Wert für den F-Test
-cat("Globale Teststatistik (TD):", TD, "\n")
-cat("p-Wert des globalen Tests:", p_value, "\n")
+# Calculation of the global F-test to check the significance of the entire model
+TD <- fit.binom$null.deviance - fit.binom$deviance  # Test statistic
+df_diff <- fit.binom$df.null - fit.binom$df.residual  # Degrees of freedom
+p_value <- 1 - pchisq(TD, df = df_diff)  # p-value for the F-test
+cat("Global test statistic (TD):", TD, "\n")
+cat("p-value of the global test:", p_value, "\n")
 
-# Berechnung der Deviance-Residuals zur Überprüfung der Anpassung
-deviance_residuals <- residuals(fit.binom, type = "deviance")
-cat("Zusammenfassung der Deviance-Residuals:\n")
-summary(deviance_residuals)
-
-# Überprüfung der Overdispersion im Modell
+# Checking for overdispersion in the model
 deviance <- deviance(fit.binom)
 df_residual <- df.residual(fit.binom)
 overdispersion_ratio <- deviance / df_residual
 cat("Overdispersion Ratio (Deviance / DF):", overdispersion_ratio, "\n")
 
-# Globale Modellüberprüfung durch Likelihood-Ratio-Test gegen das Nullmodell
-null_model <- glm(CLAIM_PAID ~ 1, data = clean_dat_motor, family = binomial(link = "logit"))
-lrt_statistic <- 2 * (logLik(fit.binom) - logLik(null_model))
-cat("Likelihood-Ratio-Test-Statistik gegen Nullmodell:", lrt_statistic, "\n")
-
-# ROC-Kurve und AUC zur Modellbewertung
-library(pROC)  # Falls noch nicht geladen
-predicted_probabilities <- predict(fit.binom, type = "response")
-roc_curve <- roc(clean_dat_motor$CLAIM_PAID, predicted_probabilities)
-auc_value <- auc(roc_curve)
-cat("AUC-Wert des Modells:", auc_value, "\n")
-
-# Visualisierung der ROC-Kurve
-plot(roc_curve, main = "ROC-Kurve für logistische Regression", col = "blue")
-
-
-
-
-
-
-##Residuenanalyse?
-#par(mfrow= c(2, 3), mar= c(3.5, 3.5, 2, 1), mgp= c(2.25, 1, 0))
-#termplot(fit.binom, partial= TRUE, smooth= panel.smooth,
-#         col.term= "black", col.smth= "red")
-##Partielle Resiudenplotz zeigen Verst?sse geg. Linearit?t, Var. ph zeigt sogar  quadr. Effekt
-##Output loschen
-#plot(fit.binom, which= 5)
-#
-#
-## Wahrscheinlichkeiten vorhersagen
-#clean_dat_motor_undersampled$predicted_probabilities <- predict(fit.binom_undersampled2, type = "response")
-#
-## Klassifikation vorhersagen (0 oder 1)
-#clean_dat_motor_undersampled$predicted_class <- ifelse(clean_dat_motor_undersampled$predicted_probabilities > 0.5, 1, 0)
-#
-## Modellgüte prüfen
-#table(clean_dat_motor_undersampled$CLAIM_PAID, clean_dat_motor_undersampled$predicted_class)
-#
-## Genauigkeit berechnen
-#accuracy_undersampled <- mean(clean_dat_motor_undersampled$CLAIM_PAID == clean_dat_motor_undersampled$predicted_class)
-#print(paste("Genauigkeit des undersampelten Modells:", accuracy_undersampled))
-#
-#
-#
-#
-## Umwandlung in Faktoren für die Auswertung
-#predicted_class <- as.factor(clean_dat_motor_undersampled$predicted_class)
-#actual_class <- as.factor(clean_dat_motor_undersampled$CLAIM_PAID)
-#
-#
-## Sicherstellen, dass predicted_class und actual_class die gleichen Levels haben
-#levels(predicted_class) <- levels(actual_class)
-#
-## Levels überprüfen
-#levels(predicted_class)
-#levels(actual_class)
-#
-## Berechnung der Metriken
-#confusionMatrix(predicted_class, actual_class)
-
+#Calculation of AIC (model quality evaluation)
+aic_logit_binom <- AIC(fit.binom)
+cat("AIC of the logit model:", aic_logit_binom, "\n")
 
 ```
 
-Modellgüte
-Die Berechnung von Pseudo-R²-Werten ergab niedrige Werte (McFadden: 3,4% und Nagelkerke: 4,8%). Diese niedrigen Werte zeigen, dass das Modell nur einen kleinen Teil der Varianz in der Zielvariablen CLAIM_PAID erklären kann. Es handelt sich also um ein Modell mit begrenzter Erklärungskraft.
+The analysis shows that several variables have significant associations with the likelihood of CLAIMS_PAID = Yes. According to the likelihood ratio test, the variable INSR_TYPE does not appear to have a significant impact.
 
-Die Modellgüte wurde mittels Pseudo-R²-Werten bewertet. Der McFadden-Wert (0.0337) und der Nagelkerke-Wert (0.0484) sind relativ niedrig und deuten darauf hin, dass das Modell nur einen kleinen Anteil der Varianz in der Zielvariablen erklärt. Diese Werte deuten darauf hin, dass das Modell nur begrenzte Vorhersagekraft besitzt und möglicherweise noch wichtige Prädiktoren fehlen oder die Variablenkategorien weitere Anpassungen benötigen.
+Gender emerges as a key predictor: men have a 20.5% lower likelihood of receiving a claim payout compared to the reference group (legal entities), while women have a 22.4% reduced likelihood. These effects are highly significant (p < 0.001).
 
+The vehicle type also shows significant differences. Motorcycles have approximately a 96% lower likelihood of claim payouts, making them the group with the lowest payout frequency. Similarly, station wagons and trailers exhibit significantly lower probabilities, with reductions of around 20% and 82%, respectively. In contrast, pick-ups do not show significant differences compared to the reference category (automobiles).
 
-Globale Modellsignifikanz:
-Der globale F-Test (Wald-Test) zeigt, dass die Gesamtmodellstatistik (TD) 2709.95 beträgt, und der p-Wert des Tests ist nahe null. Dies deutet darauf hin, dass das Modell als Ganzes statistisch signifikant ist. Das bedeutet, dass zumindest eine der erklärenden Variablen in signifikantem Zusammenhang mit der Zielvariablen steht und somit das Modell besser ist als ein Nullmodell (Modell ohne erklärende Variablen).
+The vehicle brand further influences payout frequency. Vehicles from the brand DAEWOO have a 38% lower likelihood of receiving a claim payout compared to the reference brand, FIAT shows a reduction of 46%, and MERCEDES has a 51% lower likelihood. These effects are all statistically significant. Other brands, such as GEELY or MAZDA, do not show significant differences compared to the reference category.
 
-Ergebnisse des Likelihood-Ratio-Tests
-Gemäss dem Likelihood-Ratio-Test, scheint (INSR_TYPE) keinen signifikanten Einfluss zu haben.
+The premium amount proves to be one of the strongest predictors. An increase in the logarithmic premium amount leads to a significant 71% increase in the likelihood of a claim payout. Conversely, a higher logarithmic insured sum reduces the payout likelihood by 25%. The claim amount also positively correlates with payout frequency: higher claim amounts significantly increase the likelihood of payouts.
 
+The age of the vehicle has a negative effect on payout frequency: with each additional year, the likelihood of a payout decreases by approximately 2.9%. Other predictors, such as the insurance type or vehicle usage, do not have significant effects on the likelihood of a claim payout and could be excluded in a simplified model.
 
+The pseudo-R² values (McFadden: 3.4%; Nagelkerke: 4.8%) indicate that the model explains only a small portion of the variance in the target variable, suggesting limited model performance. Nevertheless, the global test statistic (TD = 2709.954, p < 0.001) is highly significant, confirming that the model performs significantly better than a null model.
 
-Der AUC-Wert (Fläche unter der Kurve) von 0,629 deutet auf eine relativ moderate Diskriminierungsfähigkeit hin, was bedeutet, dass das Modell etwas besser als zufälliges Raten ist, aber noch Raum für Verbesserungen bietet.
+The overdispersion ratio (deviance / degrees of freedom) is 0.7766, which is less than 1, indicating that no overdispersion is present in the model. This suggests that the assumptions of the binomial model regarding data dispersion are met.
 
+The AIC value of the logistic regression model is 77716.2.
 
-Modellanpassung und Signifikanz:
-Der AIC (Akaike Informationskriterium) des Modells beträgt 77716,2. Ein niedrigerer AIC-Wert zeigt in der Regel eine bessere Anpassung an.
-Das Overdispersion-Verhältnis beträgt 0,7766, was unter 1 liegt und auf keine signifikante Overdispersion hinweist.
-Mehrere Prädiktoren sind statistisch signifikant (z.B. SEX, TYPE_VEHICLE, MAKE, PREMIUM_log, usw.).
-
-Likelihood-Ratio-Test:
-
-Der Likelihood-Ratio-Test gegen das Nullmodell ergibt einen Wert von 2709,954, was darauf hinweist, dass das vollständige Modell signifikant besser ist als das Nullmodell.
-
-ROC und AUC:
-Die ROC-Kurve zeigt den Kompromiss zwischen Sensitivität und Spezifität.
-Der AUC-Wert beträgt 0,629, was auf eine gewisse Vorhersagekraft des Modells hindeutet, jedoch möglicherweise weitere Optimierungen erfordert.
-
-Pseudo R-Quadrat:
-Der McFadden-Pseudo-R-Quadrat beträgt 0,0337, was auf eine moderate Anpassung hinweist, während der Nagelkerke-Pseudo-R-Quadrat 0,0484 beträgt, was ebenfalls eine begrenzte Erklärungskraft des Modells andeutet.
-
-
-### Massnahme 1): Entfernen von Variablen
+### Method 1): Removal of (non-significant) explanatory variables
 
 ```{r Binomial_Model_sign, cache=TRUE, eval=FALSE}
 
-# Neues Modell ohne INSR_TYPE
+# New model without INSR_TYPE
 fit.binom.sign <- glm(
   CLAIM_PAID ~ SEX + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE + SEATS_NUM +
                CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
@@ -999,109 +869,78 @@ fit.binom.sign <- glm(
   family = binomial(link = "logit")
 )
 
-# Zusammenfassung des neuen Modells anzeigen (Signifikanz einzelner Variablen)
+# Display the summary of the new model (significance of individual variables)
 summary(fit.binom.sign)
 
-#Likelihood-Ratio-Test (LRT) für die Signifikanz einzelner Variablen
+# Likelihood Ratio Test (LRT) for the significance of individual variables
 drop1(fit.binom.sign, test = "LRT")
-
 
 anova(fit.binom, fit.binom.sign, test= "LRT")
 
-# AIC des neuen Modells berechnen und ausgeben
+# Calculate and output the AIC of the new model
 aic_no_insr_seats <- AIC(fit.binom.sign)
-cat("AIC des Modells ohne INSR_TYPE:", aic_no_insr_seats, "\n")
+cat("AIC of the model without INSR_TYPE:", aic_no_insr_seats, "\n")
 
-# Vergleich des AIC-Wertes mit dem ursprünglichen Modell
+# Compare the AIC value with the original model
 aic_difference <- aic_logit_binom - aic_no_insr_seats
-cat("AIC-Unterschied zum ursprünglichen Modell:", aic_difference, "\n")
+cat("AIC difference compared to the original model:", aic_difference, "\n")
 
-# Berechnung des globalen F-Tests zur Überprüfung der Signifikanz des neuen Modells
-TD_no_insr_seats <- fit.binom.sign$null.deviance - fit.binom.sign$deviance  # Teststatistik
-df_diff_no_insr_seats <- fit.binom.sign$df.null - fit.binom.sign$df.residual  # Freiheitsgrade
-p_value_no_insr_seats <- 1 - pchisq(TD_no_insr_seats, df = df_diff_no_insr_seats)  # p-Wert für den F-Test
+# Calculate the global F-test to check the significance of the new model
+TD_no_insr_seats <- fit.binom.sign$null.deviance - fit.binom.sign$deviance  # Test statistic
+df_diff_no_insr_seats <- fit.binom.sign$df.null - fit.binom.sign$df.residual  # Degrees of freedom
+p_value_no_insr_seats <- 1 - pchisq(TD_no_insr_seats, df = df_diff_no_insr_seats)  # p-value for the F-test
 
-cat("Globale Teststatistik (TD) des neuen Modells:", TD_no_insr_seats, "\n")
-cat("p-Wert des globalen Tests des neuen Modells:", p_value_no_insr_seats, "\n")
+cat("Global test statistic (TD) of the new model:", TD_no_insr_seats, "\n")
+cat("p-value of the global test of the new model:", p_value_no_insr_seats, "\n")
 
-# Vergleich der Pseudo-R^2-Werte (Modellgüte) mit Nagelkerke
+# Compare the pseudo-R^2 values (model quality) using Nagelkerke
 nagelkerke_new <- nagelkerke(fit.binom.sign)$Pseudo.R.squared.for.model.vs.null
 print(nagelkerke_new)
 
-# Berechnung der Deviance-Residuals zur Überprüfung der Anpassung
+# Calculate deviance residuals to check model fit
 deviance_residuals <- residuals(fit.binom.sign, type = "deviance")
-cat("Zusammenfassung der Deviance-Residuals:\n")
+cat("Summary of deviance residuals:\n")
 summary(deviance_residuals)
 
-# Überprüfung der Overdispersion im Modell
+# Check for overdispersion in the model
 deviance <- deviance(fit.binom.sign)
 df_residual <- df.residual(fit.binom.sign)
 overdispersion_ratio <- deviance / df_residual
-cat("Overdispersion Ratio (Deviance / DF):", overdispersion_ratio, "\n")
+cat("Overdispersion ratio (Deviance / DF):", overdispersion_ratio, "\n")
 
-# Globale Modellüberprüfung durch Likelihood-Ratio-Test gegen das Nullmodell
+# Global model evaluation through likelihood ratio test against the null model
 null_model <- glm(CLAIM_PAID ~ 1, data = clean_dat_motor, family = binomial(link = "logit"))
 lrt_statistic <- 2 * (logLik(fit.binom.sign) - logLik(null_model))
-cat("Likelihood-Ratio-Test-Statistik gegen Nullmodell:", lrt_statistic, "\n")
+cat("Likelihood ratio test statistic against the null model:", lrt_statistic, "\n")
 
-# ROC-Kurve und AUC zur Modellbewertung
-library(pROC)  # Falls noch nicht geladen
+# ROC curve and AUC for model evaluation
+library(pROC)  # If not already loaded
 predicted_probabilities <- predict(fit.binom.sign, type = "response")
 roc_curve <- roc(clean_dat_motor$CLAIM_PAID, predicted_probabilities)
 auc_value <- auc(roc_curve)
-cat("AUC-Wert des Modells:", auc_value, "\n")
+cat("AUC value of the model:", auc_value, "\n")
 
-# Visualisierung der ROC-Kurve
-plot(roc_curve, main = "ROC-Kurve für logistische Regression", col = "blue")
+# Visualize the ROC curve
+plot(roc_curve, main = "ROC Curve for Logistic Regression", col = "blue")
 
-
-
-#ROC mit Testdaten
-#Ist Modell besser als zuf?llige Sch?tzung?
-library(ROCR)
-pred<- prediction(yhat_new, credittest$Creditability) #(Vorhersage, echte ZV)
-perf<- performance(pred, "tpr", "fpr")
-plot(perf, lwd= 3)
-abline(a= 0, b= 1, col= "blue", lwd= 2)
-#Je gr?sser Gap / Berg ?ber Diagonaler, desto besser
-
-
-# Wahrscheinlichkeiten vorhersagen
-clean_dat_motor_undersampled$predicted_probabilities <- predict(fit.binom_undersampled2, type = "response")
-
-# Klassifikation vorhersagen (0 oder 1)
-clean_dat_motor_undersampled$predicted_class <- ifelse(clean_dat_motor_undersampled$predicted_probabilities > 0.5, 1, 0)
-
-# Modellgüte prüfen
-table(clean_dat_motor_undersampled$CLAIM_PAID, clean_dat_motor_undersampled$predicted_class)
-
-# Genauigkeit berechnen
-accuracy_undersampled <- mean(clean_dat_motor_undersampled$CLAIM_PAID == clean_dat_motor_undersampled$predicted_class)
-print(paste("Genauigkeit des undersampelten Modells:", accuracy_undersampled))
-
-
-
-
-# Umwandlung in Faktoren für die Auswertung
-predicted_class <- as.factor(clean_dat_motor_undersampled$predicted_class)
-actual_class <- as.factor(clean_dat_motor_undersampled$CLAIM_PAID)
-
-
-# Sicherstellen, dass predicted_class und actual_class die gleichen Levels haben
-levels(predicted_class) <- levels(actual_class)
-
-# Levels überprüfen
-levels(predicted_class)
-levels(actual_class)
-
-# Berechnung der Metriken
-confusionMatrix(predicted_class, actual_class)
+# Unbalanced dataset
+table(clean_dat_motor$CLAIM_PAID)
 ```
 
-AIC-Wert: Der AIC des neuen logistischen Modells beträgt 77714.2, was einen minimalen Rückgang gegenüber dem vorherigen Modell darstellt, aber die Anpassung nicht wesentlich beeinflusst.
 
-Zusammengefasst hat das Entfernen der Variable INSR_TYPE nur geringe Auswirkungen auf die Modellgüte und die Erklärungskraft. Falls gewünscht, können weitere Anpassungen oder zusätzliche Prädiktoren in Betracht gezogen werden, um die Modellleistung zu verbessern.
+The analysis shows that some variables, such as SEX, TYPE_VEHICLE, MAKE, AGE_VEHICLE, INSURED_VALUE_log, PREMIUM_log, and AMOUNT_CLAIMS_PAID, are highly significant (p < 0.001). These variables make a substantial contribution to explaining the variance. On the other hand, certain categories, particularly within the variables USAGE and MAKE, show low significance, indicating a limited explanatory effect of these predictors.
 
+The model has an AIC value of 77714.2, showing only minimal improvement. However, the comparison of the null deviance (80340) with the residual deviance (77630) indicates a significant improvement over the null model. This is confirmed by the Likelihood-Ratio Test (LRT). The test comparing the model with and without the variable INSR_TYPE shows no significant difference (p = 0.945), suggesting that INSR_TYPE has no significant impact and can therefore be excluded.
+
+The pseudo-R² values (e.g., Nagelkerke: 0.0484) indicate limited explanatory power for the model. This is supported by the AUC (Area Under the Curve) of 0.629, reflecting a low to moderate discriminatory ability. The model is only slightly better than random at distinguishing between positive and negative cases.
+
+The analysis of deviance residuals shows a distribution close to zero, but with a maximum of 3.5154, which could indicate potential outliers. The overdispersion ratio (deviance/DF) is 0.777, suggesting no significant overdispersion in the model.
+
+The ROC curve confirms the moderate discriminatory ability of the model. With an AUC value of 0.629, the curve demonstrates that the model predicts the target variable better than random probabilities, though it lacks strong predictive power.
+
+In summary, the model shows some degree of significance and stability but offers only moderate explanatory power and discriminatory ability.
+
+The imbalanced distribution of classes (CLAIMS_PAID: "YES"/"NO") in the dataset significantly impacts the model's discriminatory ability. The moderate AUC of 0.629 indicates that the model struggles to reliably recognize the minority class ("YES"). To improve discriminatory performance, balancing strategies such as oversampling, class weighting, or adjusting the decision threshold could be implemented. Additionally, exploring interaction effects might further enhance the model's performance.
 
 
 ## Generalised Additive Model (GAM)
@@ -1508,63 +1347,3 @@ Generative AI struggled with tasks requiring deep contextual understanding or sp
 
 Verification of AI suggestions against trusted sources and empirical data was consistently performed, particularly in the context of complex statistical analyses and interpretations.Using AI offered considerable advantages but required a focused and hands-on approach to fully leverage its capabilities in the academic context.
 Summing up, it has definitely supported the team in terms of explaining difficult concepts while also increasing efficiency.
-
-
-# TODO
-
-# TODO remove of do whatever you want
-
-```{r lm_interaktion, cache=TRUE, eval=FALSE}
-
-#Coole Plots zum Aufzeigen von Interaktionen:
-
-# Boxplot von PREMIUM_log nach MAKE und USAGE
-ggplot(clean_dat_motor, aes(x=MAKE, y=PREMIUM_log, fill=USAGE)) +
-  geom_boxplot() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(title = "Interaktion zwischen MAKE und USAGE", x = "MAKE", y = "PREMIUM_log")
-
-# Boxplot von PREMIUM_log nach TYPE_VEHICLE und USAGE
-ggplot(clean_dat_motor, aes(x=TYPE_VEHICLE, y=PREMIUM_log, fill=USAGE)) +
-  geom_boxplot() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(title = "Interaktion zwischen TYPE_VEHICLE und USAGE", x = "TYPE_VEHICLE", y = "PREMIUM_log")
-
-# Scatterplot von INSURED_VALUE_log und PREMIUM_log nach USAGE
-ggplot(clean_dat_motor, aes(x=INSURED_VALUE_log, y=PREMIUM_log, color=USAGE)) +
-  geom_point(alpha=0.5) +
-  geom_smooth(method="lm", se=FALSE) +
-  labs(title = "Interaktion zwischen INSURED_VALUE_log und USAGE", x = "INSURED_VALUE_log", y = "PREMIUM_log")
-
-```
-
-
-
-### Massnahme 1): Quasi-Poisson-Regression
-
-```{r quasiPois, cache=TRUE, eval=FALSE}
-
-#Quasi-Poisson
-quasi_poisson_model <- glm(Amount_Claims ~ SEX + TYPE_VEHICLE + INSR_TYPE + MAKE + AGE_VEHICLE + SEATS_NUM,
-                           family = quasipoisson, data = dat_amount_claims)
-
-# Summary of the model
-summary(quasi_poisson_model)
-#F-Test, Vergleiche von geschachtelten Quasi-Likelihood-Modellen (Overdispersion)
-drop1(quasi_poisson_model, test= "F")
-
-# Model diagnostics: Residuals vs. Fitted Plot
-plot(quasi_poisson_model$fitted.values, residuals(quasi_poisson_model, type = "deviance"),
-     xlab = "Fitted Values",
-     ylab = "Deviance Residuals",
-     main = "Residuals vs Fitted (Quasi-Poisson)")
-abline(h = 0, col = "red")
-
-# QQ plot of residuals (checking normality)
-qqnorm(residuals(quasi_poisson_model, type = "deviance"), main = "QQ Plot of Residuals (Quasi-Poisson)")
-qqline(residuals(quasi_poisson_model, type = "deviance"), col = "red")
-
-
-
-```
-Switching to a quasi-Poisson model to account for overdispersion led to improvements compared to the original Poisson model. The residuals vs. fitted plot shows a reduced dispersion of the residuals at higher estimated values, which indicates a better fit of the variance, although heteroscedasticity still exists. The QQ plot of the residuals shows an improved fit to the theoretical normal distribution, especially in the middle range, while deviations at the edges remain, indicating extreme values or modelling errors. By adjusting the dispersion parameter (29.765) in the quasi-Poisson model, the increased variance compared to the Poisson model is adequately taken into account. The F-test confirms the significance of the variables ‘SEX’, ‘TYPE_VEHICLE’, ‘MAKE’, ‘AGE_VEHICLE’ and ‘SEATS_NUM’. Despite these improvements, there are still slight anomalies in the residuals.
