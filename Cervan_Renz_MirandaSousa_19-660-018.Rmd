@@ -95,8 +95,8 @@ In a very brief summary, the script removes unnecessary columns and duplicates, 
 #DATA LOAD
 raw_dat_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
 
-dim(raw_dat_motor)
-str(raw_dat_motor)
+#dim(raw_dat_motor)
+#str(raw_dat_motor)
 
 #DATA PREP
 
@@ -115,13 +115,13 @@ raw_dat_motor$CLAIM_PAID <- ifelse(raw_dat_motor$CLAIM_PAID_USD == 0, "NO", "YES
 #Remove duplicates and count the number of removed rows
 removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
 #Output the number of removed duplicates
-cat("Number of removed duplicates:", removed_count, "\n")
+# cat("Number of removed duplicates:", removed_count, "\n")
 
 #SEX
 raw_dat_motor$SEX <- factor(raw_dat_motor$SEX, 
                             levels = c(0, 1, 2), 
                             labels = c("Legal entity", "Male", "Female"))
-table(raw_dat_motor$SEX)
+#table(raw_dat_motor$SEX)
 
 #INSR_BEGIN
 raw_dat_motor$INSR_BEGIN <- dmy(raw_dat_motor$INSR_BEGIN)
@@ -131,7 +131,9 @@ raw_dat_motor$INSR_END <- dmy(raw_dat_motor$INSR_END)
 
 #DURATION
 raw_dat_motor$DURATION <- as.numeric(as.Date(raw_dat_motor$INSR_END) - as.Date(raw_dat_motor$INSR_BEGIN))
+
 hist(raw_dat_motor$DURATION)
+
 #Gleiche DURATION (Vertragsdauer) zur Vergleichbarkeit
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$DURATION == 364, ]
 
@@ -146,35 +148,35 @@ raw_dat_motor$INSR_TYPE <- factor(raw_dat_motor$INSR_TYPE,
 #INSURED_VALUE
 #Check the number of missing values
 missing_values <- sum(is.na(raw_dat_motor$INSURED_VALUE))
-cat("Missing values in INSURED_VALUE:", missing_values, "\n")
+#cat("Missing values in INSURED_VALUE:", missing_values, "\n")
 
 #Summary of the statistical key figures
 summary_stats <- summary(raw_dat_motor$INSURED_VALUE)
-cat("Summary of the statistical key figures of INSURED_VALUE:\n")
-print(summary_stats)
+#cat("Summary of the statistical key figures of INSURED_VALUE:\n")
+#print(summary_stats)
 
 #Determine the number of entries with a value of 0
 zero_values <- sum(raw_dat_motor$INSURED_VALUE == 0, na.rm = TRUE)
-cat("Number of entries with the value 0 in INSURED_VALUE:", zero_values, "\n")
+#cat("Number of entries with the value 0 in INSURED_VALUE:", zero_values, "\n")
 
 #Check how many records are affected
 zero_insured_value <- raw_dat_motor[raw_dat_motor$INSURED_VALUE == 0, ]
-cat("Number of data records with INSURED_VALUE = 0:", nrow(zero_insured_value), "\n")
+#cat("Number of data records with INSURED_VALUE = 0:", nrow(zero_insured_value), "\n")
 
 #Summary of affected records by various variables to identify patterns
-cat("Distribution of INSR_TYPE with INSURED_VALUE = 0:\n")
-table(raw_dat_motor$INSR_TYPE) #All
-print(table(zero_insured_value$INSR_TYPE)) #Only 0
+#cat("Distribution of INSR_TYPE with INSURED_VALUE = 0:\n")
+#table(raw_dat_motor$INSR_TYPE) #All
+#print(table(zero_insured_value$INSR_TYPE)) #Only 0
 
-cat("\nDistribution of TYPE_VEHICLE with INSURED_VALUE = 0:\n")
-print(table(zero_insured_value$TYPE_VEHICLE))
+#cat("\nDistribution of TYPE_VEHICLE with INSURED_VALUE = 0:\n")
+#print(table(zero_insured_value$TYPE_VEHICLE))
 
-cat("\nDistribution of USAGE with INSURED_VALUE = 0:\n")
-print(table(zero_insured_value$USAGE))
+#cat("\nDistribution of USAGE with INSURED_VALUE = 0:\n")
+#print(table(zero_insured_value$USAGE))
 
 #Statistical key figures for other variables with INSURED_VALUE = 0 (e.g., PREMIUM)
-cat("\nSummary of the PREMIUM with INSURED_VALUE = 0:\n")
-summary(zero_insured_value$PREMIUM)
+#cat("\nSummary of the PREMIUM with INSURED_VALUE = 0:\n")
+#summary(zero_insured_value$PREMIUM)
 
 #Visualization of vehicle usage with INSURED_VALUE = 0
 ggplot(zero_insured_value, aes(x = USAGE)) +
@@ -188,7 +190,7 @@ ggplot(zero_insured_value, aes(x = USAGE)) +
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE != 0, ]
 
 #Verify if the rows have been successfully removed
-cat("Number of remaining data records:", nrow(raw_dat_motor), "\n")
+#cat("Number of remaining data records:", nrow(raw_dat_motor), "\n")
 
 #Visualize the distribution of INSURED_VALUE (Histogram)
 ggplot(raw_dat_motor, aes(x = INSURED_VALUE)) +
@@ -196,15 +198,17 @@ ggplot(raw_dat_motor, aes(x = INSURED_VALUE)) +
   labs(title = "Distribution of INSURED_VALUE", x = "INSURED_VALUE", y = "Frequency") +
   theme_minimal()
 
+
 #Boxplot to identify outliers
 ggplot(raw_dat_motor, aes(y = INSURED_VALUE)) +
   geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
   labs(title = "Boxplot of INSURED_VALUE", y = "INSURED_VALUE") +
   theme_minimal()
 
+
 #Check the statistical key figures without 0 values
-cat("Summary of the statistical key figures without 0 values:\n")
-print(summary(raw_dat_motor$INSURED_VALUE))
+#cat("Summary of the statistical key figures without 0 values:\n")
+#print(summary(raw_dat_motor$INSURED_VALUE))
 
 #Distribution of the log-transformed INSURED_VALUE (only for non-zero values)
 ggplot(raw_dat_motor[raw_dat_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VALUE))) +
@@ -212,11 +216,11 @@ ggplot(raw_dat_motor[raw_dat_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VAL
   labs(title = "Log-transformed distribution of INSURED_VALUE (without zero values)", x = "log(INSURED_VALUE)", y = "Frequency") +
   theme_minimal()
 
-summary(raw_dat_motor$INSURED_VALUE)
+#summary(raw_dat_motor$INSURED_VALUE)
 
 #Remove outliers in INSURED_VALUE
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE >= 10, ]
-summary(raw_dat_motor$INSURED_VALUE)
+#summary(raw_dat_motor$INSURED_VALUE)
 
 #Workspace cleanup
 rm(zero_insured_value)
@@ -346,7 +350,7 @@ summary(raw_dat_motor$SEATS_NUM)
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$TYPE_VEHICLE != "Trade plates", ]
 
 #CCM_TON
-summary(raw_dat_motor$CCM_TON)
+#summary(raw_dat_motor$CCM_TON)
 #Relative CCM_TON 0
 data.frame(
   CCM_TON_0_Percent = 100 * mean(raw_dat_motor$CCM_TON == 0, na.rm = TRUE),
@@ -355,8 +359,8 @@ data.frame(
 data_CCM_TON_0 <- subset(raw_dat_motor, CCM_TON == 0)
 data_CCM_TON_other <- subset(raw_dat_motor, CCM_TON > 0 & !is.na(CCM_TON))
 # Tables of vehicle types for both datasets
-table(data_CCM_TON_0$TYPE_VEHICLE)
-table(data_CCM_TON_other$TYPE_VEHICLE)
+#table(data_CCM_TON_0$TYPE_VEHICLE)
+#table(data_CCM_TON_other$TYPE_VEHICLE)
 # List of vehicle types where CCM_TON == 0 is implausible (Tractor, Trailers, and semitrailers are retained)
 unplausible_types_ccm <- c("Automobile", "Bus", "Motor-cycle", "Pick-up", "Truck", "Station Wagones", "Tanker", "Special construction")
 # Remove rows where CCM_TON == 0 and the vehicle type is implausible
@@ -379,10 +383,10 @@ raw_dat_motor$MAKE <- toupper(raw_dat_motor$MAKE)
 # Remove duplicates and count the number of removed rows
 removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
 # Output the number of removed duplicates
-cat("Number of removed duplicates:", removed_count, "\n")
+#cat("Number of removed duplicates:", removed_count, "\n")
 # Keep rows where MAKE starts with a letter
 raw_dat_motor <- raw_dat_motor[grepl("^[A-Za-z]", raw_dat_motor$MAKE), ]
-table(raw_dat_motor$MAKE)
+#table(raw_dat_motor$MAKE)
 
 
 
@@ -624,11 +628,11 @@ lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
                  AMOUNT_CLAIMS_PAID, data = clean_dat_motor)
 
 #Summary of the model
-summary(lm_model)
+#summary(lm_model)
 #Perform an F-test to drop non-significant categorical variables one at a time
-drop1(lm_model, test= "F") #Bei mehrere Kat Var.
+#drop1(lm_model, test= "F") #Bei mehrere Kat Var.
 #coefficients
-coef(lm_model)
+#coef(lm_model)
 
 #Variance Inflation Factor (VIF) for each predictor to check for multicollinearity
 #vif(lm_model)
@@ -699,12 +703,12 @@ dat_amount_claims <- clean_dat_motor %>%
   group_by(SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, PREMIUM) %>%
   summarise(AMOUNT_CLAIMS = sum(CLAIM_PAID == "YES"), .groups = 'drop')
 
-summary(dat_amount_claims$AMOUNT_CLAIMS)
+#summary(dat_amount_claims$AMOUNT_CLAIMS)
 hist(dat_amount_claims$AMOUNT_CLAIMS, breaks=max(dat_amount_claims$AMOUNT_CLAIMS)) #Zero-inflated Poisson Regression would fit better
 
 #Mean vs. Variance
-mean(dat_amount_claims$AMOUNT_CLAIMS)
-var(dat_amount_claims$AMOUNT_CLAIMS)
+#mean(dat_amount_claims$AMOUNT_CLAIMS)
+#var(dat_amount_claims$AMOUNT_CLAIMS)
 #The variance is not much greater than the mean, over-dispersion can be neglegted in the model.
 
 ```
@@ -718,11 +722,11 @@ poisson_model <- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE +
                       family = poisson(link = "log"), data = dat_amount_claims)
 
 #Summary of the model
-summary(poisson_model)
+#summary(poisson_model)
 
 #Model coefficients and exponentiated coefficients (Rate Ratios)
-coef(poisson_model)
-exp(coef(poisson_model))
+#coef(poisson_model)
+#exp(coef(poisson_model))
 
 #Diagnose Overdispersion
 overdispersion <- deviance(poisson_model) / df.residual(poisson_model)
@@ -730,12 +734,12 @@ overdispersion <- deviance(poisson_model) / df.residual(poisson_model)
 # - A value close to 1 indicates an adequate fit without overdispersion.
 # - Values significantly greater than 1 suggest overdispersion, indicating that data variance exceeds the model's assumptions.
 #   If overdispersion is present, consider using a Negative Binomial model for a better fit.
-cat("Overdispersion ratio (Deviance / DF):", overdispersion, "\n")
+#cat("Overdispersion ratio (Deviance / DF):", overdispersion, "\n")
 
 # Poisson Deviance Test: Check Goodness-of-Fit of the model
 # Calculate p-value for H0: The model adequately describes the data
 p_value_fit <- 1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
-cat("Goodness-of-Fit p-value:", p_value_fit, "\n")
+#cat("Goodness-of-Fit p-value:", p_value_fit, "\n")
 # Interpretation:
 # - A high p-value (> 0.05) suggests a good model fit to the data, as we do not reject H0.
 # - A low p-value (≤ 0.05) would indicate a poor fit, suggesting that the model does not describe the data well.
@@ -744,8 +748,8 @@ cat("Goodness-of-Fit p-value:", p_value_fit, "\n")
 vif_values <- vif(poisson_model)
 
 # Output the VIF values for interpretation
-cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
-print(vif_values)
+#cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
+#print(vif_values)
 # Interpretation:
 # - VIF values above 5 (or in some cases, 10) indicate multicollinearity issues.
 
@@ -796,10 +800,10 @@ fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE +  USAGE + TYPE_VEHICLE +
                  family = binomial(link= "logit"))
 
 #Inference and significance tests
-summary(fit.binom)
+#summary(fit.binom)
 
 #Likelihood ratio test (LRT) for the significance of individual variables
-drop1(fit.binom, test = "LRT")
+#drop1(fit.binom, test = "LRT")
 
 #Model quality: Calculation of Pseudo-R^2 values using Nagelkerke for model evaluation
 nagelkerke(fit.binom)$Pseudo.R.squared.for.model.vs.null
@@ -808,18 +812,18 @@ nagelkerke(fit.binom)$Pseudo.R.squared.for.model.vs.null
 TD <- fit.binom$null.deviance - fit.binom$deviance  # Test statistic
 df_diff <- fit.binom$df.null - fit.binom$df.residual  # Degrees of freedom
 p_value <- 1 - pchisq(TD, df = df_diff)  # p-value for the F-test
-cat("Global test statistic (TD):", TD, "\n")
-cat("p-value of the global test:", p_value, "\n")
+#cat("Global test statistic (TD):", TD, "\n")
+#cat("p-value of the global test:", p_value, "\n")
 
 # Checking for overdispersion in the model
 deviance <- deviance(fit.binom)
 df_residual <- df.residual(fit.binom)
 overdispersion_ratio <- deviance / df_residual
-cat("Overdispersion Ratio (Deviance / DF):", overdispersion_ratio, "\n")
+#cat("Overdispersion Ratio (Deviance / DF):", overdispersion_ratio, "\n")
 
 #Calculation of AIC (model quality evaluation)
 aic_logit_binom <- AIC(fit.binom)
-cat("AIC of the logit model:", aic_logit_binom, "\n")
+#cat("AIC of the logit model:", aic_logit_binom, "\n")
 
 ```
 
