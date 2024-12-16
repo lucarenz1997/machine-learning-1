@@ -1322,8 +1322,18 @@ Nevertheless, the model demonstrates reliable performance in classifying insuran
 
 
 # Conclusion
-#TODO
-Compare models and make some final suggestions to the client where we see most potential
+
+This project successfully evaluated multiple machine learning models to improve insurance premium calculations for an Ethiopian insurance company. The analysis provided critical insights into predictive accuracy and practical applications, enabling data-driven recommendations.
+
+Among the models evaluated, the neural network emerged as the most robust for predicting premium amounts, achieving an \(R^2\) of 75.1% with minimal overfitting, as confirmed by cross-validation. Its ability to handle complex interactions and deliver high accuracy makes it the most reliable choice for implementation. The linear regression model, while simpler, also performed well, explaining 73.08% of the variance in premiums. However, challenges with heteroskedasticity and residual normality limit its utility, especially for larger premium values.
+
+For claims prediction, the Poisson model provided valuable insights into claims frequency and highlighted the influence of factors such as vehicle age and insured value. However, systematic underestimation for higher claims suggests that alternative approaches, such as Zero-Inflated Poisson models, could address these shortcomings. Similarly, the binomial logistic regression model was effective in identifying predictors of claim payouts, but its limited explanatory power (\(R^2 \approx 4.8\%\)) indicates a need for further refinement.
+
+The support vector machine (SVM) demonstrated strong potential for classifying premiums into discrete categories, achieving an accuracy of 77.7%. Its strength lies in distinguishing "low" and "very_high" premium categories effectively. However, its performance for "medium" and "high" premiums could be improved through better feature engineering and data balancing techniques. The generalized additive model (GAM) captured non-linear relationships in the data, but it did not outperform simpler models like linear regression or neural networks in terms of accuracy, limiting its practical application.
+
+Based on these findings, we recommend adopting the neural network model for premium prediction due to its high accuracy and flexibility. For claims prediction, incorporating a Zero-Inflated Poisson model would provide a more nuanced approach to handling data with a high frequency of zero claims and outliers. Additionally, the SVM model is well-suited for premium categorization and can aid in customer segmentation, especially if combined with strategies to enhance accuracy for the “medium” and “high” categories.
+
+In conclusion, integrating insights from these models into pricing policies will enable the client to implement fair and accurate premiums, optimize risk management, and improve overall profitability. Factors such as insured value, vehicle brand, and age should be strategically incorporated into pricing and marketing strategies. With these data-driven enhancements, the company is well-positioned to leverage machine learning for sustained competitive advantage in the insurance market.
 
 
 # Usage of Generative AI
