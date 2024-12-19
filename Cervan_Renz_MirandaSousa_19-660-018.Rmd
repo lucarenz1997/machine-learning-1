@@ -1,15 +1,11 @@
 ---
-pdf_document: default
+title: "ML1"
 authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
 date: "`r Sys.Date()`"
 output:
-  #word_document: default
+  word_document: default
   pdf_document: default
-  #html_document: 
-  #  theme: darkly
-    
-    
-title: "ML1"
+pdf_document: default
 ---
   
 ```{r setup, include=FALSE}
@@ -78,6 +74,7 @@ library(doParallel)#SVM Parallelisierung
 library(MLmetrics)  # For MCC calculation
 library(mccr)
 library(NeuralNetTools) # For Neural Network visualization
+library(gridExtra)
 
 ```
 # Introduction
@@ -86,6 +83,7 @@ One of the major challenges for insurances is to estimate the appropriate premiu
 In this document, the reader may find different algorithms to solve various aspects of the premium-calculations.
 
 # Data Preprocessing
+*Lead: Rafaella Miranda-Sousa  Wasser*
 
 In order to apply such algorithms, the data has to be pre-processed. 
 In a very brief summary, the script removes unnecessary columns and duplicates, and handles missing and zero values, particularly for columns like INSURED_VALUE and SEATS_NUM. It converts certain columns to more meaningful categories, such as transforming SEX into factors representing legal entities and genders. The script also filters data to exclude irrelevant vehicle types and usage, ensuring the final dataset contains only pertinent records. Finally, it summarizes and adjusts the dataset further by converting appropriate columns into factors and removing variables not required for analysis.
@@ -382,7 +380,7 @@ removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_mo
 cat("Number of removed duplicates:", removed_count, "\n")
 # Keep rows where MAKE starts with a letter
 raw_dat_motor <- raw_dat_motor[grepl("^[A-Za-z]", raw_dat_motor$MAKE), ]
-table(raw_dat_motor$MAKE)
+#table(raw_dat_motor$MAKE)
 
 
 
@@ -523,8 +521,8 @@ data.frame(
 ###############################################################################################
 
 #NA
-colSums(is.na(raw_dat_motor)) 
-colSums(is.na(clean_dat_motor)) 
+#colSums(is.na(raw_dat_motor)) 
+#colSums(is.na(clean_dat_motor)) 
 
 #Remove the variables ‘start of insurance’ and ‘end of insurance’
 clean_dat_motor <- subset(clean_dat_motor, select = -c(INSR_BEGIN, INSR_END, DURATION))
@@ -559,60 +557,75 @@ rm(clean_dat_motor_origin)
 ```
 
 # Graphical Data Analysis
+*Lead: Rafaella Miranda-Sousa  Wasser*
 
 First, the distribution of the individual numerical variables was analysed to determine whether any transformations were necessary.
 
 ```{r graph_data_analysis, cache = TRUE}
+
 # Selection of numeric variables only
 numeric_vars <- clean_dat_motor %>%
   select_if(is.numeric)
 
-# Create histograms for each numeric variable
-for (var in names(numeric_vars)) {
-  print(
-    ggplot(clean_dat_motor, aes_string(x = var)) +
-      geom_histogram(bins = 30, color = "black", fill = "skyblue") +
-      ggtitle(paste("Histogram of", var)) +
-      theme_minimal() +
-      xlab(var) +
-      ylab("Frequency") +
-      theme(plot.title = element_text(hjust = 0.5))
-  )
-}
+# Log-Transformation
+clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
+clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
+# Log-transformation using log1p() due to the many 0 values
+clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
+clean_dat_motor$CCM_TON_log <- log1p(clean_dat_motor$CCM_TON)
+clean_dat_motor$AMOUNT_CLAIMS_PAID_log <- log1p(clean_dat_motor$AMOUNT_CLAIMS_PAID)
+
+
+par(mfrow = c(1, 2))  
+
+hist(clean_dat_motor$PREMIUM, main = "Hist. of PREMIUM", xlab = "PREMIUM", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$PREMIUM_log, main = "Hist. of PREMIUM_log", xlab = "PREMIUM_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$INSURED_VALUE, main = "Hist. of INSURED_VALUE", xlab = "INSURED_VALUE", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$INSURED_VALUE_log, main = "Hist. of INSURED_VALUE_log", xlab = "INSURED_VALUE_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$CLAIM_PAID_USD, main = "Hist. of CLAIM_PAID_USD", xlab = "CLAIM_PAID_USD", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$CLAIM_PAID_USD_log, main = "Hist. of CLAIM_PAID_USD_log", xlab = "CLAIM_PAID_USD_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$AMOUNT_CLAIMS_PAID, main = "Hist. of AMOUNT_CLAIMS_PAID", xlab = "AMOUNT_CLAIMS_PAID", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$AMOUNT_CLAIMS_PAID_log, main = "Hist. of AMOUNT_CLAIMS_PAID_log", xlab = "AMOUNT_CLAIMS_PAID_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$CCM_TON, main = "Hist. of CCM_TON", xlab = "CCM_TON", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$CCM_TON_log, main = "Hist. of CCM_TON_log", xlab = "CCM_TON_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$SEATS_NUM, main = "Hist. of SEATS_NUM", xlab = "SEATS_NUM", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$AGE_VEHICLE, main = "Hist. of AGE_VEHICLE", xlab = "AGE_VEHICLE", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
 
 ###################################################################################
 
-#Additional graphical analyses
+# Additional graphical analyses
 boxplot(PREMIUM ~ SEX, data = clean_dat_motor,
-main = "Premium against sex",
-ylab = "Premium")
+        main = "Premium against sex",
+        ylab = "Premium")
 
 boxplot(CLAIM_PAID_USD ~ SEX, data = clean_dat_motor,
-main = "Claim paid (USD) against sex",
-ylab = "Claim paid (USD)")
-
+        main = "Claim paid (USD) against sex",
+        ylab = "Claim paid (USD)")
 
 ##############################################
 
-#Log-Transformation
-clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
-clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
-#Log-transformation using log1p() due to the many 0 values
-clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
-clean_dat_motor$CCM_TON_log <- log1p(clean_dat_motor$CCM_TON)
 
 
 # Clear Workspace
 rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
+
 ```
 
 The histograms show that the variables INSURED_VALUE, PREMIUM, CLAIM_PAID_USD and CCM_TON are right-skewed and require a log transformation. The transformed variables will be inserted in the later regression models instead of the original variables.
 
+In the boxplots, the left diagram shows that men, on average, pay significantly higher premiums than legal entities and women. The right diagram indicates that the claims paid are similar on average across all groups, but with outliers, particularly among legal entities.
 
 # Models
 Once the pre-processing was completed and a good overview about the given data and domain knowledge what acquired, the team focused on defining models using several different methods shown in followed sub-sections.
 
 ## Linear model
+*Lead: Rafaella Miranda-Sousa  Wasser*
 
 A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the premium is incurred at the start of the contract and this would therefore not make technical sense. Instead, a bonus-malus system is taken into account by adding AMOUNT_CLAIMS_PAID.
 
@@ -625,13 +638,14 @@ lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
 
 #Summary of the model
 summary(lm_model)
+
 #Perform an F-test to drop non-significant categorical variables one at a time
-drop1(lm_model, test= "F") #Bei mehrere Kat Var.
+drop1(lm_model, test= "F")
 #coefficients
 coef(lm_model)
 
 #Variance Inflation Factor (VIF) for each predictor to check for multicollinearity
-#vif(lm_model)
+vif(lm_model)
 
 #Residual Analysis
 #Q-Q Plot to assess if residuals follow a normal distribution
@@ -687,6 +701,7 @@ To improve the model, various measures could be considered. One approach would b
 
 
 ## Poisson model
+*Lead: Rafaella Miranda-Sousa  Wasser*
 
 A Poisson model is fitted to predict the number of claims over a 5-year period based on the characteristics SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM.
 
@@ -721,7 +736,7 @@ poisson_model <- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE +
 summary(poisson_model)
 
 #Model coefficients and exponentiated coefficients (Rate Ratios)
-coef(poisson_model)
+#coef(poisson_model)
 exp(coef(poisson_model))
 
 #Diagnose Overdispersion
@@ -785,6 +800,7 @@ Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) 
 
 
 ## Binomial model
+*Lead: Rafaella Miranda-Sousa  Wasser*
 
 ```{r Binomial_Model, cache=TRUE}
 
