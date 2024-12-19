@@ -88,6 +88,8 @@ In this document, the reader may find different algorithms to solve various aspe
 In order to apply such algorithms, the data has to be pre-processed. 
 In a very brief summary, the script removes unnecessary columns and duplicates, and handles missing and zero values, particularly for columns like INSURED_VALUE and SEATS_NUM. It converts certain columns to more meaningful categories, such as transforming SEX into factors representing legal entities and genders. The script also filters data to exclude irrelevant vehicle types and usage, ensuring the final dataset contains only pertinent records. Finally, it summarizes and adjusts the dataset further by converting appropriate columns into factors and removing variables not required for analysis.
 
+
+
 ```{r data_prep, echo=FALSE, cache=TRUE}
 
 #DATA LOAD
@@ -174,11 +176,13 @@ print(table(zero_insured_value$USAGE))
 cat("\nSummary of the PREMIUM with INSURED_VALUE = 0:\n")
 summary(zero_insured_value$PREMIUM)
 
-#Visualization of vehicle usage with INSURED_VALUE = 0
+# Visualization of vehicle usage with INSURED_VALUE = 0
 ggplot(zero_insured_value, aes(x = USAGE)) +
   geom_bar(fill = "blue", color = "black") +
   labs(title = "Distribution of USAGE with INSURED_VALUE = 0", x = "USAGE", y = "Amount") +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate X-axis labels for better readability
+
 
 #Conclusion: No connection was found. Presumably, the insurance value of 0 is due to the fact that only third-party liability insurance is legally required. In these cases, there is no fixed value for damage to the vehicle itself. Therefore, records with an INSURED_VALUE of 0 are removed from the analysis as they do not contain any relevant information for the assessment of vehicle values.
 
@@ -561,7 +565,7 @@ rm(clean_dat_motor_origin)
 
 First, the distribution of the individual numerical variables was analysed to determine whether any transformations were necessary.
 
-```{r graph_data_analysis, cache = TRUE}
+```{r graph_data_analysis, cache = TRUE, fig.width=12, fig.height=8}
 
 # Selection of numeric variables only
 numeric_vars <- clean_dat_motor %>%
@@ -576,7 +580,8 @@ clean_dat_motor$CCM_TON_log <- log1p(clean_dat_motor$CCM_TON)
 clean_dat_motor$AMOUNT_CLAIMS_PAID_log <- log1p(clean_dat_motor$AMOUNT_CLAIMS_PAID)
 
 
-par(mfrow = c(1, 2))  
+# Set up layout for 2 plots per row
+par(mfrow = c(2, 2), oma = c(0, 0, 2, 0), mar = c(4, 4, 2, 1)) 
 
 hist(clean_dat_motor$PREMIUM, main = "Hist. of PREMIUM", xlab = "PREMIUM", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
 hist(clean_dat_motor$PREMIUM_log, main = "Hist. of PREMIUM_log", xlab = "PREMIUM_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
@@ -593,6 +598,8 @@ hist(clean_dat_motor$AMOUNT_CLAIMS_PAID_log, main = "Hist. of AMOUNT_CLAIMS_PAID
 hist(clean_dat_motor$CCM_TON, main = "Hist. of CCM_TON", xlab = "CCM_TON", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
 hist(clean_dat_motor$CCM_TON_log, main = "Hist. of CCM_TON_log", xlab = "CCM_TON_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
 
+# Set up layout for 2 plots per row
+par(mfrow = c(2, 2), oma = c(0, 0, 2, 0), mar = c(4, 4, 2, 1)) 
 hist(clean_dat_motor$SEATS_NUM, main = "Hist. of SEATS_NUM", xlab = "SEATS_NUM", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
 hist(clean_dat_motor$AGE_VEHICLE, main = "Hist. of AGE_VEHICLE", xlab = "AGE_VEHICLE", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
 
