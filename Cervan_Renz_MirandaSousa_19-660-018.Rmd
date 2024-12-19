@@ -1210,7 +1210,7 @@ Overall, the neural network model demonstrates good performance in predicting th
 
 For the scenario of SVM models, it has been decided to do multiple-classifications for the premiums and divide it into 4 levels from low to very high.
 
-```{r SVM MCC, cache=TRUE}
+```{r SVM MCC, cache=TRUE, results='hide', eval=FALSE}
 # Setup parallelisation
 cl <- makeCluster(detectCores() - 1) 
 registerDoParallel(cl)
@@ -1227,8 +1227,13 @@ svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 1000, replace = FALSE)
 
 # Visualize the distribution and density of PREMIUM_log
 hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
-plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
+```
+```{r, cache=TRUE}
 
+plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
+```
+
+```{r, results='hide', cache=TRUE}
 # Calculate percentiles and create custom categories for PREMIUM
 percentiles <- quantile(svm_data$PREMIUM_log, probs = c(0.25, 0.5, 0.75))
 svm_data$premium_category <- cut(svm_data$PREMIUM_log,
@@ -1310,15 +1315,30 @@ This analysis explores the performance of a multiclass classification task using
 
 Model training was carried out with 10-fold cross-validation repeated three times, leveraging parallel processing to speed up the evaluation. A grid search was performed to find optimal values for the hyperparameters c (cost) and sigma, ensuring the model's robustness and generalizability.
 
-The evaluation showed that the "very_high" category had the highest sensitivity at 0.8629, while the "low" category excelled in specificity at 0.9695 and positive predictive value at 0.8926. The MCC for each class revealed strong performance overall: ~0.986 for "low," ~0.802 for "medium," ~0.781 for "high," and ~1.038 for "very_high," though the latter may indicate overestimation and warrants further review.
+The evaluation showed that the "very_high" category had the highest sensitivity at 0.86, while the "low" category excelled in specificity at 0.96 and positive predictive value at 0.89. Nevertheless, as accuracy, sensitivity, specificity and other measurements might be useful for balanced data, a different approach is used for unbalanced data s such. Therefore, the MCC is used and has revealed for each class  strong performance overall
 
-The code process incorporated parallelized cross-validation and grid search, facilitating comprehensive hyperparameter tuning. The findings highlighted an overall accuracy of 0.7771 and a Kappa statistic of 0.7029, with McNemar's test yielding a significant P-value of 0.008264 and mcc-value of roughly 0.57, suggesting a noteworthy difference from random classification.
+| Category   | MCC     |
+|------------|---------|
+| Low        | ~0.77  |
+| Medium     | ~0.67  |
+| High       | ~0.67  |
+| Very High  | ~0.81  |
+|------------|---------|
+| Overall    | ~0.73  |
+
+The code process incorporated parallelized cross-validation and grid search, facilitating comprehensive hyperparameter tuning. The findings highlighted an overall accuracy of 0.69 and a Kappa statistic of 0.58, with McNemar's test yielding a significant P-value below 0.05 and mcc-value of roughly 0.73, suggesting a noteworthy difference from random classification.
+
+| Measurement   | Value     |
+|------------|---------|
+| Accuracy        | ~0.69  |
+| Kappa     | ~0.58  |
+| p-value       | <0.05  |
 
 To improve the model, checking the training set's class distribution and considering resampling techniques like random oversampling or SMOTE could be performed to further improve the model. 
 
 In conclusion, while the model showed strong results for the "low" and "very_high" categories, further optimization is needed for "medium" and "high" to enhance overall performance.
 
-Nevertheless, the model demonstrates reliable performance in classifying insurance premiums into the four categories with MCC of about 0.57 indicating a moderate to strong correlation between prediction and actual category.Therefore, the robust model can be used to classify premiums.Further refinement of tailored features may improve overall performance, especially for medium and high categories.
+Nevertheless, the model demonstrates reliable performance in classifying insurance premiums into the four categories with MCC of about 0.73 indicating a moderate to strong correlation between prediction and actual category. Therefore, the robust model can be used to classify premiums. Further refinement of tailored features may improve overall performance, especially for medium and high categories.
 
 
 # Conclusion
