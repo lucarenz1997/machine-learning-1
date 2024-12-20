@@ -614,6 +614,15 @@ boxplot(PREMIUM ~ MAKE, data = clean_dat_motor,
         main = "Premium against MAKE",
         ylab = "Premium")
 
+# Set up layout for 2 plots per row
+par(mfrow = c(2, 2), oma = c(0, 0, 2, 0), mar = c(4, 4, 2, 1)) 
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = CLAIM_PAID_USD)) +
+geom_point() +
+geom_smooth(method = "lm")
+
 ggplot(data = clean_dat_motor,
 mapping = aes(y = PREMIUM,
 x = CLAIM_PAID_USD)) +
@@ -621,24 +630,150 @@ geom_point() +
 geom_smooth()
 
 
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(method = "lm")
 
 ggplot(data = clean_dat_motor,
 mapping = aes(y = PREMIUM,
-x = CLAIM_PAID_USD)) +
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth()
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = CCM_TON)) +
+geom_point() +
+geom_smooth()
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = AGE_VEHICLE)) +
+geom_point() +
+geom_smooth(method = "lm")
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = AGE_VEHICLE)) +
+geom_point() +
+geom_smooth()
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = AMOUNT_CLAIMS_PAID)) +
+geom_point() +
+geom_smooth(method = "lm")
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = AMOUNT_CLAIMS_PAID)) +
+geom_point() +
+geom_smooth()
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = SEATS_NUM)) +
+geom_point() +
+geom_smooth(method = "lm")
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = SEATS_NUM)) +
+geom_point() +
+geom_smooth()
+
+
+#Interactions
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
 geom_point() +
 geom_smooth(se = FALSE) +
 facet_wrap(. ~ MAKE) ## ! new argument
 
-
 ggplot(data = clean_dat_motor,
 mapping = aes(y = PREMIUM,
-x = CLAIM_PAID_USD)) +
+x = INSURED_VALUE)) +
 geom_point() +
 geom_smooth(method = "lm") +
 facet_wrap(. ~ MAKE)
 
+#Interactions
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(se = FALSE) +
+facet_wrap(. ~ SEX) ## ! new argument
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(method = "lm") +
+facet_wrap(. ~ SEX)
 
 
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(se = FALSE) +
+facet_wrap(. ~ INSR_TYPE) ## ! new argument
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(method = "lm") +
+facet_wrap(. ~ INSR_TYPE)
+
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(se = FALSE) +
+facet_wrap(. ~ USAGE) ## ! new argument
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(method = "lm") +
+facet_wrap(. ~ USAGE)
+
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(se = FALSE) +
+facet_wrap(. ~ TYPE_VEHICLE) ## ! new argument
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(method = "lm") +
+facet_wrap(. ~ TYPE_VEHICLE)
+
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(se = FALSE) +
+facet_wrap(. ~ TYPE_VEHICLE) ## ! new argument
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = MAKE,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(method = "lm") +
+facet_wrap(. ~ MAKE)
 
 
 # Clear Workspace
@@ -651,6 +786,11 @@ The histograms show that the variables PREMIUM, INSURED_VALUE, CLAIM_PAID_USD, A
 
 The boxplots reveal distinct differences in premium distributions across categories, such as higher premiums for "Legal Entity" compared to "Male" and "Female," and significant variations among vehicle types like "Motorcycle" and "Truck." These patterns suggest that the predictor variables have a substantial influence on premium amounts, warranting further formal analysis.
 
+The relationships between PREMIUM and all numerical predictors except INSURED_VALUE appear to be linear and are included in the models as linear effects. The effect of INSURED_VALUE is clearly non-linear. The smoothing indicates that we could model this relationship as a quadratic effect.
+
+The analysis shows that there are no clear indications of significant interactions for the time being.
+
+
 # Models
 Once the pre-processing was completed and a good overview about the given data and domain knowledge what acquired, the team focused on defining models using several different methods shown in followed sub-sections.
 
@@ -660,21 +800,30 @@ Once the pre-processing was completed and a good overview about the given data a
 The aim of the following analysis is to identify the key factors influencing premium amounts. Since the data originates from an Ethiopian insurer, the objective is to assess whether the premium setting is reasonable. The choice of PREMIUM_log as the target variable is based on the strongly right-skewed distribution of the original variable PREMIUM, which could violate the assumptions of linear regression. In constructing the linear model, CLAIM_PAID_USD_log is excluded, as premiums are determined at the start of the contract, making its inclusion technically inappropriate. Instead, a bonus-malus system is incorporated by adding AMOUNT_CLAIMS_PAID_log, reflecting the cumulative claim history and aligning with premium adjustments based on risk exposure.
 
 ```{r linear_model, cache = TRUE}
-
 #Fit the linear model
-lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
+lm_model_0 <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
                  AGE_VEHICLE + SEATS_NUM_log + CCM_TON_log + INSURED_VALUE_log +
                  AMOUNT_CLAIMS_PAID_log, data = clean_dat_motor)
 
-#Summary of the model
-#summary(lm_model)
 #Perform an F-test to drop non-significant categorical variables one at a time
-#drop1(lm_model, test= "F") #Bei mehrere Kat Var.
+drop1(lm_model, test= "F") 
+
+#Fit the new linear model
+lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
+                 AGE_VEHICLE + SEATS_NUM_log + INSURED_VALUE_log +
+                 AMOUNT_CLAIMS_PAID_log, data = clean_dat_motor)
+
+#Perform an F-test to drop non-significant categorical variables one at a time
+drop1(lm_model, test= "F") 
+
+#Summary of the model
+summary(lm_model)
+
 #coefficients
-#coef(lm_model)
+coef(lm_model)
 
 #Variance Inflation Factor (VIF) for each predictor to check for multicollinearity
-#vif(lm_model)
+vif(lm_model)
 
 #Residual Analysis
 #Q-Q Plot to assess if residuals follow a normal distribution
@@ -698,26 +847,16 @@ r_squared <- summary(lm_model)$r.squared
 cat("R-squared:", r_squared, "\n")
 
 ```
+All explanatory variables except CCM_TON_log appear to be significant. Therefore, CCM_TON_log is removed from the model
 
+The model summary shows that the Multiple R-squared value is 0.7307, indicating that the model can explain approximately 73.07% of the variance in premiums. This suggests that the model provides a good fit to the data. The F-test for the overall model is significant (p < 2.2e-16), indicating that the predictors as a group have a substantial effect on the premium. All predictors have a significant impact on the target variable PREMIUM_log.
 
-The model summary shows that the Multiple R-squared value is 0.7308, indicating that the model can explain approximately 73.08% of the variance in premiums. This suggests that the model provides a good fit to the data. The F-test for the overall model is significant (p < 2.2e-16), indicating that the predictors as a group have a substantial effect on the premium.
+Men pay, on average, 8.14% (-0.0814) and women 7.67% (-0.0767) lower logarithmic premiums compared to Legal Entity, with minimal differences between the genders. Vehicles used for commercial purposes (Fare Paying Passengers) have significantly higher premiums compared to the reference level "Ambulance," with an increase of 52.59%, while private or self-use vehicles such as Own Goods -50.52% and Private -47.28% have substantially lower premiums compared to "Ambulance." High-end brands like ISUZU, TOYOTA, and MERCEDES tend to have higher premiums, while GENLYON and RENAULT exhibit lower premiums, which may be attributed to differences in repair costs or target customer groups. Commercial vehicles such as Tanker and Truck have significantly higher premiums due to their higher risk, while smaller vehicles like Motor-cycle are associated with lower premiums.
 
-All predictors have a significant impact on the target variable PREMIUM_log. For instance, the categories SEX and USAGE (usage) have a significant effect on PREMIUM_log. Men pay slightly less compared to women, while certain usages, such as "Fare Paying Passengers," lead to higher premiums. In contrast, usages like "Own Goods" and "Private" are associated with lower premiums.
-
-The coefficient of INSURED_VALUE_log (0.7682) in the model shows that the insured value of the vehicle has a strong influence on the premium level. Since both the insured value and the premium are logarithmically transformed, this means that a 1% increase in the insured value results in approximately a 0.7682% increase in the premium. This illustrates the direct and positive relationship between vehicle value and premium: higher-insured vehicles attract proportionally higher premiums, as they represent a greater financial risk for the insurer. Overall, this coefficient confirms that vehicle value is one of the most significant factors in premium calculation.
-
-The coefficient of AMOUNT_CLAIMS_PAID, with a value of 0.1363, indicates that an increase in the number of claims leads to an increase in the log-transformed premium by approximately 0.1363. This means that each additional claim results in a proportional increase in the premium by about 13.63%. This coefficient highlights that an insured’s claim history has a significant impact on the premium level.
-
-The coefficient of AGE_VEHICLE is 0.0029, indicating that with each additional year of vehicle age, the log-transformed premium increases by about 0.0029. Since the target variable is logarithmic, this implies that an additional year in vehicle age leads to a minimal increase in the premium of approximately 0.29%.
-
-The coefficient of SEATS_NUM is -0.00175, which means that with each additional seat, the log-transformed premium decreases by approximately 0.00175. Given the logarithmic nature of the target variable, this can be interpreted as each additional seat leading to a slight reduction in the premium by around 0.175%.
-
-The variable CCM_TON_log has a positive coefficient of 0.0109, indicating a small but statistically significant (p = 0.01241) relationship with the log-transformed premium (PREMIUM_log). This suggests that an increase in the log-transformed vehicle capacity (CCM_TON) is associated with a slight increase in the premium. However, its relatively small effect size indicates it plays a minor role compared to stronger predictors like AMOUNT_CLAIMS_PAID or INSURED_VALUE_log.
-
+INSURED_VALUE_log has the strongest impact with a coefficient of 0.762, meaning that a 1% increase in the insured value leads to an approximately 76.2% increase in the logarithmic premium. Similarly, AMOUNT_CLAIMS_PAID_log (0.208) indicates that a 1% increase in claims paid corresponds to an approximately 20.8% increase in the logarithmic premium, and SEATS_NUM_log (0.016) suggests a 1% increase in the number of seats results in a 1.6% increase in the logarithmic premium. Meanwhile, AGE_VEHICLE shows a smaller but still significant effect with a coefficient of 0.0026, where each additional year increases the logarithmic premium by approximately 0.26%.
 
 VIF:
-An analysis of multicollinearity revealed that the Variance Inflation Factor (VIF) for the variable INSR_TYPE is 5.85, which suggests possible multicollinearity. This could affect the model’s stability and interpretability and should be considered in further model optimization.
-
+An analysis of multicollinearity revealed that the Variance Inflation Factor (VIF) for the variable INSR_TYPE is 5.88, which suggests possible multicollinearity. This could affect the model’s stability and interpretability and should be considered in further model optimization.
 
 Residuals Analysis
 Residuals vs. Fitted Plot:
