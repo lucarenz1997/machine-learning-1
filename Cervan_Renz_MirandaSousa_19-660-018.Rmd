@@ -549,48 +549,62 @@ rm(clean_dat_motor_origin)
 
 First, the distribution of the individual numerical variables was analysed to determine whether any transformations were necessary.
 
-```{r graph_data_analysis, cache = TRUE}
+```{r graph_data_analysis, cache = TRUE, fig.width=12, fig.height=6}
+
 # Selection of numeric variables only
 numeric_vars <- clean_dat_motor %>%
   select_if(is.numeric)
 
-# Create histograms for each numeric variable
-for (var in names(numeric_vars)) {
-  print(
-    ggplot(clean_dat_motor, aes_string(x = var)) +
-      geom_histogram(bins = 30, color = "black", fill = "skyblue") +
-      ggtitle(paste("Histogram of", var)) +
-      theme_minimal() +
-      xlab(var) +
-      ylab("Frequency") +
-      theme(plot.title = element_text(hjust = 0.5))
-  )
-}
-
-###################################################################################
-
-#Additional graphical analyses
-boxplot(PREMIUM ~ SEX, data = clean_dat_motor,
-main = "Premium against sex",
-ylab = "Premium")
-
-boxplot(CLAIM_PAID_USD ~ SEX, data = clean_dat_motor,
-main = "Claim paid (USD) against sex",
-ylab = "Claim paid (USD)")
-
-
-##############################################
-
-#Log-Transformation
+# Log-Transformation
 clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
 clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
-#Log-transformation using log1p() due to the many 0 values
+clean_dat_motor$SEATS_NUM_log <- log(clean_dat_motor$SEATS_NUM)
+# Log-transformation using log1p() due to the many 0 values
 clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
 clean_dat_motor$CCM_TON_log <- log1p(clean_dat_motor$CCM_TON)
+clean_dat_motor$AMOUNT_CLAIMS_PAID_log <- log1p(clean_dat_motor$AMOUNT_CLAIMS_PAID)
 
+# Set up layout for 2 plots per row
+par(mfrow = c(2, 2), oma = c(0, 0, 2, 0), mar = c(4, 4, 2, 1)) 
+
+# Histograms
+hist(clean_dat_motor$PREMIUM, main = "Hist. of PREMIUM", xlab = "PREMIUM", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$PREMIUM_log, main = "Hist. of PREMIUM_log", xlab = "PREMIUM_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$INSURED_VALUE, main = "Hist. of INSURED_VALUE", xlab = "INSURED_VALUE", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$INSURED_VALUE_log, main = "Hist. of INSURED_VALUE_log", xlab = "INSURED_VALUE_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$CLAIM_PAID_USD, main = "Hist. of CLAIM_PAID_USD", xlab = "CLAIM_PAID_USD", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$CLAIM_PAID_USD_log, main = "Hist. of CLAIM_PAID_USD_log", xlab = "CLAIM_PAID_USD_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$AMOUNT_CLAIMS_PAID, main = "Hist. of AMOUNT_CLAIMS_PAID", xlab = "AMOUNT_CLAIMS_PAID", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$AMOUNT_CLAIMS_PAID_log, main = "Hist. of AMOUNT_CLAIMS_PAID_log", xlab = "AMOUNT_CLAIMS_PAID_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$CCM_TON, main = "Hist. of CCM_TON", xlab = "CCM_TON", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$CCM_TON_log, main = "Hist. of CCM_TON_log", xlab = "CCM_TON_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+hist(clean_dat_motor$SEATS_NUM, main = "Hist. of SEATS_NUM", xlab = "SEATS_NUM", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+hist(clean_dat_motor$SEATS_NUM_log, main = "Hist. of SEATS_NUM_log", xlab = "SEATS_NUM_log", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+par(mfrow = c(1, 1))
+
+hist(clean_dat_motor$AGE_VEHICLE, main = "Hist. of AGE_VEHICLE", xlab = "AGE_VEHICLE", col = "skyblue", border = "black", breaks = 30, freq = TRUE)
+
+
+par(mfrow = c(1, 2))  # Setzt das Layout auf eine einzelne Grafik
+# Boxplots
+boxplot(PREMIUM ~ SEX, data = clean_dat_motor,
+        main = "Premium against sex",
+        ylab = "Premium")
+
+boxplot(CLAIM_PAID_USD ~ SEX, data = clean_dat_motor,
+        main = "Claim paid (USD) against sex",
+        ylab = "Claim paid (USD)")
 
 # Clear Workspace
 rm(list = setdiff(ls(), c("clean_dat_motor_origin", "clean_dat_motor")))
+
+
 ```
 
 The histograms show that the variables INSURED_VALUE, PREMIUM, CLAIM_PAID_USD and CCM_TON are right-skewed and require a log transformation. The transformed variables will be inserted in the later regression models instead of the original variables.
@@ -602,14 +616,14 @@ Once the pre-processing was completed and a good overview about the given data a
 ## Linear model
 *Lead: Rafaella Miranda-Sousa Wasser*
 
-A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the premium is incurred at the start of the contract and this would therefore not make technical sense. Instead, a bonus-malus system is taken into account by adding AMOUNT_CLAIMS_PAID.
+A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the premium is incurred at the start of the contract and this would therefore not make technical sense. Instead, a bonus-malus system is taken into account by adding AMOUNT_CLAIMS_PAID_log.
 
 ```{r linear_model, cache = TRUE}
 
 #Fit the linear model
 lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
-                 AGE_VEHICLE + SEATS_NUM + CCM_TON_log +INSURED_VALUE_log +
-                 AMOUNT_CLAIMS_PAID, data = clean_dat_motor)
+                 AGE_VEHICLE + SEATS_NUM_log + CCM_TON_log +INSURED_VALUE_log +
+                 AMOUNT_CLAIMS_PAID_log, data = clean_dat_motor)
 
 #Summary of the model
 #summary(lm_model)
