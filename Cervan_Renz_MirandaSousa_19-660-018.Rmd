@@ -800,7 +800,7 @@ Once the pre-processing was completed and a good overview about the given data a
 
 The aim of the following analysis is to identify the key factors influencing premium amounts. Since the data originates from an Ethiopian insurer, the objective is to assess whether the premium setting is reasonable. The choice of PREMIUM_log as the target variable is based on the strongly right-skewed distribution of the original variable PREMIUM, which could violate the assumptions of linear regression. In constructing the linear model, CLAIM_PAID_USD_log is excluded, as premiums are determined at the start of the contract, making its inclusion technically inappropriate. Instead, a bonus-malus system is incorporated by adding AMOUNT_CLAIMS_PAID_log, reflecting the cumulative claim history and aligning with premium adjustments based on risk exposure.
 
-```{r linear_model, cache = TRUE}
+```{r linear_model, cache = TRUE, results='hide'}
 #Fit the linear model
 lm_model_0 <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
                  AGE_VEHICLE + SEATS_NUM_log + CCM_TON_log + INSURED_VALUE_log +
@@ -885,7 +885,7 @@ A Poisson model is fitted to predict the number of claims over a 5-year period b
 
 First, the data is grouped accordingly, and the results are analyzed to gather insights.
 
-```{r data_for_poisson, cache=TRUE}
+```{r data_for_poisson, cache=TRUE, results='hide'}
 
 #Data preparation: Aggregate the number of claims per combination
 dat_amount_claims <- clean_dat_motor %>%
@@ -925,7 +925,7 @@ print(table) #The variance is not much greater than the mean, over-dispersion ca
 ```
 The analysis of the distribution of the target variable AMOUNT_CLAIMS reveals that a large portion of the values are zero. This concentration of zero values is confirmed by the median, as well as the 1st and 3rd quartiles, which are also at zero. Additionally, the distribution shows some high outliers with a maximum value of 46, indicating an uneven distribution with a few high values. The low mean of 0.1791 further supports this observation, suggesting a significant number of zero values. Given these distribution characteristics, the use of a Zero-Inflated Poisson (ZIP) model could be appropriate, as such a model can account for both random and structural zeros. Initially, however, a Poisson model will be fitted.
 
-```{r Poisson_Model, cache=TRUE}
+```{r Poisson_Model, cache=TRUE, results='hide'}
 
 #Poisson Regression:
 poisson_model <- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE +
@@ -1003,7 +1003,7 @@ Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) 
 ## Binomial model
 *Lead: Rafaella Miranda-Sousa Wasser*
 
-```{r Binomial_Model, cache=TRUE}
+```{r Binomial_Model, cache=TRUE, results='hide'}
 #Fitting a binomial regression model
 fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE +  USAGE + TYPE_VEHICLE +
                    MAKE + AGE_VEHICLE + SEATS_NUM_log + CCM_TON_log + INSURED_VALUE_log +
@@ -1157,7 +1157,7 @@ cat("RMSE of the GAM model:", rmse_gam, "\n")
 
 Different variations were used, with and without smoothing predictos and using B-splines with cubic regression. Cubic regression was chosen as it provided the best fit for the data with the smallest RMSE value, all values where ~0.02 of difference. The AUC value of the GAM model is 0.61, very similar to the results in the Poisson model. This indicates that the GAM model has a moderate ability to discriminate between the number of claims and the predictors. The RMSE value of the GAM model is 0.59, which is relatively low and indicates that the model's predictions are close to the actual values. 
 
-```{r GAM plots}
+```{r GAM plots, cache=TRUE}
 
 # Visualize the GAM model
 # 2x2 grid of plots, keep plots aspect ratio 1:1
