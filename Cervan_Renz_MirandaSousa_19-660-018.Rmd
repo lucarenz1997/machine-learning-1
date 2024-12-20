@@ -806,7 +806,7 @@ lm_model_0 <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
                  AMOUNT_CLAIMS_PAID_log, data = clean_dat_motor)
 
 #Perform an F-test to drop non-significant categorical variables one at a time
-drop1(lm_model, test= "F") 
+#drop1(lm_model, test= "F") 
 
 #Fit the new linear model
 lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
@@ -814,13 +814,32 @@ lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
                  AMOUNT_CLAIMS_PAID_log, data = clean_dat_motor)
 
 #Perform an F-test to drop non-significant categorical variables one at a time
-drop1(lm_model, test= "F") 
+#drop1(lm_model, test= "F") 
+
+# Extract summary of the model
+model_summary <- summary(lm_model)
+
+# Calculate Mean Squared Error (MSE)
+mse <- mean(lm_model$residuals^2)
+
+# Extract required values
+p_value <- "< 2.2e-16"  # p-value is very small and can be directly set as this value
+adjusted_r_squared <- round(model_summary$adj.r.squared, 4)  # Adjusted R-squared
+
+# Create a data frame for the table
+result_table <- data.frame(
+  Statistic = c("p-value", "Adjusted R-squared", "Mean Squared Error"),
+  Value = c(p_value, adjusted_r_squared, round(mse, 4))  # Rounded values for better readability
+)
+
+# Print the table
+print(result_table)
+
 
 #Summary of the model
-summary(lm_model)
-
+#summary(lm_model)
 #coefficients
-coef(lm_model)
+#coef(lm_model)
 
 #Variance Inflation Factor (VIF) for each predictor to check for multicollinearity
 vif(lm_model)
@@ -836,20 +855,10 @@ plot(lm_model$fitted.values, lm_model$residuals,
      xlab = "Fitted Values",
      ylab = "Residuals")
 abline(h = 0, col = "red")
-
-#Model Performance
-#Calculation of Mean Squared Error (MSE)
-mse <- mean(lm_model$residuals^2)
-cat("Mean Squared Error (MSE):", mse, "\n")
-
-#Calculation of R-squared value
-r_squared <- summary(lm_model)$r.squared
-cat("R-squared:", r_squared, "\n")
-
 ```
 All explanatory variables except CCM_TON_log appear to be significant. Therefore, CCM_TON_log is removed from the model
 
-The model summary shows that the Multiple R-squared value is 0.7307, indicating that the model can explain approximately 73.07% of the variance in premiums. This suggests that the model provides a good fit to the data. The F-test for the overall model is significant (p < 2.2e-16), indicating that the predictors as a group have a substantial effect on the premium. All predictors have a significant impact on the target variable PREMIUM_log.
+The model summary shows that the Multiple R-squared value is 0.7307, indicating that the model can explain approximately 73.07% of the variance in premiums. This suggests that the model provides a good fit to the data. The F-test for the overall model is significant (p < 2.2e-16), indicating that the predictors as a group have a substantial effect on the premium. All predictors have a significant impact on the target variable PREMIUM_log. The Modell explains 73.06% of the variance in PREMIUM_log (Adjusted R-squared: 0.7306). The Mean Squared Error (MSE) of 0.2536 indicates a good fit with relatively low average prediction errors.
 
 Men pay, on average, 8.14% (-0.0814) and women 7.67% (-0.0767) lower logarithmic premiums compared to Legal Entity, with minimal differences between the genders. Vehicles used for commercial purposes (Fare Paying Passengers) have significantly higher premiums compared to the reference level "Ambulance," with an increase of 52.59%, while private or self-use vehicles such as Own Goods -50.52% and Private -47.28% have substantially lower premiums compared to "Ambulance." High-end brands like ISUZU, TOYOTA, and MERCEDES tend to have higher premiums, while GENLYON and RENAULT exhibit lower premiums, which may be attributed to differences in repair costs or target customer groups. Commercial vehicles such as Tanker and Truck have significantly higher premiums due to their higher risk, while smaller vehicles like Motor-cycle are associated with lower premiums.
 
@@ -883,12 +892,34 @@ dat_amount_claims <- clean_dat_motor %>%
   summarise(AMOUNT_CLAIMS = sum(CLAIM_PAID == "YES"), .groups = 'drop')
 
 #summary(dat_amount_claims$AMOUNT_CLAIMS)
-hist(dat_amount_claims$AMOUNT_CLAIMS, breaks=max(dat_amount_claims$AMOUNT_CLAIMS)) #Zero-inflated Poisson Regression would fit better
+hist(
+  dat_amount_claims$AMOUNT_CLAIMS,
+  breaks = max(dat_amount_claims$AMOUNT_CLAIMS),  # Number of bins equal to the max value of AMOUNT_CLAIMS
+  col = "skyblue",  # Bar color
+  border = "black",  # Border color for bars
+  main = "Distribution of AMOUNT_CLAIMS",  # Plot title
+  xlab = "Number of Claims",  # Label for the x-axis
+  ylab = "Frequency",  # Label for the y-axis
+  las = 1,  # Make y-axis labels horizontal
+  cex.main = 1.2,  # Increase font size for the title
+  cex.lab = 1.1,  # Increase font size for axis labels
+  cex.axis = 1  # Increase font size for axis values
+)
+
+# Add grid lines for better readability
+grid(nx = NULL, ny = NULL, col = "gray", lty = "dotted")  # Add gray dotted grid lines
+#-> Zero-inflated Poisson Regression would fit better
 
 #Mean vs. Variance
-#mean(dat_amount_claims$AMOUNT_CLAIMS)
-#var(dat_amount_claims$AMOUNT_CLAIMS)
-#The variance is not much greater than the mean, over-dispersion can be neglegted in the model.
+mean_amount_claims <- mean(dat_amount_claims$AMOUNT_CLAIMS, na.rm = TRUE)
+var_amount_claims <- var(dat_amount_claims$AMOUNT_CLAIMS, na.rm = TRUE)
+
+table <- data.frame(
+  Statistic = c("Mean", "Variance"),
+  AMOUNT_CLAIMS = c(mean_amount_claims, var_amount_claims)
+)
+
+print(table) #The variance is not much greater than the mean, over-dispersion can be neglegted in the model.
 
 ```
 The analysis of the distribution of the target variable AMOUNT_CLAIMS reveals that a large portion of the values are zero. This concentration of zero values is confirmed by the median, as well as the 1st and 3rd quartiles, which are also at zero. Additionally, the distribution shows some high outliers with a maximum value of 46, indicating an uneven distribution with a few high values. The low mean of 0.1791 further supports this observation, suggesting a significant number of zero values. Given these distribution characteristics, the use of a Zero-Inflated Poisson (ZIP) model could be appropriate, as such a model can account for both random and structural zeros. Initially, however, a Poisson model will be fitted.
