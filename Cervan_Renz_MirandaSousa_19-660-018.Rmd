@@ -558,11 +558,11 @@ numeric_vars <- clean_dat_motor %>%
 # Log-Transformation
 clean_dat_motor$INSURED_VALUE_log <- log(clean_dat_motor$INSURED_VALUE)
 clean_dat_motor$PREMIUM_log <- log(clean_dat_motor$PREMIUM)
-clean_dat_motor$SEATS_NUM_log <- log(clean_dat_motor$SEATS_NUM)
 # Log-transformation using log1p() due to the many 0 values
 clean_dat_motor$CLAIM_PAID_USD_log <- log1p(clean_dat_motor$CLAIM_PAID_USD)
 clean_dat_motor$CCM_TON_log <- log1p(clean_dat_motor$CCM_TON)
 clean_dat_motor$AMOUNT_CLAIMS_PAID_log <- log1p(clean_dat_motor$AMOUNT_CLAIMS_PAID)
+clean_dat_motor$SEATS_NUM_log <- log1p(clean_dat_motor$SEATS_NUM)
 
 # Set up layout for 2 plots per row
 par(mfrow = c(2, 2), oma = c(0, 0, 2, 0), mar = c(4, 4, 2, 1)) 
@@ -614,20 +614,30 @@ boxplot(PREMIUM ~ MAKE, data = clean_dat_motor,
         main = "Premium against MAKE",
         ylab = "Premium")
 
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = CLAIM_PAID_USD)) +
+geom_point() +
+geom_smooth()
+
+
 
 ggplot(data = clean_dat_motor,
 mapping = aes(y = PREMIUM,
-x = CLAIM_PAID_USD_log)) +
+x = CLAIM_PAID_USD)) +
+geom_point() +
+geom_smooth(se = FALSE) +
+facet_wrap(. ~ MAKE) ## ! new argument
+
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = CLAIM_PAID_USD)) +
 geom_point() +
 geom_smooth(method = "lm") +
 facet_wrap(. ~ MAKE)
 
 
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = CLAIM_PAID_USD_log)) +
-geom_point() +
-geom_smooth()
 
 
 
@@ -653,7 +663,7 @@ The aim of the following analysis is to identify the key factors influencing pre
 
 #Fit the linear model
 lm_model <- lm(PREMIUM_log ~ SEX + INSR_TYPE + USAGE + TYPE_VEHICLE + MAKE +
-                 AGE_VEHICLE + SEATS_NUM_log + CCM_TON_log +INSURED_VALUE_log +
+                 AGE_VEHICLE + SEATS_NUM_log + CCM_TON_log + INSURED_VALUE_log +
                  AMOUNT_CLAIMS_PAID_log, data = clean_dat_motor)
 
 #Summary of the model
