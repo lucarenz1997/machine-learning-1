@@ -1,35 +1,15 @@
 ---
-pdf_document: default
-authors: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
+author: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
 date: "`r Sys.Date()`"
-output:
-  #word_document: default
-  pdf_document: default
-  #html_document: 
-  #  theme: darkly
-    
-    
+toc: true
 title: "ML1"
+output: pdf_document
 ---
-  
+
+\newpage
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, cache=TRUE, results='asis', fig.height=4.4)
-```
-
-```{css REFINE OR DELETE, echo=FALSE}
-pre {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-pre[class] {
-  max-height: 100px;
-}
-
-img{
-  width: 100%;
-  height: auto;
-}
 ```
 
 ```{r load_packages, echo =FALSE, cache=TRUE}
@@ -83,14 +63,14 @@ library(NeuralNetTools) # For Neural Network visualization
 # Introduction
 One of the major challenges for insurances is to estimate the appropriate premiums to charge each customer while not risking to lose any money. Therefore, this project aims at supporting an Ethiopian Insurance company to understand how their customers can benefit from having the most accurate and fair premium as they need and have to pay. Machine Learning helps in this case enormously to understand, what factors have a larger impact on the premium and how customers can be classified accordingly.
 
-In this document, the reader may find different algorithms to solve various aspects of the premium-calculations.
+In this document, the reader may find different algorithms to solve various aspects of the premium-calculations and other related topics such as risk assessment or claim prediction. 
 
 # Data Preprocessing
 
 In order to apply such algorithms, the data has to be pre-processed. 
 In a very brief summary, the script removes unnecessary columns and duplicates, and handles missing and zero values, particularly for columns like INSURED_VALUE and SEATS_NUM. It converts certain columns to more meaningful categories, such as transforming SEX into factors representing legal entities and genders. The script also filters data to exclude irrelevant vehicle types and usage, ensuring the final dataset contains only pertinent records. Finally, it summarizes and adjusts the dataset further by converting appropriate columns into factors and removing variables not required for analysis.
 
-```{r data_prep, echo=FALSE, cache=TRUE}
+```{r data_prep, echo=FALSE, cache=TRUE, results='hide'}
 
 #DATA LOAD
 raw_dat_motor <- read_csv("data/motor_data14-2018.csv", show_col_types = FALSE)
@@ -1057,7 +1037,7 @@ if (file.exists(model_path)) {
 nn_model
 
 # visualize the neural network model
-plotnet(nn_model, alpha = 0.5, margin = 0.1, cex = 0.8)
+# plotnet(nn_model, alpha = 0.5, margin = 0.1, cex = 0.8) ### Too many inputs to plot
 # Predict on the test data
 test_data$predicted_premium_log <- predict(nn_model, test_data)
 
@@ -1188,7 +1168,7 @@ ggplot(test_data, aes(x = PREMIUM, y = predicted_premium_cv)) +
         axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
 ```
 
-## Results
+### Results
 
 | Model                          | Mean Squared Error (MSE) | R-squared | Root Mean Squared Error (RMSE) | Mean Absolute Error (MAE) | Mean Absolute Percentage Error (MAPE) |
 |---------|:------:|:-----:|:----:|:------:|:----:|
@@ -1210,7 +1190,7 @@ Overall, the neural network model demonstrates good performance in predicting th
 
 For the scenario of SVM models, it has been decided to do multiple-classifications for the premiums and divide it into 4 levels from low to very high.
 
-```{r SVM MCC, cache=TRUE, results='hide', eval=FALSE}
+```{r SVM MCC, cache=TRUE, results='hide'}
 # Setup parallelisation
 cl <- makeCluster(detectCores() - 1) 
 registerDoParallel(cl)
@@ -1233,7 +1213,7 @@ hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", brea
 plot(density(svm_data$PREMIUM_log, na.rm = TRUE), main = "Density of Premium")
 ```
 
-```{r, results='hide', cache=TRUE}
+```{r, results='hide', cache=TRUE, eval=FALSE}
 # Calculate percentiles and create custom categories for PREMIUM
 percentiles <- quantile(svm_data$PREMIUM_log, probs = c(0.25, 0.5, 0.75))
 svm_data$premium_category <- cut(svm_data$PREMIUM_log,
