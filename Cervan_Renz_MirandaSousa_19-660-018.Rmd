@@ -1204,9 +1204,6 @@ tune_grid <- expand.grid(
 
 set.seed(123)
 svm_data <- clean_dat_motor[sample(nrow(clean_dat_motor), 1000, replace = FALSE), ] # only 1000 oobservations due to performance.
-
-# Visualize the distribution and density of PREMIUM_log
-hist(svm_data$PREMIUM_log, main = "Premium Distribution", xlab = "Premium", breaks = 30)
 ```
 ```{r, cache=TRUE}
 
