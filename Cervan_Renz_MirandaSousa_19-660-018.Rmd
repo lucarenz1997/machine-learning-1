@@ -66,6 +66,7 @@ One of the major challenges for insurances is to estimate the appropriate premiu
 In this document, the reader may find different algorithms to solve various aspects of the premium-calculations and other related topics such as risk assessment or claim prediction. 
 
 # Data Preprocessing
+*Lead: Rafaella Miranda-Sousa Wasser*
 
 In order to apply such algorithms, the data has to be pre-processed. 
 In a very brief summary, the script removes unnecessary columns and duplicates, and handles missing and zero values, particularly for columns like INSURED_VALUE and SEATS_NUM. It converts certain columns to more meaningful categories, such as transforming SEX into factors representing legal entities and genders. The script also filters data to exclude irrelevant vehicle types and usage, ensuring the final dataset contains only pertinent records. Finally, it summarizes and adjusts the dataset further by converting appropriate columns into factors and removing variables not required for analysis.
@@ -112,9 +113,9 @@ raw_dat_motor$INSR_END <- dmy(raw_dat_motor$INSR_END)
 #DURATION
 raw_dat_motor$DURATION <- as.numeric(as.Date(raw_dat_motor$INSR_END) - as.Date(raw_dat_motor$INSR_BEGIN))
 
-hist(raw_dat_motor$DURATION)
+#hist(raw_dat_motor$DURATION)
 
-#Gleiche DURATION (Vertragsdauer) zur Vergleichbarkeit
+#DURATION
 raw_dat_motor <- raw_dat_motor[raw_dat_motor$DURATION == 364, ]
 
 #Extract year of insurance start and add as a new variable
@@ -158,11 +159,11 @@ zero_insured_value <- raw_dat_motor[raw_dat_motor$INSURED_VALUE == 0, ]
 #cat("\nSummary of the PREMIUM with INSURED_VALUE = 0:\n")
 #summary(zero_insured_value$PREMIUM)
 
-#Visualization of vehicle usage with INSURED_VALUE = 0
-ggplot(zero_insured_value, aes(x = USAGE)) +
-  geom_bar(fill = "blue", color = "black") +
-  labs(title = "Distribution of USAGE with INSURED_VALUE = 0", x = "USAGE", y = "Amount") +
-  theme_minimal()
+##Visualization of vehicle usage with INSURED_VALUE = 0
+#ggplot(zero_insured_value, aes(x = USAGE)) +
+#  geom_bar(fill = "blue", color = "black") +
+#  labs(title = "Distribution of USAGE with INSURED_VALUE = 0", x = "USAGE", y = "Amount") +
+#  theme_minimal()
 
 #Conclusion: No connection was found. Presumably, the insurance value of 0 is due to the fact that only third-party liability insurance is legally required. In these cases, there is no fixed value for damage to the vehicle itself. Therefore, records with an INSURED_VALUE of 0 are removed from the analysis as they do not contain any relevant information for the assessment of vehicle values.
 
@@ -172,29 +173,29 @@ raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE != 0, ]
 #Verify if the rows have been successfully removed
 #cat("Number of remaining data records:", nrow(raw_dat_motor), "\n")
 
-#Visualize the distribution of INSURED_VALUE (Histogram)
-ggplot(raw_dat_motor, aes(x = INSURED_VALUE)) +
-  geom_histogram(binwidth = 50000, fill = "blue", color = "black", alpha = 0.7) +
-  labs(title = "Distribution of INSURED_VALUE", x = "INSURED_VALUE", y = "Frequency") +
-  theme_minimal()
+##Visualize the distribution of INSURED_VALUE (Histogram)
+#ggplot(raw_dat_motor, aes(x = INSURED_VALUE)) +
+#  geom_histogram(binwidth = 50000, fill = "blue", color = "black", alpha = 0.7) +
+#  labs(title = "Distribution of INSURED_VALUE", x = "INSURED_VALUE", y = "Frequency") +
+#  theme_minimal()
 
 
-#Boxplot to identify outliers
-ggplot(raw_dat_motor, aes(y = INSURED_VALUE)) +
-  geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
-  labs(title = "Boxplot of INSURED_VALUE", y = "INSURED_VALUE") +
-  theme_minimal()
+##Boxplot to identify outliers
+#ggplot(raw_dat_motor, aes(y = INSURED_VALUE)) +
+#  geom_boxplot(fill = "orange", color = "black", alpha = 0.7) +
+#  labs(title = "Boxplot of INSURED_VALUE", y = "INSURED_VALUE") +
+#  theme_minimal()
 
 
 #Check the statistical key figures without 0 values
 #cat("Summary of the statistical key figures without 0 values:\n")
 #print(summary(raw_dat_motor$INSURED_VALUE))
 
-#Distribution of the log-transformed INSURED_VALUE (only for non-zero values)
-ggplot(raw_dat_motor[raw_dat_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VALUE))) +
-  geom_histogram(binwidth = 0.2, fill = "green", color = "black", alpha = 0.7) +
-  labs(title = "Log-transformed distribution of INSURED_VALUE (without zero values)", x = "log(INSURED_VALUE)", y = "Frequency") +
-  theme_minimal()
+##Distribution of the log-transformed INSURED_VALUE (only for non-zero values)
+#ggplot(raw_dat_motor[raw_dat_motor$INSURED_VALUE > 0, ], aes(x = log(INSURED_VALUE))) +
+#  geom_histogram(binwidth = 0.2, fill = "green", color = "black", alpha = 0.7) +
+#  labs(title = "Log-transformed distribution of INSURED_VALUE (without zero values)", x = "log(INSURED_VALUE)", y = #"Frequency") +
+#  theme_minimal()
 
 #summary(raw_dat_motor$INSURED_VALUE)
 
@@ -205,13 +206,13 @@ raw_dat_motor <- raw_dat_motor[raw_dat_motor$INSURED_VALUE >= 10, ]
 #Workspace cleanup
 rm(zero_insured_value)
 
-#PREMIUM
-#Check if removing PREMIUM = 0 from the dataset is valid
-data.frame(
-  PREMIUM_0_Percent = round(100 * sum(raw_dat_motor$PREMIUM == 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
-  PREMIUM_NA_Percent = round(100 * sum(is.na(raw_dat_motor$PREMIUM)) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
-  PREMIUM_MORE_Percent = round(100 * sum(raw_dat_motor$PREMIUM > 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), 4)
-)
+##PREMIUM
+##Check if removing PREMIUM = 0 from the dataset is valid
+#data.frame(
+#  PREMIUM_0_Percent = round(100 * sum(raw_dat_motor$PREMIUM == 0, na.rm = TRUE) / sum(!is.na(raw_dat_motor$PREMIUM)), #4),
+#  PREMIUM_NA_Percent = round(100 * sum(is.na(raw_dat_motor$PREMIUM)) / sum(!is.na(raw_dat_motor$PREMIUM)), 4),
+#  PREMIUM_MORE_Percent = round(100 * sum(raw_dat_motor$PREMIUM > 0, na.rm = TRUE) / #sum(!is.na(raw_dat_motor$PREMIUM)), 4)
+#)
 
 #Remove rows where PREMIUM is NA or 0
 raw_dat_motor <- raw_dat_motor[!(is.na(raw_dat_motor$PREMIUM) | raw_dat_motor$PREMIUM == 0), ]
@@ -219,7 +220,7 @@ raw_dat_motor <- raw_dat_motor[!(is.na(raw_dat_motor$PREMIUM) | raw_dat_motor$PR
 # Remove duplicates and count the number of removed rows
 removed_count <- nrow(raw_dat_motor) - nrow(raw_dat_motor <- distinct(raw_dat_motor))
 # Output the number of removed duplicates
-cat("Number of removed duplicates:", removed_count, "\n")
+#cat("Number of removed duplicates:", removed_count, "\n")
 
 # OBJECT_ID
 # Total number of rows in the dataset
@@ -281,25 +282,25 @@ rm(list = setdiff(ls(), "raw_dat_motor"))
 #PROD_YEAR
 #Remove rows with PROD_YEAR as NA
 raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$PROD_YEAR),]
-summary(raw_dat_motor$PROD_YEAR)
+#summary(raw_dat_motor$PROD_YEAR)
 
-#SEATS_NUM
-#Analysis of SEATS_NUM: Number of rows with SEATS_NUM == 0, NA, and other values
-data.frame(
-  SEATS_NUM_0 = sum(raw_dat_motor$SEATS_NUM == 0, na.rm = TRUE),
-  SEATS_NUM_NA = sum(is.na(raw_dat_motor$SEATS_NUM)),
-  SEATS_NUM_OTHER = sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE)
-)
-
-#Relative: Percentage of rows with SEATS_NUM == 0, NA, or other values
-data.frame(
-  SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(raw_dat_motor$SEATS_NUM) | raw_dat_motor$SEATS_NUM == 0) / nrow(raw_dat_motor),
-  SEATS_NUM_OTHER_Percent = 100 * sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(raw_dat_motor)
-)
+##SEATS_NUM
+##Analysis of SEATS_NUM: Number of rows with SEATS_NUM == 0, NA, and other values
+#data.frame(
+#  SEATS_NUM_0 = sum(raw_dat_motor$SEATS_NUM == 0, na.rm = TRUE),
+#  SEATS_NUM_NA = sum(is.na(raw_dat_motor$SEATS_NUM)),
+#  SEATS_NUM_OTHER = sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE)
+#)
+#
+##Relative: Percentage of rows with SEATS_NUM == 0, NA, or other values
+#data.frame(
+#  SEATS_NUM_0_or_NA_Percent = 100 * sum(is.na(raw_dat_motor$SEATS_NUM) | raw_dat_motor$SEATS_NUM == 0) / #nrow(raw_dat_motor),
+#  SEATS_NUM_OTHER_Percent = 100 * sum(raw_dat_motor$SEATS_NUM > 0, na.rm = TRUE) / nrow(raw_dat_motor)
+#)
 
 #Remove rows with SEATS_NUM as NA
 raw_dat_motor <- raw_dat_motor[!is.na(raw_dat_motor$SEATS_NUM),]
-summary(raw_dat_motor$SEATS_NUM)
+#summary(raw_dat_motor$SEATS_NUM)
 
 #Issue: There are SEATS_NUM values equal to 0
 
@@ -332,9 +333,10 @@ raw_dat_motor <- raw_dat_motor[raw_dat_motor$TYPE_VEHICLE != "Trade plates", ]
 #CCM_TON
 #summary(raw_dat_motor$CCM_TON)
 #Relative CCM_TON 0
-data.frame(
-  CCM_TON_0_Percent = 100 * mean(raw_dat_motor$CCM_TON == 0, na.rm = TRUE),
-  CCM_TON_MORE_Percent = 100 * mean(raw_dat_motor$CCM_TON > 0, na.rm = TRUE))
+#data.frame(
+#  CCM_TON_0_Percent = 100 * mean(raw_dat_motor$CCM_TON == 0, na.rm = TRUE),
+#  CCM_TON_MORE_Percent = 100 * mean(raw_dat_motor$CCM_TON > 0, na.rm = TRUE))
+
 # Create separate datasets for CCM_TON == 0 and CCM_TON > 0
 data_CCM_TON_0 <- subset(raw_dat_motor, CCM_TON == 0)
 data_CCM_TON_other <- subset(raw_dat_motor, CCM_TON > 0 & !is.na(CCM_TON))
@@ -458,14 +460,14 @@ clean_dat_motor <- subset(clean_dat_motor, !(INSR_TYPE %in% c("Motor trade road 
 
 #table(clean_dat_motor$MAKE)
 
-#CLAIM_PAID
-data.frame(
-  CLAIM_PAID_0 = sum(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
-  CLAIM_PAID_MORE_THAN_0 = sum(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
-
-data.frame(
-  CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
-  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+##CLAIM_PAID
+#data.frame(
+#  CLAIM_PAID_0 = sum(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+#  CLAIM_PAID_MORE_THAN_0 = sum(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+#
+#data.frame(
+#  CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+#  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
 
 #New Variable: age_vehicle
 clean_dat_motor$AGE_VEHICLE <- 2018 - clean_dat_motor$PROD_YEAR
@@ -489,19 +491,19 @@ clean_dat_motor <- clean_dat_motor %>%
 
 ###############################################################################################
 
-#Comparison with the raw data set
-#CLAIM_PAID
-data.frame(
-  CLAIM_PAID_0 = sum(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
-  CLAIM_PAID_MORE_THAN_0 = sum(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
-
-data.frame(
-  CLAIM_PAID_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
-  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
-
-data.frame(
-  CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
-  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+##Comparison with the raw data set
+##CLAIM_PAID
+#data.frame(
+#  CLAIM_PAID_0 = sum(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+#  CLAIM_PAID_MORE_THAN_0 = sum(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+#
+#data.frame(
+#  CLAIM_PAID_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+#  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(raw_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
+#
+#data.frame(
+#  CLAIM_PAID_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD == 0, na.rm = TRUE),
+#  CLAIM_PAID_MORE_THAN_0_Percent = 100 * mean(clean_dat_motor$CLAIM_PAID_USD > 0, na.rm = TRUE))
 
 
 ###############################################################################################
@@ -542,7 +544,8 @@ rm(clean_dat_motor_origin)
 
 ```
 
-# Graphical Data Analysis
+# Exploratory graphical analysis
+*Lead: Rafaella Miranda-Sousa Wasser*
 
 First, the distribution of the individual numerical variables was analysed to determine whether any transformations were necessary.
 
@@ -597,6 +600,7 @@ The histograms show that the variables INSURED_VALUE, PREMIUM, CLAIM_PAID_USD an
 Once the pre-processing was completed and a good overview about the given data and domain knowledge what acquired, the team focused on defining models using several different methods shown in followed sub-sections.
 
 ## Linear model
+*Lead: Rafaella Miranda-Sousa Wasser*
 
 A linear model is adapted, whereby CLAIM_PAID_USD_log was not included, as the premium is incurred at the start of the contract and this would therefore not make technical sense. Instead, a bonus-malus system is taken into account by adding AMOUNT_CLAIMS_PAID.
 
@@ -671,6 +675,7 @@ To improve the model, various measures could be considered. One approach would b
 
 
 ## Poisson model
+*Lead: Rafaella Miranda-Sousa Wasser*
 
 A Poisson model is fitted to predict the number of claims over a 5-year period based on the characteristics SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM.
 
@@ -769,6 +774,7 @@ Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) 
 
 
 ## Binomial model
+*Lead: Rafaella Miranda-Sousa Wasser*
 
 ```{r Binomial_Model, cache=TRUE}
 
@@ -912,6 +918,8 @@ The imbalanced distribution of classes (CLAIMS_PAID: "YES"/"NO") in the dataset 
 
 
 ## Generalised Additive Model (GAM)
+*Lead: Alvaro Cervan*
+
 A General Additive Model (GAM) is fitted to predict the number of claims based on the characteristics SEX, INSR_TYPE, USAGE, TYPE_VEHICLE, MAKE, AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM. Similar to the Poisson model, the GAM model aims to capture the relationship between the predictors and the number of claims, allowing for non-linear relationships and interactions between variables.
 ```{r GAM smoothed, cache=TRUE}
 # Convert unordered factors to factors
