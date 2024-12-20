@@ -58,6 +58,7 @@ library(doParallel)#SVM Parallelisierung
 library(MLmetrics)  # For MCC calculation
 library(mccr)
 library(NeuralNetTools) # For Neural Network visualization
+library(pROC)
 
 ```
 # Introduction
@@ -630,150 +631,150 @@ geom_point() +
 geom_smooth()
 
 
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(method = "lm")
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth()
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = CCM_TON)) +
-geom_point() +
-geom_smooth()
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = AGE_VEHICLE)) +
-geom_point() +
-geom_smooth(method = "lm")
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = AGE_VEHICLE)) +
-geom_point() +
-geom_smooth()
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = AMOUNT_CLAIMS_PAID)) +
-geom_point() +
-geom_smooth(method = "lm")
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = AMOUNT_CLAIMS_PAID)) +
-geom_point() +
-geom_smooth()
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = SEATS_NUM)) +
-geom_point() +
-geom_smooth(method = "lm")
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = SEATS_NUM)) +
-geom_point() +
-geom_smooth()
-
-
-#Interactions
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(se = FALSE) +
-facet_wrap(. ~ MAKE) ## ! new argument
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(method = "lm") +
-facet_wrap(. ~ MAKE)
-
-#Interactions
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(se = FALSE) +
-facet_wrap(. ~ SEX) ## ! new argument
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(method = "lm") +
-facet_wrap(. ~ SEX)
-
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(se = FALSE) +
-facet_wrap(. ~ INSR_TYPE) ## ! new argument
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(method = "lm") +
-facet_wrap(. ~ INSR_TYPE)
-
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(se = FALSE) +
-facet_wrap(. ~ USAGE) ## ! new argument
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(method = "lm") +
-facet_wrap(. ~ USAGE)
-
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(se = FALSE) +
-facet_wrap(. ~ TYPE_VEHICLE) ## ! new argument
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(method = "lm") +
-facet_wrap(. ~ TYPE_VEHICLE)
-
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = PREMIUM,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(se = FALSE) +
-facet_wrap(. ~ TYPE_VEHICLE) ## ! new argument
-
-ggplot(data = clean_dat_motor,
-mapping = aes(y = MAKE,
-x = INSURED_VALUE)) +
-geom_point() +
-geom_smooth(method = "lm") +
-facet_wrap(. ~ MAKE)
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(method = "lm")
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth()
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = CCM_TON)) +
+#geom_point() +
+#geom_smooth()
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = AGE_VEHICLE)) +
+#geom_point() +
+#geom_smooth(method = "lm")
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = AGE_VEHICLE)) +
+#geom_point() +
+#geom_smooth()
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = AMOUNT_CLAIMS_PAID)) +
+#geom_point() +
+#geom_smooth(method = "lm")
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = AMOUNT_CLAIMS_PAID)) +
+#geom_point() +
+#geom_smooth()
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = SEATS_NUM)) +
+#geom_point() +
+#geom_smooth(method = "lm")
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = SEATS_NUM)) +
+#geom_point() +
+#geom_smooth()
+#
+#
+##Interactions
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(se = FALSE) +
+#facet_wrap(. ~ MAKE) ## ! new argument
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(method = "lm") +
+#facet_wrap(. ~ MAKE)
+#
+##Interactions
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(se = FALSE) +
+#facet_wrap(. ~ SEX) ## ! new argument
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(method = "lm") +
+#facet_wrap(. ~ SEX)
+#
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(se = FALSE) +
+#facet_wrap(. ~ INSR_TYPE) ## ! new argument
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(method = "lm") +
+#facet_wrap(. ~ INSR_TYPE)
+#
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(se = FALSE) +
+#facet_wrap(. ~ USAGE) ## ! new argument
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(method = "lm") +
+#facet_wrap(. ~ USAGE)
+#
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(se = FALSE) +
+#facet_wrap(. ~ TYPE_VEHICLE) ## ! new argument
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(method = "lm") +
+#facet_wrap(. ~ TYPE_VEHICLE)
+#
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = PREMIUM,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(se = FALSE) +
+#facet_wrap(. ~ TYPE_VEHICLE) ## ! new argument
+#
+#ggplot(data = clean_dat_motor,
+#mapping = aes(y = MAKE,
+#x = INSURED_VALUE)) +
+#geom_point() +
+#geom_smooth(method = "lm") +
+#facet_wrap(. ~ MAKE)
 
 
 # Clear Workspace
@@ -932,11 +933,13 @@ poisson_model <- glm(AMOUNT_CLAIMS ~ SEX + INSR_TYPE + TYPE_VEHICLE + MAKE +
                       family = poisson(link = "log"), data = dat_amount_claims)
 
 #Summary of the model
+anova(poisson_model, test = "Chisq")
+#Summary of the model
 #summary(poisson_model)
 
 #Model coefficients and exponentiated coefficients (Rate Ratios)
 #coef(poisson_model)
-#exp(coef(poisson_model))
+exp(coef(poisson_model))
 
 #Diagnose Overdispersion
 overdispersion <- deviance(poisson_model) / df.residual(poisson_model)
@@ -958,8 +961,8 @@ p_value_fit <- 1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
 vif_values <- vif(poisson_model)
 
 # Output the VIF values for interpretation
-#cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
-#print(vif_values)
+cat("Variance Inflation Factor (VIF) values for all predictor variables:\n")
+print(vif_values)
 # Interpretation:
 # - VIF values above 5 (or in some cases, 10) indicate multicollinearity issues.
 
@@ -975,7 +978,6 @@ ggplot(poisson_model$model) +
     theme(plot.title = element_text(hjust = 0.5),
           axis.title.x = element_text(face = "bold", colour = "blue", size = 12),
           axis.title.y = element_text(face = "bold", colour = "blue", size = 12))
-
 ```
 The Poisson model analysis shows no signs of overdispersion, as the overdispersion value of 0.688 is below 1. This indicates a possible underdispersion, but this is confirmed by the goodness-of-fit test (p-value = 1), which confirms a well-fitting model.
 
@@ -1002,144 +1004,113 @@ Given the high number of zero values in the data, a Zero-Inflated Poisson (ZIP) 
 *Lead: Rafaella Miranda-Sousa Wasser*
 
 ```{r Binomial_Model, cache=TRUE}
-
 #Fitting a binomial regression model
 fit.binom <- glm(CLAIM_PAID ~ SEX + INSR_TYPE +  USAGE + TYPE_VEHICLE +
-                   MAKE + AGE_VEHICLE + SEATS_NUM + CCM_TON_log + INSURED_VALUE_log +
-                   PREMIUM_log + AMOUNT_CLAIMS_PAID,
+                   MAKE + AGE_VEHICLE + SEATS_NUM_log + CCM_TON_log + INSURED_VALUE_log +
+                   PREMIUM_log + AMOUNT_CLAIMS_PAID_log,
                  data = clean_dat_motor, 
                  family = binomial(link= "logit"))
-
-#Inference and significance tests
-#summary(fit.binom)
 
 #Likelihood ratio test (LRT) for the significance of individual variables
 #drop1(fit.binom, test = "LRT")
 
-#Model quality: Calculation of Pseudo-R^2 values using Nagelkerke for model evaluation
-nagelkerke(fit.binom)$Pseudo.R.squared.for.model.vs.null
-
-# Calculation of the global F-test to check the significance of the entire model
-TD <- fit.binom$null.deviance - fit.binom$deviance  # Test statistic
-df_diff <- fit.binom$df.null - fit.binom$df.residual  # Degrees of freedom
-p_value <- 1 - pchisq(TD, df = df_diff)  # p-value for the F-test
-#cat("Global test statistic (TD):", TD, "\n")
-#cat("p-value of the global test:", p_value, "\n")
-
-# Checking for overdispersion in the model
-deviance <- deviance(fit.binom)
-df_residual <- df.residual(fit.binom)
-overdispersion_ratio <- deviance / df_residual
-#cat("Overdispersion Ratio (Deviance / DF):", overdispersion_ratio, "\n")
-
-#Calculation of AIC (model quality evaluation)
-aic_logit_binom <- AIC(fit.binom)
-#cat("AIC of the logit model:", aic_logit_binom, "\n")
-
-```
-
-The analysis shows that several variables have significant associations with the likelihood of CLAIMS_PAID = Yes. According to the likelihood ratio test, the variable INSR_TYPE does not appear to have a significant impact.
-
-Gender emerges as a key predictor: men have a 20.5% lower likelihood of receiving a claim payout compared to the reference group (legal entities), while women have a 22.4% reduced likelihood. These effects are highly significant (p < 0.001).
-
-The vehicle type also shows significant differences. Motorcycles have approximately a 96% lower likelihood of claim payouts, making them the group with the lowest payout frequency. Similarly, station wagons and trailers exhibit significantly lower probabilities, with reductions of around 20% and 82%, respectively. In contrast, pick-ups do not show significant differences compared to the reference category (automobiles).
-
-The vehicle brand further influences payout frequency. Vehicles from the brand DAEWOO have a 38% lower likelihood of receiving a claim payout compared to the reference brand, FIAT shows a reduction of 46%, and MERCEDES has a 51% lower likelihood. These effects are all statistically significant. Other brands, such as GEELY or MAZDA, do not show significant differences compared to the reference category.
-
-The premium amount proves to be one of the strongest predictors. An increase in the logarithmic premium amount leads to a significant 71% increase in the likelihood of a claim payout. Conversely, a higher logarithmic insured sum reduces the payout likelihood by 25%. The claim amount also positively correlates with payout frequency: higher claim amounts significantly increase the likelihood of payouts.
-
-The age of the vehicle has a negative effect on payout frequency: with each additional year, the likelihood of a payout decreases by approximately 2.9%. Other predictors, such as the insurance type or vehicle usage, do not have significant effects on the likelihood of a claim payout and could be excluded in a simplified model.
-
-The pseudo-R² values (McFadden: 3.4%; Nagelkerke: 4.8%) indicate that the model explains only a small portion of the variance in the target variable, suggesting limited model performance. Nevertheless, the global test statistic (TD = 2709.954, p < 0.001) is highly significant, confirming that the model performs significantly better than a null model.
-
-The overdispersion ratio (deviance / degrees of freedom) is 0.7766, which is less than 1, indicating that no overdispersion is present in the model. This suggests that the assumptions of the binomial model regarding data dispersion are met.
-
-The AIC value of the logistic regression model is 77716.2.
-
-### Method 1): Removal of (non-significant) explanatory variables
-
-```{r Binomial_Model_sign, cache=TRUE, eval=FALSE}
 
 # New model without INSR_TYPE
 fit.binom.sign <- glm(
-  CLAIM_PAID ~ SEX + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE + SEATS_NUM +
-               CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID,
+  CLAIM_PAID ~ SEX + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE + SEATS_NUM_log +
+               CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID_log,
   data = clean_dat_motor,
   family = binomial(link = "logit")
 )
 
-# Display the summary of the new model (significance of individual variables)
-summary(fit.binom.sign)
-
 # Likelihood Ratio Test (LRT) for the significance of individual variables
 drop1(fit.binom.sign, test = "LRT")
+# Display the summary of the new model (significance of individual variables)
+#summary(fit.binom.sign)
+#exp(coef)
 
-anova(fit.binom, fit.binom.sign, test= "LRT")
+# Fit the binomial regression model
+fit.binom.sign <- glm(
+  CLAIM_PAID ~ SEX + USAGE + TYPE_VEHICLE + MAKE + AGE_VEHICLE + SEATS_NUM_log +
+               CCM_TON_log + INSURED_VALUE_log + PREMIUM_log + AMOUNT_CLAIMS_PAID_log,
+  data = clean_dat_motor,
+  family = binomial(link = "logit")
+)
 
-# Calculate and output the AIC of the new model
-aic_no_insr_seats <- AIC(fit.binom.sign)
-cat("AIC of the model without INSR_TYPE:", aic_no_insr_seats, "\n")
-
-# Compare the AIC value with the original model
-aic_difference <- aic_logit_binom - aic_no_insr_seats
-cat("AIC difference compared to the original model:", aic_difference, "\n")
-
-# Calculate the global F-test to check the significance of the new model
+# Global F-test calculation for the new model
 TD_no_insr_seats <- fit.binom.sign$null.deviance - fit.binom.sign$deviance  # Test statistic
 df_diff_no_insr_seats <- fit.binom.sign$df.null - fit.binom.sign$df.residual  # Degrees of freedom
-p_value_no_insr_seats <- 1 - pchisq(TD_no_insr_seats, df = df_diff_no_insr_seats)  # p-value for the F-test
+p_value_no_insr_seats <- 1 - pchisq(TD_no_insr_seats, df = df_diff_no_insr_seats)  # p-value
 
-cat("Global test statistic (TD) of the new model:", TD_no_insr_seats, "\n")
-cat("p-value of the global test of the new model:", p_value_no_insr_seats, "\n")
+# Calculate AIC
+aic_value <- AIC(fit.binom.sign)
 
-# Compare the pseudo-R^2 values (model quality) using Nagelkerke
-nagelkerke_new <- nagelkerke(fit.binom.sign)$Pseudo.R.squared.for.model.vs.null
-print(nagelkerke_new)
-
-# Calculate deviance residuals to check model fit
-deviance_residuals <- residuals(fit.binom.sign, type = "deviance")
-cat("Summary of deviance residuals:\n")
-summary(deviance_residuals)
-
-# Check for overdispersion in the model
-deviance <- deviance(fit.binom.sign)
-df_residual <- df.residual(fit.binom.sign)
-overdispersion_ratio <- deviance / df_residual
-cat("Overdispersion ratio (Deviance / DF):", overdispersion_ratio, "\n")
-
-# Global model evaluation through likelihood ratio test against the null model
+# Pseudo-R² (Nagelkerke)
 null_model <- glm(CLAIM_PAID ~ 1, data = clean_dat_motor, family = binomial(link = "logit"))
-lrt_statistic <- 2 * (logLik(fit.binom.sign) - logLik(null_model))
-cat("Likelihood ratio test statistic against the null model:", lrt_statistic, "\n")
+pseudo_r2 <- 1 - (logLik(fit.binom.sign) / logLik(null_model))
+
+# Overdispersion ratio
+overdispersion_ratio <- summary(fit.binom.sign)$deviance / summary(fit.binom.sign)$df.residual
+
+# Likelihood Ratio Test statistic against the null model
+lrt_statistic <- -2 * (logLik(null_model) - logLik(fit.binom.sign))
+
+# AUC
+auc_value <- auc(
+  response = as.numeric(clean_dat_motor$CLAIM_PAID),  # Sicherstellen, dass binär und numerisch
+  predictor = predict(fit.binom.sign, type = "response")
+)
+
+
+# Combine results into a table
+result_table <- data.frame(
+  Statistic = c(
+    "Global test statistic (TD)", 
+    "p-value of global test", 
+    "AIC", 
+    "Pseudo R-squared (Nagelkerke)", 
+    "Overdispersion Ratio",
+    "Likelihood Ratio Test Statistic",
+    "AUC"
+  ),
+  Value = c(
+    round(TD_no_insr_seats, 4),
+    format.pval(p_value_no_insr_seats, digits = 4, scientific = TRUE),
+    round(aic_value, 2),
+    round(pseudo_r2, 4),
+    round(overdispersion_ratio, 4),
+    round(lrt_statistic, 4),
+    round(auc_value, 4)
+  )
+)
+
+# Print the table
+print(result_table)
+
 
 # ROC curve and AUC for model evaluation
-library(pROC)  # If not already loaded
 predicted_probabilities <- predict(fit.binom.sign, type = "response")
 roc_curve <- roc(clean_dat_motor$CLAIM_PAID, predicted_probabilities)
-auc_value <- auc(roc_curve)
-cat("AUC value of the model:", auc_value, "\n")
 
 # Visualize the ROC curve
 plot(roc_curve, main = "ROC Curve for Logistic Regression", col = "blue")
 
 # Unbalanced dataset
 table(clean_dat_motor$CLAIM_PAID)
+
 ```
 
+All explanatory variables except INSR_TYPE appear to be significant. Therefore, INSR_TYPE is removed from the model.
 
-The analysis shows that some variables, such as SEX, TYPE_VEHICLE, MAKE, AGE_VEHICLE, INSURED_VALUE_log, PREMIUM_log, and AMOUNT_CLAIMS_PAID, are highly significant (p < 0.001). These variables make a substantial contribution to explaining the variance. On the other hand, certain categories, particularly within the variables USAGE and MAKE, show low significance, indicating a limited explanatory effect of these predictors.
+The analysis shows that some variables, such as SEX, TYPE_VEHICLE, MAKE, AGE_VEHICLE, INSURED_VALUE_log, PREMIUM_log, and AMOUNT_CLAIMS_PAID_log, are highly significant (p < 0.001). These variables make a substantial contribution to explaining the variance. On the other hand, certain categories, particularly within the variables USAGE and MAKE, show low significance, indicating a limited explanatory effect of these predictors. The global test statistic (TD) is 2713.2777, with a highly significant p-value < 2.2e-16, indicating that the model as a whole provides a statistically significant fit to the data. The overdispersion ratio of 0.7766 indicates that the model does not suffer from overdispersion, confirming the appropriateness of the binomial logistic regression assumption.
 
-The model has an AIC value of 77714.2, showing only minimal improvement. However, the comparison of the null deviance (80340) with the residual deviance (77630) indicates a significant improvement over the null model. This is confirmed by the Likelihood-Ratio Test (LRT). The test comparing the model with and without the variable INSR_TYPE shows no significant difference (p = 0.945), suggesting that INSR_TYPE has no significant impact and can therefore be excluded.
+Men have a 20.2% lower likelihood of receiving a claim payout compared to the reference group (legal entities), while women have a 22.1% reduced likelihood. These effects are highly significant (p < 0.001). The TYPE_VEHICLE also shows significant differences. Motorcycles have approximately a 96.5% lower likelihood of claim payouts, making them the group with the lowest payout frequency. Similarly, station wagons and trailers exhibit significantly lower probabilities, with reductions of around 21.5% and 80.3%, respectively. In contrast, pick-ups do not show significant differences compared to the reference level (automobiles). MAKE further influences payout frequency. Vehicles from the brand DAEWOO have a 39.4% lower likelihood of receiving a claim payout compared to the reference brand, FIAT shows a reduction of 47%, and MERCEDES has a 51.8% lower likelihood. These effects are all statistically significant. Other MAKE's, such as GEELY or MAZDA, do not show significant differences compared to the reference level. PREMIUM_log proves to be one of the strongest predictors. An increase in the logarithmic premium amount leads to a significant 71.3% increase in the likelihood of a claim payout. Conversely, a higher INSURED_VALUE_log reduces the payout likelihood by 24.8%. The claim amount also positively correlates with payout frequency: higher AMOUNT_CLAIMS_PAID_log significantly increase the likelihood of payouts. The age of the vehicle has a negative effect on payout frequency: with each additional year, the likelihood of a payout decreases by approximately 2.8%. 
 
-The pseudo-R² values (e.g., Nagelkerke: 0.0484) indicate limited explanatory power for the model. This is supported by the AUC (Area Under the Curve) of 0.629, reflecting a low to moderate discriminatory ability. The model is only slightly better than random at distinguishing between positive and negative cases.
+The model has an AIC value of 77716.2. The ROC curve confirms the moderate discriminatory ability of the model. The pseudo-R² values (e.g., Nagelkerke: 0.0338) indicate limited explanatory power for the model. This is supported by the AUC (Area Under the Curve) of 0.6295, reflecting a low to moderate discriminatory ability. The model is only slightly better than random at distinguishing between positive and negative cases.
 
-The analysis of deviance residuals shows a distribution close to zero, but with a maximum of 3.5154, which could indicate potential outliers. The overdispersion ratio (deviance/DF) is 0.777, suggesting no significant overdispersion in the model.
+The model is statistically significant but shows limited predictive power and variance explanation. Further investigation into additional predictors or non-linear effects might improve model performance.
 
-The ROC curve confirms the moderate discriminatory ability of the model. With an AUC value of 0.629, the curve demonstrates that the model predicts the target variable better than random probabilities, though it lacks strong predictive power.
-
-In summary, the model shows some degree of significance and stability but offers only moderate explanatory power and discriminatory ability.
-
-The imbalanced distribution of classes (CLAIMS_PAID: "YES"/"NO") in the dataset significantly impacts the model's discriminatory ability. The moderate AUC of 0.629 indicates that the model struggles to reliably recognize the minority class ("YES"). To improve discriminatory performance, balancing strategies such as oversampling, class weighting, or adjusting the decision threshold could be implemented. Additionally, exploring interaction effects might further enhance the model's performance.
+The imbalanced distribution of classes (CLAIMS_PAID: "YES"/"NO") in the dataset significantly impacts the model's discriminatory ability. The moderate AUC of 0.629 indicates that the model struggles to reliably recognize the minority class ("YES"). To improve discriminatory performance, balancing strategies such as oversampling, class weighting, or adjusting the decision threshold could be implemented.
 
 
 ## Generalised Additive Model (GAM)
