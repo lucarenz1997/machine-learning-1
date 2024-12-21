@@ -61,15 +61,16 @@ library(NeuralNetTools) # For Neural Network visualization
 library(pROC)
 
 ```
-# Introduction
-One of the major challenges for insurances is to estimate the appropriate premiums to charge each customer while not risking to lose any money. Therefore, this project aims at supporting an Ethiopian Insurance company to understand how their customers can benefit from having the most accurate and fair premium as they need and have to pay. Machine Learning helps in this case enormously to understand, what factors have a larger impact on the premium and how customers can be classified accordingly.
 
-In this document, the reader may find different algorithms to solve various aspects of the premium-calculations and other related topics such as risk assessment or claim prediction. 
+# Introduction
+One of the major challenges for insurance companies is to estimate the appropriate premiums to charge each customer while not risking any money loss. Therefore, this project aims to support an Ethiopian insurance company in understanding how their customers can benefit from having the most accurate and fair premium as they need and have to pay. Machine learning helps enormously in this case to understand what factors have a larger impact on the premium and how customers can be classified accordingly.
+
+In this document, the reader may find different algorithms to solve various aspects of premium calculations and other related topics such as risk assessment or claim prediction. 
 
 # Data Preprocessing
 *Lead: Rafaella Miranda-Sousa Wasser*
 
-In order to apply such algorithms, the data has to be pre-processed. 
+In order to apply such algorithms, the data has to be preprocessed. 
 In a very brief summary, the script removes unnecessary columns and duplicates, and handles missing and zero values, particularly for columns like INSURED_VALUE and SEATS_NUM. It converts certain columns to more meaningful categories, such as transforming SEX into factors representing legal entities and genders. The script also filters data to exclude irrelevant vehicle types and usage, ensuring the final dataset contains only pertinent records. Finally, it summarizes and adjusts the dataset further by converting appropriate columns into factors and removing variables not required for analysis.
 
 ```{r data_prep, echo=FALSE, cache=TRUE, results='hide'}
@@ -1180,7 +1181,7 @@ plot(roc_curve_gam, main = "ROC Curve for GAM Model", col = "blue")
 
 Some interesting plots are shown, to illustrate how the predictors are related to the number of claims. The plots show the smooth functions of the predictors AGE_VEHICLE, SEATS_NUM, CCM_TON, INSURED_VALUE, and PREMIUM. The plots illustrate the non-linear relationships between these predictors and the number of claims, capturing the complex interactions and patterns in the data. 
 
-For AGE_VEHICLE, is steady until 40 years where id declines rapidly, indicating that older vehicles have fewer claims. 
+For AGE_VEHICLE, is steady until 40 years where it declines rapidly, indicating that older vehicles have fewer claims. 
 
 For SEATS_NUM, the number of claims increases with the number of seats related to "consumer vehicles", up to ~15 seats, where it starts to decline. There is a spike about 50 seats, probably related to commercial vehicles. The next valley and peak are related to very high number of seats, which are outliers and related to commercial or custom vehicles.
 
@@ -1194,8 +1195,7 @@ For PREMIUM, the number of claims increases with the premium amount, starting in
 *Lead: Alvaro Cervan*
 
 
-A neural network model is fitted to predict the premium amount based on the characteristics of the insured vehicles and the driver. The model is trained using the cleaned and transformed data, and the results are analyzed to evaluate the model's performance.
-
+A neural network model is fitted to predict the premium amount based on the characteristics of the insured vehicles and drivers. The model is trained using the cleaned and transformed data, and the results are analyzed to evaluate the model's performance.
 
 ```{r Neural Network, results='hide'}
 # Data Preparation: Split the data into training and testing sets
