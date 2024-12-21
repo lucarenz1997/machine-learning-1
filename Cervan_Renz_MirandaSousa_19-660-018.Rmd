@@ -1,9 +1,11 @@
 ---
+title: "ML1"
 author: "Alvaro Cervan, Luca Renz, Rafaella Miranda-Sousa"
 date: "`r Sys.Date()`"
+output:
+  word_document: default
+  pdf_document: default
 toc: true
-title: "ML1"
-output: pdf_document
 ---
 
 \newpage
@@ -631,18 +633,33 @@ geom_point() +
 geom_smooth()
 
 
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth(method = "lm")
+
+ggplot(data = clean_dat_motor,
+mapping = aes(y = PREMIUM,
+x = INSURED_VALUE)) +
+geom_point() +
+geom_smooth()
+
+
 #ggplot(data = clean_dat_motor,
-#mapping = aes(y = PREMIUM,
-#x = INSURED_VALUE)) +
+#mapping = aes(y = PREMIUM_log,
+#x = INSURED_VALUE_log)) +
 #geom_point() +
 #geom_smooth(method = "lm")
 #
 #ggplot(data = clean_dat_motor,
-#mapping = aes(y = PREMIUM,
-#x = INSURED_VALUE)) +
+#mapping = aes(y = PREMIUM_log,
+#x = INSURED_VALUE_log)) +
 #geom_point() +
 #geom_smooth()
-#
+
+
+
 #ggplot(data = clean_dat_motor,
 #mapping = aes(y = PREMIUM,
 #x = CCM_TON)) +
@@ -787,7 +804,7 @@ The histograms show that the variables PREMIUM, INSURED_VALUE, CLAIM_PAID_USD, A
 
 The boxplots reveal distinct differences in premium distributions across categories, such as higher premiums for "Legal Entity" compared to "Male" and "Female," and significant variations among vehicle types like "Motorcycle" and "Truck." These patterns suggest that the predictor variables have a substantial influence on premium amounts, warranting further formal analysis.
 
-The relationships between PREMIUM and all numerical predictors except INSURED_VALUE appear to be linear and are included in the models as linear effects. The effect of INSURED_VALUE is clearly non-linear. The smoothing indicates that we could model this relationship as a quadratic effect.
+The relationships between PREMIUM and all numerical predictors except INSURED_VALUE appear to be linear and are included in the models as linear effects. The effect of INSURED_VALUE is clearly non-linear. The smoothing indicates that we could model this relationship as a quadratic effect.However, the effect is smoothed by logarithmising INSURED_VALUE.
 
 The analysis shows that there are no clear indications of significant interactions for the time being.
 
@@ -834,8 +851,7 @@ result_table <- data.frame(
 )
 
 # Print the table
-print(result_table)
-
+knitr::kable(result_table, caption = "Results of the Linear Regression Model")
 
 #Summary of the model
 #summary(lm_model)
@@ -947,12 +963,12 @@ overdispersion <- deviance(poisson_model) / df.residual(poisson_model)
 # - A value close to 1 indicates an adequate fit without overdispersion.
 # - Values significantly greater than 1 suggest overdispersion, indicating that data variance exceeds the model's assumptions.
 #   If overdispersion is present, consider using a Negative Binomial model for a better fit.
-#cat("Overdispersion ratio (Deviance / DF):", overdispersion, "\n")
+cat("Overdispersion ratio (Deviance / DF):", overdispersion, "\n")
 
 # Poisson Deviance Test: Check Goodness-of-Fit of the model
 # Calculate p-value for H0: The model adequately describes the data
 p_value_fit <- 1 - pchisq(deviance(poisson_model), df.residual(poisson_model))
-#cat("Goodness-of-Fit p-value:", p_value_fit, "\n")
+cat("Goodness-of-Fit p-value:", p_value_fit, "\n")
 # Interpretation:
 # - A high p-value (> 0.05) suggests a good model fit to the data, as we do not reject H0.
 # - A low p-value (≤ 0.05) would indicate a poor fit, suggesting that the model does not describe the data well.
@@ -1061,7 +1077,6 @@ auc_value <- auc(
   predictor = predict(fit.binom.sign, type = "response")
 )
 
-
 # Combine results into a table
 result_table <- data.frame(
   Statistic = c(
@@ -1085,7 +1100,7 @@ result_table <- data.frame(
 )
 
 # Print the table
-print(result_table)
+knitr::kable(result_table, caption = "Results of the Binomial Regression Model")
 
 
 # ROC curve and AUC for model evaluation
@@ -1143,7 +1158,6 @@ dat_amount_claims$predicted_claims <- predict(gam_model,
                                               type = "response")
 
 # ROC curve
-library(pROC)
 predicted_probabilities_gam <- predict(gam_model, type = "response")
 roc_curve_gam <- roc(dat_amount_claims$AMOUNT_CLAIMS, predicted_probabilities_gam)
 auc_value_gam <- auc(roc_curve_gam)
